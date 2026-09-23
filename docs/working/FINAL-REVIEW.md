@@ -21,7 +21,7 @@
 
 | Kiểm tra | Kết quả | Bằng chứng |
 |---|---|---|
-| UI/nội dung tiếng Việt | PASS | PRD acceptance; README glossary; admin/JEV/auth flows đều yêu cầu tiếng Việt |
+| UI/nội dung đa ngôn ngữ | PASS | PRD/ARCHITECTURE/README yêu cầu toàn bộ user-facing content có bản dịch `en`/`vi`; nút chuyển ngôn ngữ độc lập với dark/light |
 | Transaction vocabulary | PASS | Enum/API chỉ `income` và `payment`; “Thanh toán” là nhãn UI; mọi `expense`/“chi phí” chỉ xuất hiện trong ranh giới/out-of-scope hoặc cảnh báo drift, không phải type |
 | Tiền tệ | PASS | VND xuyên README, PRD, domain, architecture, auth/JEV/admin/roadmap |
 | Múi giờ | PASS | `Asia/Ho_Chi_Minh` trong các canonical docs và handoffs; local month/date được định nghĩa rõ |

@@ -62,7 +62,7 @@ JWT có thể tồn tại sau này cho service-to-service đã xác định, nh�
 
 ### Presentation
 
-React hiển thị nội dung tiếng Việt, VND, biểu đồ pie/bar và dark/light. UI không tự tính số dư từ các giá trị do người dùng nhập; nó hiển thị kết quả API và trạng thái pending/error. Mọi thao tác thay đổi phải có feedback và lỗi dễ hiểu.
+React hiển thị nội dung theo locale `en` hoặc `vi`, VND, biểu đồ pie/bar và dark/light. UI không tự tính số dư từ các giá trị do người dùng nhập; nó hiển thị kết quả API và trạng thái pending/error. Nút chuyển ngôn ngữ là control riêng với nút dark/light. Mọi thao tác thay đổi phải có feedback và lỗi theo locale đang chọn.
 
 ### API/application
 
@@ -115,6 +115,15 @@ Cloudflare Workers là phương án deploy thay thế, nhưng chỉ chọn khi d
 6. Migrations không xóa/sửa lịch sử và giữ FK category/account.
 7. Log/metric đã mask secret và dữ liệu nhạy cảm; có audit cho auth, correction, admin và quyền đặc biệt.
 8. Mọi hiển thị/report định nghĩa theo VND và `Asia/Ho_Chi_Minh`.
+9. Mọi user-facing string có translation key và bản dịch `en`/`vi`; nút đổi ngôn ngữ độc lập với dark/light, còn enum/API/domain giữ nguyên.
+
+## 8. Internationalization
+
+- Locale của user được lưu trong profile hoặc preference; locale mặc định là `vi-VN`.
+- Nút chuyển ngôn ngữ đổi toàn bộ presentation copy mà không đổi dữ liệu tiền, timezone, enum, mã lỗi hoặc quyền.
+- Backend trả error code ổn định; frontend map error code sang bản dịch theo locale.
+- Report, email, notification, admin console và nội dung JEV đều phải chọn locale; số tiền vẫn định dạng VND và ngày/giờ vẫn theo `Asia/Ho_Chi_Minh`.
+- Translation catalog phải có kiểm tra key thiếu, placeholder mismatch và fallback rõ ràng.
 
 ## 8. Out-of-scope
 

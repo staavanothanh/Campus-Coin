@@ -6,7 +6,7 @@
 
 ## Mục tiêu và định nghĩa hoàn thành
 
-Từ SRS tiếng Việt và các quyết định sản phẩm mới, tạo bộ tài liệu tiếng Việt nhất quán dưới `docs/`, bao gồm bản đồ tài liệu, PRD, kiến trúc, mô hình miền, xác thực, JEV, vận hành quản trị và lộ trình. Mọi tài liệu phải giữ đúng các bất biến: chỉ có `income` và `payment`; tiền tệ VND; múi giờ `Asia/Ho_Chi_Minh`; lịch sử giao dịch bất biến; ví tách khỏi tiền tiết kiệm; cảnh báo ngân sách không chặn thanh toán; không định vị như ngân hàng, cho vay hoặc BNPL.
+Từ SRS tiếng Việt và các quyết định sản phẩm mới, tạo bộ tài liệu nhất quán dưới `docs/`, bao gồm bản đồ tài liệu, PRD, kiến trúc, mô hình miền, xác thực, JEV, vận hành quản trị và lộ trình. Mọi tài liệu phải giữ đúng các bất biến: chỉ có `income` và `payment`; tiền tệ VND; múi giờ `Asia/Ho_Chi_Minh`; lịch sử giao dịch bất biến; ví tách khỏi tiền tiết kiệm; cảnh báo ngân sách không chặn thanh toán; toàn bộ app có locale `en`/`vi` và nút chuyển ngôn ngữ riêng độc lập với dark/light.
 
 ## Quy tắc làm việc chung
 
@@ -38,7 +38,8 @@ Từ SRS tiếng Việt và các quyết định sản phẩm mới, tạo bộ 
 2. `CC-002` và `CC-003` được đối chiếu khi viết `AUTHENTICATION.md`/`ARCHITECTURE.md`; phương án bảo thủ (opaque session) được chọn.
 3. `CC-004` cung cấp ranh giới JEV cho `AI-JEV.md` và quyền/workflow cho `ADMIN-OPERATIONS.md`.
 4. Không work item nào mở rộng thành ngân hàng, cho vay, BNPL, lãi suất hoặc tư vấn tài chính.
-5. Tất cả handoff và canonical docs đã được điều phối viên đọc trước khi đóng thẻ.
+5. Tất cả handoff và canonical docs phải mô tả presentation i18n `en`/`vi`; enum/API/domain giữ nguyên bằng tiếng Anh.
+6. Tất cả handoff và canonical docs đã được điều phối viên đọc trước khi đóng thẻ.
 
 ## Theo dõi blocker
 

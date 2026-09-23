@@ -16,7 +16,7 @@ Campus Coin là sổ theo dõi do người dùng nhập, không phải sổ ngâ
 
 ### User
 
-`User` có `id`, display name, email chuẩn hóa, status, locale `vi-VN`, timezone mặc định `Asia/Ho_Chi_Minh`, created/updated timestamps. User là chủ sở hữu dữ liệu; mọi query financial phải scope theo `user_id`.
+`User` có `id`, display name, email chuẩn hóa, status, locale mặc định `vi-VN` hoặc `en`, timezone mặc định `Asia/Ho_Chi_Minh`, created/updated timestamps. User là chủ sở hữu dữ liệu; mọi query financial phải scope theo `user_id`. Locale chỉ điều khiển nội dung trình bày, không thay đổi enum/API, công thức tiền hoặc dữ liệu audit.
 
 ### AuthIdentity và Credential
 

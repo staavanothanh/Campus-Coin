@@ -10,7 +10,7 @@ Sản phẩm không gọi JEV là cố vấn tài chính, không hứa dự đo�
 
 ### Phân loại khi nhập
 
-Từ description tiếng Việt do user nhập, JEV có thể đề xuất category áp dụng cho `income` hoặc `payment`, confidence, rationale ngắn và model/version. User phải xác nhận hoặc chọn lại; category cuối phải qua domain validation (đúng owner, active, đúng applies_to). Nếu confidence thấp/response không hợp lệ, picker thủ công là đường chính.
+Từ description do user nhập, JEV có thể đề xuất category áp dụng cho `income` hoặc `payment`, confidence, rationale ngắn và model/version. Output phải theo locale `en` hoặc `vi` đang chọn; category cuối phải qua domain validation (đúng owner, active, đúng applies_to). User phải xác nhận hoặc chọn lại; nếu confidence thấp/response không hợp lệ, picker thủ công là đường chính.
 
 ### Trích xuất hỗ trợ (tùy chọn)
 
@@ -18,7 +18,7 @@ JEV có thể trích xuất amount/date/merchant từ text/CSV nếu user yêu c
 
 ### Tóm tắt tháng/gợi ý
 
-Backend tổng hợp deterministic các số: tổng `income`, tổng `payment`, budget usage, xu hướng và dữ liệu đã được phép. JEV chỉ chuyển tập số liệu đó thành summary tiếng Việt dễ đọc hoặc gợi ý hành động. Không gửi raw ledger nếu aggregate đủ; không cho JEV tính lại số dư. Insight phải ghi input period/version, model/version, generated_at, confidence/quality status và có thể tái tạo.
+Backend tổng hợp deterministic các số: tổng `income`, tổng `payment`, budget usage, xu hướng và dữ liệu đã được phép. JEV chỉ chuyển tập số liệu đó thành summary dễ đọc theo locale `en`/`vi` hoặc gợi ý hành động. Không gửi raw ledger nếu aggregate đủ; không cho JEV tính lại số dư. Insight phải ghi input period/version, locale, model/version, generated_at, confidence/quality status và có thể tái tạo.
 
 ## 3. Những điều JEV không được làm
 
@@ -77,8 +77,7 @@ JEV/email/worker failure không rollback ledger hoặc chặn tạo `income`/`pa
 
 - Threshold không được biến thành authorization. Nó chỉ quyết định auto-show suggestion hay yêu cầu manual selection.
 - UI phải phân biệt “Đề xuất của JEV” với category đã xác nhận.
-- Cho phép user override trước commit và sửa feedback sau đó bằng flow append-only metadata; không mutate historical transaction.
-- Insight có disclaimer ngắn, ngôn ngữ tiếng Việt, không hứa chắc chắn và không đưa lời khuyên ngoài phạm vi.
+- Insight có disclaimer ngắn theo locale `en`/`vi`, không hứa chắc chắn và không đưa lời khuyên ngoài phạm vi.
 - Với output nhạy cảm/không an toàn, status `needs_review`/ẩn, không gửi Gmail notification tự động.
 
 ## 8. Đánh giá và giám sát
@@ -102,7 +101,7 @@ Không dùng acceptance rate đơn độc để chứng minh tính đúng; đi�
 5. Monthly insight chỉ dùng aggregate đã kiểm chứng; số hiển thị khớp backend, output sai bị ẩn/review.
 6. Job async idempotent, retry bounded, failed status quan sát được; lỗi không rollback ledger.
 7. Prompt/response không chứa secret; payload được minimize/redact và retention được ghi nhận.
-8. AI-generated text có nhãn rõ, bằng tiếng Việt và không quảng bá banking/lending/BNPL/pay-later.
+8. AI-generated text có nhãn rõ, theo locale `en`/`vi` và không quảng bá banking/lending/BNPL/pay-later.
 
 ## 10. Out-of-scope
 

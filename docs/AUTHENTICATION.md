@@ -10,7 +10,7 @@ Campus Coin xác thực người dùng để bảo vệ dữ liệu do chính h�
 
 ### User và identity
 
-- `User` là account nội bộ có ID bất biến, status (`active`, `suspended`, `closed`), email chuẩn hóa, email verification status, display name, locale `vi-VN`, timezone `Asia/Ho_Chi_Minh`.
+- `User` là account nội bộ có ID bất biến, status (`active`, `suspended`, `closed`), email chuẩn hóa, email verification status, display name, locale (`vi-VN` hoặc `en`), timezone `Asia/Ho_Chi_Minh`.
 - `PasswordCredential` lưu hash mật khẩu bằng thuật toán password hashing hiện đại có cost/parameters cấu hình; không lưu plaintext.
 - `AuthIdentity` lưu provider (`google`), provider subject (`sub`) và user ID. Unique key là provider + subject; không dùng email làm định danh OAuth duy nhất.
 - Một user có thể có local credential và Google identity. Phải giữ ít nhất một phương án đăng nhập/recovery hợp lệ trước khi unlink phương án còn lại.
@@ -23,7 +23,7 @@ Campus Coin xác thực người dùng để bảo vệ dữ liệu do chính h�
 1. Client gửi email, mật khẩu và display name qua HTTPS.
 2. API validate định dạng/độ dài, chuẩn hóa email để lookup, kiểm tra mật khẩu không nằm trong danh sách cấm phổ biến.
 3. API tạo user ở trạng thái cần xác minh email nếu policy yêu cầu, lưu password hash và gửi email xác minh hoặc thông báo hướng dẫn.
-4. Response không xác nhận email đã tồn tại ở màn hình đăng ký; message tiếng Việt trung tính.
+4. Response không xác nhận email đã tồn tại ở màn hình đăng ký; message trung tính theo locale đang chọn.
 5. Sau khi xác minh/đăng nhập thành công, API tạo session mới và ghi security event.
 
 Không tạo wallet baseline hoặc transaction chỉ vì đăng ký. User phải nhập số dư ví ban đầu trong flow onboarding riêng; số dư đó không phải `income`.
@@ -131,6 +131,7 @@ JWT không được dùng làm browser session MVP. Nếu tương lai có servic
 7. Session cookie không chứa VND balance, `income`, `payment`, role hoặc token provider.
 8. Mọi mutation financial yêu cầu CSRF/origin protection và validation; auth/provider failure không tạo ledger row.
 9. Không có secret/credential thật trong repository hoặc handoff.
+10. Error code API ổn định; mọi thông báo user-facing và email có bản dịch `en`/`vi` theo locale.
 
 ## 11. Out-of-scope
 

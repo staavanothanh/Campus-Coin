@@ -8,7 +8,7 @@ Handoff này phân tích đăng ký/đăng nhập local bằng email và mật k
 
 SRS yêu cầu đăng ký và đăng nhập sinh viên, quản lý phiên an toàn, khôi phục mật khẩu bằng email hoặc liên kết token, và lối vào quản trị riêng. Gmail notification ở đây chỉ có nghĩa gửi email tới địa chỉ người dùng (có thể là Gmail); không đọc hộp thư, không gửi thay người dùng, không xin Gmail API scope đọc/gửi và không phải ngân hàng hay giao dịch.
 
-Các quyết định sản phẩm bất biến: giao diện/nội dung tiếng Việt; VND; Asia/Ho_Chi_Minh; transaction type chỉ income và payment, dùng từ thanh toán, không tạo type expense hoặc chi phí; lịch sử giao dịch immutable; wallet tách savings; payment lấy từ wallet và không vượt số dư; budget chỉ tính payment và cảnh báo không chặn; không ngân hàng, cho vay, BNPL; deterministic money logic authoritative, AI chỉ advisory. Auth/email không được thay đổi các bất biến này.
+Các quyết định sản phẩm bất biến: UI/nội dung hỗ trợ `en` và `vi`, có nút chuyển ngôn ngữ riêng; VND; Asia/Ho_Chi_Minh; transaction type chỉ income và payment, dùng từ thanh toán, không tạo type expense hoặc chi phí; lịch sử giao dịch immutable; wallet tách savings; payment lấy từ wallet và không vượt số dư; budget chỉ tính payment và cảnh báo không chặn; không ngân hàng, cho vay, BNPL; deterministic money logic authoritative, AI chỉ advisory. Auth/email không được đổi các bất biến này.
 
 CC-003 chưa chốt managed hay custom auth, DB/session store, email provider, secret manager và topology domain. Các đề xuất dưới đây là phương án bảo thủ: nếu dùng dịch vụ managed, provider phải chứng minh control tương đương trước khi chọn.
 

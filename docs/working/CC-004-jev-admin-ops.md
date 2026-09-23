@@ -17,7 +17,7 @@ SRS tiếng Việt mô tả AI là tùy chọn cho đề xuất phân loại, t�
 
 ### 1.2 Các giả định cần giữ khi tích hợp
 
-- Ngôn ngữ UI, nội dung JEV, report và thông báo là **tiếng Việt**; locale mặc định `vi-VN`.
+- Ngôn ngữ UI, nội dung JEV, report và thông báo hỗ trợ **English (`en`) và Tiếng Việt (`vi`)**; user chuyển bằng nút riêng; locale mặc định `vi-VN`.
 - Tiền tệ duy nhất là **VND**; mọi phép cộng, trừ, so sánh, làm tròn, tổng hợp và kiểm tra giới hạn do logic xác định của miền tiền thực hiện.
 - Múi giờ nghiệp vụ là **`Asia/Ho_Chi_Minh`**. Ranh giới ngày, tuần, tháng, thời điểm chốt snapshot và lịch chạy job phải dùng múi giờ này; timestamp lưu trữ phải giữ timezone/UTC theo quyết định hạ tầng nhưng không được đổi nghĩa ngày nghiệp vụ.
 - `transaction.type` chỉ có **`income`** và **`payment`**. Trong UI và tài liệu nghiệp vụ dùng “thanh toán” cho loại `payment`; không tạo type thứ ba và không dùng từ chỉ khoản chi như một giá trị type.
@@ -296,7 +296,7 @@ Admin được xem active users, số report theo state/capability, tổng trans
 - [ ] Content/settings có version, review, publish/rollback, kill switch và audit; setting không tự động hồi tố artifact hoặc làm thay đổi tiền.
 - [ ] Dashboard admin chỉ đưa aggregate usage/JEV quality; không có raw financial export và không dùng report analytics làm nguồn tiền authoritative.
 - [ ] Report user có tháng/category payment, sáu tháng income-vs-payment, ngày/tuần, filter, VND, timezone và export; AI tắt/lỗi vẫn có report xác định.
-- [ ] UI/content tiếng Việt và nhãn AI advisory xuất hiện trong suggestion, summary, tip, report issue và fallback.
+- [ ] UI/content và nhãn AI advisory có bản dịch `en`/`vi` trong suggestion, summary, tip, report issue và fallback.
 
 ## 11. Out-of-scope
 
@@ -332,7 +332,7 @@ Admin được xem active users, số report theo state/capability, tổng trans
 | `DOMAIN-MODEL.md` | Provenance/status của AI artifact, source snapshot/fact, user report/audit/content version; liên kết với append-only ledger nhưng không biến artifact thành transaction. |
 | `ARCHITECTURE.md` | JEV orchestrator/provider adapter, outbox/queue/worker, validation, circuit breaker, fallback, redaction, service auth, retention boundary và observability. |
 | `AUTHENTICATION.md` | Mapping role/permission, scoped service token, admin session, break-glass/elevated raw-detail access, audit actor và account disable/reset boundary. |
-| `PRD.md` | AI tùy chọn/advisory, report user, export, admin nhẹ, UI tiếng Việt, nhãn không phải tư vấn tài chính và các out-of-scope tài chính. |
+| `PRD.md` | AI tùy chọn/advisory, report user, export, admin nhẹ, UI locale `en`/`vi`, nhãn không phải tư vấn tài chính và các out-of-scope tài chính. |
 | `ROADMAP.md` | Phases: deterministic report/fallback trước; JEV classification sync; async batch/summary; admin triage/content; evaluation/canary; privacy/provider decisions và các câu hỏi mở. |
 
 **Kết luận handoff:** đủ cơ sở để viết `AI-JEV.md` và `ADMIN-OPERATIONS.md` mà không trao quyền authoritative cho JEV hoặc admin. Mọi điểm chưa chốt đều là provider/privacy/ops policy và không được tự biến thành phạm vi mới trong quá trình tích hợp.

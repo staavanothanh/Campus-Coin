@@ -8,7 +8,7 @@
 
 Handoff đối chiếu SRS tiếng Việt: kiến trúc ba tầng (React/frontend, Node/API, dữ liệu), đăng ký/đăng nhập và quản lý phiên, giao dịch, ngân sách, báo cáo, AI tùy chọn, CSV, quản trị, yêu cầu bảo mật/sẵn sàng. SRS nêu cơ sở dữ liệu quan hệ và liệt kê MySQL/MongoDB như các lựa chọn; đây là quyết định đề xuất, không phải ràng buộc phải dùng một vendor cụ thể.
 
-Các bất biến sản phẩm đã khóa được áp dụng xuyên suốt: UI/nội dung tiếng Việt; tiền **VND**; timezone nghiệp vụ `Asia/Ho_Chi_Minh`; transaction_type chỉ `income` và `payment` (không dùng `expense`/“chi phí” làm type); lịch sử transaction append-only/immutable; wallet tách savings; payment chỉ trừ wallet và không vượt số dư; budget chỉ tính payment và chỉ cảnh báo, không chặn; không ngân hàng/cho vay/BNPL; deterministic money logic là authoritative, AI advisory.
+Các bất biến sản phẩm đã khóa được áp dụng xuyên suốt: UI/nội dung có locale `en`/`vi` và nút chuyển riêng; tiền **VND**; timezone nghiệp vụ `Asia/Ho_Chi_Minh`; transaction_type chỉ `income` và `payment` (không dùng `expense`/“chi phí” làm type); lịch sử transaction append-only/immutable; wallet tách savings; payment chỉ trừ wallet và không vượt số dư; budget chỉ tính payment và chỉ cảnh báo, không chặn; không ngân hàng/cho vay/BNPL; deterministic money logic authoritative, AI advisory.
 
 Giả định: API chạy Node.js runtime; database managed có TLS, backup/PITR và HA tùy tier; traffic ban đầu vừa/nhỏ nhưng ledger phải giữ lâu dài; provider/region cuối cùng còn chờ ngân sách và yêu cầu lưu trú dữ liệu.
 

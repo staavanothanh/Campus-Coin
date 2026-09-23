@@ -25,14 +25,15 @@
 
 **Gate:** invariant/concurrency/correction acceptance trong `DOMAIN-MODEL.md`; payment thiếu ví bị reject, budget không can thiệp authorization.
 
-### M2: Budget, dashboard và trải nghiệm tiếng Việt
+### M2: Budget, dashboard và trải nghiệm đa ngôn ngữ
 
 - Monthly/category budgets, usage chỉ payment, threshold/overrun warning non-blocking.
 - Dashboard wallet/savings/tổng income/payment, report period theo Asia/Ho_Chi_Minh, pie/bar switch.
-- Dark/light dedicated button, responsive/accessibility baseline.
+- Dark/light dedicated button và language switch dedicated button cho `en`/`vi`.
+- Translation catalog cho frontend, API errors, report, notification, admin và JEV output.
 - Default category disable; custom category historical integrity.
 
-**Gate:** report đối soát deterministic; pie/bar cùng số liệu; toàn bộ UI/content tiếng Việt, VND.
+**Gate:** report đối soát deterministic; pie/bar cùng số liệu; toàn bộ UI/content có bản dịch `en`/`vi`, VND.
 
 ### M3: Report/admin vận hành
 
@@ -64,7 +65,7 @@
 
 - Query/index tuning, read projection rebuild, point-in-time recovery drill.
 - Cloudflare runtime evaluation nếu MySQL/session/job constraints được chứng minh.
-- Accessibility audit, localization hardening nếu mở thêm locale (không đổi VND/Asia/Ho_Chi_Minh nếu chưa có quyết định).
+- Accessibility audit và i18n/l10n audit: thiếu translation key, placeholder mismatch, overflow layout và locale persistence; không đổi VND/Asia/Ho_Chi_Minh nếu chưa có quyết định.
 
 ## 4. Rủi ro và cách giảm thiểu
 
@@ -106,6 +107,6 @@ Các câu hỏi trên không cho phép thay đổi enum, immutable history, wall
 
 ## 7. Definition of ready/done cho phase
 
-**Ready:** acceptance test, owner, data/privacy impact, migration/rollback note, UI Vietnamese copy và out-of-scope được ghi.
+**Ready:** acceptance test, owner, data/privacy impact, migration/rollback note, UI copy cho cả `en`/`vi`, locale fallback và out-of-scope được ghi.
 
 **Done:** implementation + focused tests/verification, migration/backup evidence, security review nếu auth/financial/PII, docs cập nhật, metrics/logs redacted và rollback/runbook. Không đánh dấu done chỉ vì UI scaffold hoặc model trả kết quả mẫu.

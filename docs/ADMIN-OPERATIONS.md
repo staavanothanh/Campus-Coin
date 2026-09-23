@@ -32,7 +32,7 @@ User gửi report
 
 Trạng thái tối thiểu: `new`, `triaged`, `investigating`, `waiting_user`, `resolved`, `closed`, `reopened`, `spam`. Mọi chuyển trạng thái ghi actor, timestamp, reason và correlation ID. Không xóa case; spam/PII cần redact theo retention và giữ audit event.
 
-Report form nên có loại issue, mô tả tiếng Việt, bước tái hiện, thiết bị/browser tùy chọn và consent đính kèm screenshot. Không yêu cầu user gửi password, OTP, cookie, token hoặc toàn bộ ledger. Nếu user tự dán secret, admin phải mask/redact và trigger security handling.
+Report form phải có bản dịch `en`/`vi`, loại issue, mô tả theo locale, bước tái hiện, thiết bị/browser tùy chọn và consent đính kèm screenshot. Không yêu cầu user gửi password, OTP, cookie, token hoặc toàn bộ ledger. Nếu user tự dán secret, admin phải mask/redact và trigger security handling.
 
 ### Triage
 
@@ -59,7 +59,7 @@ Admin không được “sửa cho khớp” bằng cách đổi amount/category
 
 Content admin có thể version hóa danh mục mặc định, template email/notification, copy cảnh báo budget và feature flags được phép. Thay đổi phải:
 
-- Có schema/preview, Vietnamese copy review và effective time.
+- Có schema/preview, copy review cho cả `en`/`vi` và effective time.
 - Không thay đổi enum `income`/`payment`, công thức money hoặc ranh giới savings.
 - Không xóa category có historical FK; disable/retire theo domain policy.
 - Có audit before/after metadata, người phê duyệt và rollback version an toàn.
@@ -94,7 +94,7 @@ User report/dashboard có thể hiển thị tổng `income`, `payment`, wallet,
 5. Payment/savings/ledger anomaly có incident path read-only/append-only; không có raw SQL correction.
 6. JEV/email/DB failures có runbook, owner, retry/fallback; admin không cấp quyền cho model.
 7. Metrics admin là aggregate cần thiết và các timestamp hiển thị theo `Asia/Ho_Chi_Minh`.
-8. Tất cả UI admin tiếng Việt và thông điệp không quảng bá banking/lending/BNPL/pay-later.
+8. Tất cả UI admin, report status, template và thông điệp có bản dịch `en`/`vi`, đồng thời không quảng bá banking/lending/BNPL/pay-later.
 
 ## 10. Out-of-scope
 

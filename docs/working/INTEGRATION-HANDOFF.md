@@ -17,11 +17,11 @@
 
 1. Chọn managed MySQL/InnoDB trên cloud vì transaction ACID, row lock, FK, immutable ledger, category history và SQL report/budget phù hợp hơn MongoDB authoritative.
 2. Chọn opaque server-side session trong cookie `HttpOnly; Secure; SameSite` (ưu tiên `__Host-`) cho browser. Local password và Google OAuth đều kết thúc ở cùng session; JWT browser không chọn trong MVP.
-3. Giữ đúng hai transaction type/API enum: `income` và `payment`; UI tiếng Việt dùng “Thu nhập” và “Thanh toán”. Không dùng expense/chi phí làm type.
+3. Giữ đúng hai transaction type/API enum: `income` và `payment`; UI dùng nhãn theo locale `en`/`vi` (“Thu nhập”/“Thanh toán” hoặc “Income”/“Payment”). Không dùng expense/chi phí làm type.
 4. Initial wallet balance là baseline do user nhập; mọi payment giảm ví và bị chặn atomic khi ví thiếu. Savings tách riêng; deposit/withdraw/auto transfer là internal transfer ngoài totals `income`/`payment`.
 5. Ledger đã commit và audit append-only. Sửa/xóa theo SRS cũ chuyển thành reversal/adjustment/replacement record có reference/reason/actor.
 6. Budget consumption chỉ tổng hợp payment theo tháng/category và warning non-blocking; budget không thay thế wallet authorization.
-7. JEV chỉ phân loại/trích xuất/gợi ý/tóm tắt trên payload tối thiểu; confidence thấp, timeout, schema failure hoặc privacy concern đều fallback manual/failed status. JEV không tính tiền, authorize, mutate ledger hoặc cấp quyền.
+7. JEV chỉ phân loại/trích xuất/gợi ý/tóm tắt trên payload tối thiểu; confidence thấp, timeout, schema failure hoặc privacy concern đều fallback manual/failed status. JEV không tính tiền, authorize, mutate ledger hoặc cấp quyền. Output JEV, report, notification và admin content hỗ trợ locale `en`/`vi`.
 8. Admin chủ yếu triage report/issue, status/note/content/settings với least privilege; admin không sửa ledger/balance và financial detail mặc định được mask.
 9. Vercel Node runtime là target MVP; Cloudflare chỉ là phương án conditional sau compatibility spike. Secrets, provider, region, retention và JEV endpoint vẫn là deployment decisions.
 

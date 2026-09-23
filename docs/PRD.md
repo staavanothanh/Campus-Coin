@@ -2,7 +2,7 @@
 
 ## 1. Tóm tắt
 
-Campus Coin là ứng dụng Web tiếng Việt dành cho sinh viên để tự ghi nhận `income` và `payment`, theo dõi số dư ví hiện tại, tách riêng tiền tiết kiệm, đặt ngân sách theo tháng/danh mục và xem báo cáo dễ hiểu. Mục tiêu là giúp người dùng nhìn thấy dòng tiền do mình nhập và đưa ra quyết định chi tiêu có ý thức; ứng dụng không giữ tiền, không kết nối ngân hàng và không cung cấp sản phẩm tín dụng.
+Campus Coin là ứng dụng Web hỗ trợ hai ngôn ngữ **English (en)** và **Tiếng Việt (vi)** dành cho sinh viên để tự ghi nhận `income` và `payment`, theo dõi số dư ví hiện tại, tách riêng tiền tiết kiệm, đặt ngân sách theo tháng/danh mục và xem báo cáo dễ hiểu. Người dùng chuyển ngôn ngữ bằng một nút riêng, độc lập với nút dark/light. Mục tiêu là giúp người dùng nhìn thấy dòng tiền do mình nhập và đưa ra quyết định chi tiêu có ý thức; ứng dụng không giữ tiền, không kết nối ngân hàng và không cung cấp sản phẩm tín dụng.
 
 Mọi phép tính số dư, kiểm tra khả dụng và mức sử dụng ngân sách do backend/domain service xác định. JEV (tên model được yêu cầu) chỉ tạo đề xuất có thể kiểm tra, không có quyền quyết định tài chính.
 
@@ -67,7 +67,7 @@ Chỉ số vận hành nên theo dõi sau MVP: tỷ lệ tạo giao dịch thàn
 - Báo cáo tháng và xu hướng tối đa sáu tháng gồm tổng hợp theo danh mục, ngày/tuần và đối chiếu ngân sách.
 - Người dùng chuyển biểu đồ giữa pie và bar; lựa chọn chỉ là cách trình bày, không đổi dữ liệu.
 - Nút chuyên dụng chuyển dark/light; trạng thái được lưu theo người dùng/trình duyệt.
-- Nội dung, label, validation và thông báo đều bằng tiếng Việt; UI hỗ trợ bàn phím, focus rõ và tương phản phù hợp.
+- Toàn bộ nội dung hiển thị, label, validation, lỗi, report, notification và admin UI có bản dịch `en`/`vi`; nút chuyển ngôn ngữ hoạt động độc lập với nút dark/light. UI hỗ trợ bàn phím, focus rõ và tương phản phù hợp.
 
 ### 4.6 JEV và quản trị
 
@@ -90,7 +90,9 @@ Chỉ số vận hành nên theo dõi sau MVP: tỷ lệ tạo giao dịch thàn
 11. Dashboard/report cho cùng một tập dữ liệu cho cùng tổng VND, bất kể chọn pie hay bar.
 12. JEV lỗi, timeout hoặc confidence thấp thì hệ thống cho chọn category thủ công; JEV không được quyết định số dư/quyền.
 13. Admin chỉ thấy dữ liệu cần cho report/operation theo quyền; mọi truy cập đặc biệt được audit.
-14. Toàn bộ UI/content là tiếng Việt, tiền là VND và kỳ báo cáo dùng `Asia/Ho_Chi_Minh`.
+14. Toàn bộ UI/content có thể chuyển đổi giữa English và Tiếng Việt bằng nút riêng; tiền là VND và kỳ báo cáo dùng `Asia/Ho_Chi_Minh`.
+
+15. Locale chỉ thay đổi nội dung trình bày; enum/API/domain (`income`, `payment`), mã lỗi, công thức tiền và dữ liệu audit không đổi theo ngôn ngữ.
 
 ## 6. Out-of-scope và ranh giới bắt buộc
 

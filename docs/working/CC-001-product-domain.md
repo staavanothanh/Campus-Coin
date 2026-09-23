@@ -71,7 +71,7 @@ CustomCategory chỉ thuộc đúng một StudentAccount.
 
 | Thực thể | Thuộc tính miền đề xuất | Bất biến chính |
 |---|---|---|
-| `StudentAccount` | `id`, `role`, `locale=vi-VN`, `timezone=Asia/Ho_Chi_Minh`, `currency=VND`, hồ sơ sinh viên, `created_at` | Tài khoản chỉ đọc dữ liệu của chính mình; `role` sinh viên và quyền quản trị là hai ranh giới khác nhau. |
+| `StudentAccount` | `id`, `role`, `locale` (`vi-VN` hoặc `en`), `timezone=Asia/Ho_Chi_Minh`, `currency=VND`, hồ sơ sinh viên, `created_at` | Tài khoản chỉ đọc dữ liệu của chính mình; `role` sinh viên và quyền quản trị là hai ranh giới khác nhau. Locale chỉ đổi presentation copy. |
 | `Wallet` | `account_id`, số dư có thể cache, `currency=VND` | Một ví cho một tài khoản; số dư authoritative là kết quả từ sổ cái và chuyển nội bộ, cache phải có thể tái tạo; chỉ `income`/`payment` và transfer hợp lệ ảnh hưởng ví. |
 | `SavingsAccount` | `account_id`, số dư có thể cache, `currency=VND` | Tách biệt khỏi ví; deposit/withdrawal/scheduled deposit là `SavingsTransfer` nội bộ, không phải transaction type và không tính vào income/payment/budget. |
 | `Category` | `id`, `owner_scope` (system/account), `owner_id`, `name`, `kind` (`income`/`payment`), `status` (`active`/`retired`), audit | `kind` phải khớp `Transaction.kind`; tên duy nhất trong cùng owner + kind; danh mục đã dùng chỉ được retire, không hard-delete. |
@@ -324,7 +324,7 @@ budget_spent(account, category, month)
 | Tài liệu đích | Nội dung cần đưa vào |
 |---|---|
 | `docs/DOMAIN-MODEL.md` | Glossary §2; quan hệ Account–Wallet–Savings–Category–Transaction–Budget; enum hai kind; trạng thái original/reversal; formula `walletEffect`; budget formula; category lifecycle. |
-| `docs/PRD.md` | Capability sinh viên; UI tiếng Việt; flow ghi income/payment; wallet guard; budget warning không chặn; acceptance AC-01–AC-15; các mâu thuẫn SRS được override. |
+| `docs/PRD.md` | Capability sinh viên; UI có locale `en`/`vi`; flow ghi income/payment; wallet guard; budget warning không chặn; acceptance AC-01–AC-15; các mâu thuẫn SRS được override. |
 | `docs/ARCHITECTURE.md` | Append-only ledger, integer VND, timezone normalization, transaction/lock/idempotency, derived-cache reconciliation, DB constraints và prefix-balance validation. |
 | `docs/AUTHENTICATION.md` | Ownership account; phân cách student/admin; mọi command money cần actor; quyền admin chỉ quản trị, không sửa lịch sử. Phối hợp với CC-002 về session/OAuth/OTP. |
 | `docs/AI-JEV.md` | AI/JEV advisory, provenance/confidence/override, không gọi money command authoritative; deterministic wallet/budget/reversal nằm ngoài AI. Phối hợp với CC-004 về fallback/privacy/evaluation. |
