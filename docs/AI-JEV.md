@@ -1,111 +1,97 @@
-# AI-JEV — Ranh giới, pipeline và an toàn
+# JEV — Ranh giới OpenRouter và an toàn
 
-## 1. Mục đích
+> JEV là tính năng tùy chọn trong MVP, dùng TypeSafe JEV qua OpenRouter nếu qua cổng kiểm chứng. Không tự host. Feature flag mặc định tắt.
 
-`jev` là model/adapter AI tùy chọn dùng để giảm thao tác nhập và tạo thông tin diễn giải từ dữ liệu Campus Coin. JEV là **advisory**: có thể trích xuất, phân loại, tóm tắt hoặc gợi ý; không phải nguồn sự thật cho tiền. Backend/domain services vẫn là authority cho ví, tiền tiết kiệm, budget, ledger, authorization và trạng thái giao dịch.
+## 1. Bằng chứng cần dùng
 
-Sản phẩm không gọi JEV là cố vấn tài chính, không hứa dự đoán lợi nhuận và không dùng output để quảng cáo cho vay, BNPL, banking hoặc pay-later.
+- [TypeSafe System One](https://docs.typesafe.ai/concepts/system-one.md): quyết định có kiểu, không phải chat prose.
+- [TypeSafe API](https://docs.typesafe.ai/api.md): state, model, questions và kết quả Choice.
+- [TypeSafe confidence](https://docs.typesafe.ai/confidence.md): confidence là tín hiệu để đặt ngưỡng, không phải bằng chứng đúng tuyệt đối.
+- [OpenRouter JEV](https://openrouter.ai/docs/guides/community/jev) và [System One API](https://openrouter.ai/docs/api/api-reference/systemone/submit-a-system-one-request.md).
+- [OpenRouter privacy](https://openrouter.ai/docs/guides/privacy/data-collection.md): retention/provider policy phải kiểm tra hiện hành.
 
-## 2. Use case được phép
+Link là nguồn tham khảo; endpoint, model, quota, cost và policy chỉ được coi là sự thật sau probe Day 1.
 
-### Phân loại khi nhập
+## 2. Cổng tương thích
 
-Từ description do user nhập, JEV có thể đề xuất category áp dụng cho `income` hoặc `payment`, confidence, rationale ngắn và model/version. Output phải theo locale `en` hoặc `vi` đang chọn; category cuối phải qua domain validation (đúng owner, active, đúng applies_to). User phải xác nhận hoặc chọn lại; nếu confidence thấp/response không hợp lệ, picker thủ công là đường chính.
+Developer D phải chạy probe server-only và ghi lại endpoint, transport model ID, typed Choice response, probabilities/confidence, HTTP errors, timeout, quota, `usage.cost`, latency và privacy configuration.
 
-### Trích xuất hỗ trợ (tùy chọn)
+Nếu typed contract không xác minh được, JEV giữ disabled/deferred. Không gọi chat completion rồi tự parse JSON/prose. Không tự host để thay thế.
 
-JEV có thể trích xuất amount/date/merchant từ text/CSV nếu user yêu cầu. Backend phải parse schema, kiểm tra amount VND nguyên dương, ngày theo `Asia/Ho_Chi_Minh`, loại giao dịch và category; không tự commit chỉ vì model trả JSON.
+## 3. Trường hợp sử dụng được phép
 
-### Tóm tắt tháng/gợi ý
+JEV chỉ gợi ý một category từ candidate set giới hạn cho description của `income` hoặc `payment`. User phải xác nhận hoặc đổi. Domain kiểm tra owner, transaction type, category active và idempotency trước khi commit.
 
-Backend tổng hợp deterministic các số: tổng `income`, tổng `payment`, budget usage, xu hướng và dữ liệu đã được phép. JEV chỉ chuyển tập số liệu đó thành summary dễ đọc theo locale `en`/`vi` hoặc gợi ý hành động. Không gửi raw ledger nếu aggregate đủ; không cho JEV tính lại số dư. Insight phải ghi input period/version, locale, model/version, generated_at, confidence/quality status và có thể tái tạo.
+JEV không được:
 
-## 3. Những điều JEV không được làm
+- tính wallet, savings, budget, amount hoặc date;
+- authorize payment;
+- tạo/sửa/xóa ledger, savings hoặc budget;
+- đọc balance, raw ledger, Google claim, session, secret hoặc admin note;
+- tạo tư vấn tài chính, loan/BNPL hoặc autonomous action.
 
-- Không tính authoritative `wallet_balance`, `savings_balance`, `budget_used`.
-- Không quyết định payment có được authorize, không bypass wallet check/DB transaction/CSRF/role.
-- Không tự tạo, sửa, xóa ledger; không sửa category lịch sử mà không có xác nhận.
-- Không biến internal savings transfer thành `income`/`payment`.
-- Không đọc session secret, password, OTP, Google token, admin note hoặc dữ liệu user khác.
-- Không chẩn đoán/tư vấn tài chính được chứng nhận, không khuyến nghị khoản vay/BNPL/lãi suất/đầu tư.
-- Không huấn luyện lại hoặc lưu dữ liệu user ngoài retention/consent đã công bố.
+## 4. Hợp đồng adapter
 
-## 4. Pipeline sync cho gợi ý category
+Request nội bộ server-only:
 
-```text
-User nhập description/type
-  -> API auth + validate + redact/minimize
-  -> JEV adapter (schema, timeout, model/version)
-  -> Validate category ID/label + confidence
-  -> UI hiển thị “Đề xuất”, cho sửa/xác nhận
-  -> Domain service tạo income/payment theo lựa chọn cuối
-  -> Lưu provenance (optional) và feedback correction
+```json
+{
+  "transactionType": "income|payment",
+  "descriptionRedacted": "văn bản ngắn đã loại PII",
+  "candidates": [{"id": "opaque-category-key", "semanticLabel": "nhãn ngắn"}],
+  "locale": "en|vi",
+  "contractVersion": "jev-category-v1"
+}
 ```
 
-Đặc tính:
+Response chuẩn hóa:
 
-- Timeout ngắn và bounded; request JEV không mở transaction money lâu.
-- Response phải parse schema chặt: `suggestedCategory`, `confidence 0..1`, `reasonCode` tùy chọn, model/version; field lạ bỏ qua.
-- Không gọi JEV nếu user đã chọn category rõ ràng trừ khi user yêu cầu.
-- Correction/user override được lưu làm feedback aggregate, không gửi raw PII mặc định.
-- Nếu timeout, quota, schema lỗi hoặc confidence dưới threshold cấu hình: trả `jev_unavailable/low_confidence`, dùng manual picker; giao dịch vẫn có thể tạo nếu user chọn hợp lệ.
+```json
+{
+  "status": "suggested|manual|disabled|unavailable",
+  "categoryId": "opaque-category-key|null",
+  "confidence": 0.0,
+  "probabilities": {},
+  "modelId": "provider snapshot|null",
+  "provider": "openrouter|null",
+  "usageCostUsd": 0.0,
+  "reasonCode": "low_confidence|timeout|quota|schema|flag_off|null"
+}
+```
 
-## 5. Pipeline async cho insight tháng
+Validate schema, candidate membership, `other_or_uncertain`, probability/confidence range, response size và cost. Malformed output phải fallback manual, không đoán.
 
-1. Scheduler tạo job key duy nhất `user + local_month + data_version + insight_kind`.
-2. Worker đọc aggregate deterministic đã scope user và permission; loại secret/raw detail không cần thiết.
-3. Adapter gọi JEV với timeout, retry bounded cho lỗi tạm thời; không retry vô hạn.
-4. Validate output length/language/safety/schema; loại prompt injection trong description bằng cách coi description là data, không instruction.
-5. Lưu insight với status `generated`, `failed`, `needs_review` hoặc `stale`; lưu model/version/input version và timestamp.
-6. UI hiển thị rõ “Tóm tắt do AI tạo” và link dữ liệu nền; user có thể bỏ qua/ẩn/gắn cờ.
-7. Khi ledger/budget correction tạo data version mới, insight cũ gắn stale hoặc regenerate; không sửa lịch sử insight âm thầm.
+## 5. Chính sách runtime
 
-JEV/email/worker failure không rollback ledger hoặc chặn tạo `income`/`payment`. Failed job có dead-letter/alert và nút retry an toàn bằng idempotency.
+- Backend-only; `OPENROUTER_API_KEY` không tới browser.
+- `JEV_CATEGORY_SUGGESTION_ENABLED=false` mặc định.
+- Timeout, rate, concurrency, input length, candidate count và daily spend phải bounded.
+- Không retry mặc định; retry chỉ khi evidence cost/latency cho phép.
+- Không giữ MySQL money transaction trong lúc chờ OpenRouter.
+- Timeout, 4xx/5xx, 402/403/404/413/429, schema/privacy/low-confidence đều trả manual picker.
+- Log chỉ metadata đã mask: status, latency, model snapshot, fallback reason và cost bucket.
 
-## 6. Privacy và bảo vệ dữ liệu
+## 6. Privacy và đánh giá
 
-- Data minimization: ưu tiên aggregate; description/merchant chỉ gửi khi cần phân loại và có consent/điều khoản rõ.
-- Tách user ID nội bộ khỏi prompt; dùng correlation/job ID không đảo ngược.
-- Redact email, phone, OTP, cookie, password, access token, địa chỉ và PII không cần thiết.
-- TLS khi truyền; credential JEV trong secret manager; không log prompt/response đầy đủ mặc định.
-- Xác định retention/deletion theo loại dữ liệu, provider policy và yêu cầu người dùng; tránh gửi dữ liệu lịch sử vĩnh viễn.
-- Nếu provider dùng dữ liệu để training, chỉ bật khi có đánh giá/consent phù hợp; mặc định không cho phép với dữ liệu financial user.
-- User có thể tắt tính năng AI; khi tắt, workflow manual và report deterministic vẫn hoạt động.
-- Admin không đọc raw prompt/response nếu không cần điều tra; chỉ xem metadata masked.
+Redact email, phone, address, token, cookie, credential và internal ID. Không gửi full ledger, balance, savings hoặc amount nếu không cần cho category. Kiểm tra logging/training/provider policy trước khi bật. Nếu privacy không đạt, giữ JEV off.
 
-## 7. Confidence, override và human control
+Bộ đánh giá gồm 50–100 ví dụ synthetic/anonymized cho `en`/`vi`, income/payment, mọi category, ambiguity, PII-like text, prompt injection, disabled category và correction. Đo accuracy, abstention, override, schema failure, fallback, p95 latency và cost.
 
-- Threshold không được biến thành authorization. Nó chỉ quyết định auto-show suggestion hay yêu cầu manual selection.
-- UI phải phân biệt “Đề xuất của JEV” với category đã xác nhận.
-- Insight có disclaimer ngắn theo locale `en`/`vi`, không hứa chắc chắn và không đưa lời khuyên ngoài phạm vi.
-- Với output nhạy cảm/không an toàn, status `needs_review`/ẩn, không gửi Gmail notification tự động.
+## 7. Tiêu chí chấp nhận
 
-## 8. Đánh giá và giám sát
+1. JEV off/unavailable không thay đổi money path.
+2. Typed compatibility được chứng minh hoặc JEV disabled.
+3. Chỉ suggestion hợp lệ từ active candidate tới UI.
+4. User confirmation bắt buộc trước commit.
+5. Mọi lỗi fallback manual.
+6. Không log prompt/raw response/secret/balance/ledger.
+7. Không gọi JEV trong money transaction.
+8. `en`/`vi` do app localization kiểm soát.
 
-Theo dõi tách biệt:
+## 8. Phần để sau
 
-- Category suggestion acceptance/override theo type/category (không làm lộ description).
-- Parse/schema failure, timeout, fallback rate, latency, token/cost và provider availability.
-- Insight factual consistency bằng deterministic cross-check: số trong text phải khớp aggregate cho phép; không cho phép số mới do JEV bịa.
-- Vietnamese language/clarity/safety review trên tập dữ liệu synthetic/anonymized.
-- Drift theo model/version và rollback adapter nếu quality/safety giảm.
+Monthly prose summary, OCR/CSV extraction, recurring automation, prediction, chat, autonomous action và mọi reasoning về amount/date/balance.
 
-Không dùng acceptance rate đơn độc để chứng minh tính đúng; điều kiện chặn là mọi money invariant vẫn pass khi JEV tắt, sai hoặc bị prompt injection.
+## 9. ADR liên quan
 
-## 9. Acceptance criteria
-
-1. Tắt JEV vẫn tạo được `income`/`payment`, tính wallet/savings/budget và cảnh báo bằng code deterministic.
-2. JEV output không hợp schema/timeout/low confidence được fallback manual; không tạo giao dịch tự động.
-3. Payment vẫn bị chặn khi wallet thiếu dù JEV gợi ý cho phép; budget overrun vẫn chỉ warning.
-4. Category đề xuất không đúng applies_to/owner/active bị reject; user có thể override.
-5. Monthly insight chỉ dùng aggregate đã kiểm chứng; số hiển thị khớp backend, output sai bị ẩn/review.
-6. Job async idempotent, retry bounded, failed status quan sát được; lỗi không rollback ledger.
-7. Prompt/response không chứa secret; payload được minimize/redact và retention được ghi nhận.
-8. AI-generated text có nhãn rõ, theo locale `en`/`vi` và không quảng bá banking/lending/BNPL/pay-later.
-
-## 10. Out-of-scope
-
-- Autonomous agent có quyền thực hiện payment, savings transfer, budget change hoặc account action.
-- Chấm điểm tín dụng, tư vấn đầu tư, dự báo lợi nhuận, tính lãi suất hoặc chọn khoản vay.
-- Fine-tune/training trên dữ liệu tài chính nhận dạng được nếu chưa có governance/consent.
-- Chat tự do với quyền truy cập toàn bộ ledger/admin; OCR/import tự commit không qua domain validation.
+[ADR-0006](./adr/0006-optional-openrouter-jev.md).

@@ -1,67 +1,85 @@
-# Campus Coin — Bộ tài liệu sản phẩm và kiến trúc
+# Campus Coin — Bản đồ tài liệu và quyết định
 
-## Mục đích
+## 1. Mục đích
 
-Thư mục này là nguồn tài liệu chuẩn cho Campus Coin: một ứng dụng Web hỗ trợ hai ngôn ngữ **English (en)** và **Tiếng Việt (vi)**, giúp sinh viên ghi nhận `income` (thu nhập), `payment` (thanh toán), theo dõi ví, quản lý tiền tiết kiệm và ngân sách. Người dùng chuyển ngôn ngữ bằng một nút riêng, độc lập với nút chuyển dark/light. Ứng dụng **không phải** ngân hàng, dịch vụ cho vay, BNPL/pay-later hay dịch vụ tư vấn tài chính.
+Campus Coin là ứng dụng Web song ngữ cho sinh viên ghi nhận dữ liệu tự nhập `income` và `payment`, theo dõi ví, savings, ngân sách và báo cáo. Sản phẩm không phải ngân hàng, không giữ tiền thật, không xử lý thanh toán thật, không cho vay, không BNPL và không cung cấp tư vấn tài chính được chứng nhận.
 
-Tài liệu này được xây dựng từ SRS tiếng Việt và các quyết định sản phẩm mới. Khi SRS cũ mâu thuẫn với các quyết định mới, quyết định mới trong bộ tài liệu này được ưu tiên. SRS gốc không bị sửa.
+Đây là bản đồ tài liệu. Quyết định khó đảo ngược nằm trong [`adr/README.md`](./adr/README.md). Kế hoạch hiện tại nằm trong [`DELIVERY-PLAN.md`](./DELIVERY-PLAN.md). Không coi tài liệu là bằng chứng provider đã hoạt động nếu chưa có release evidence.
+## 1.1. Cấu trúc thư mục
 
-## Quyết định nền tảng đã chốt
+```text
+docs/
+├── README.md                 # Bản đồ và quy tắc ưu tiên
+├── DECISIONS.md              # Bảng tra nhanh các quyết định
+├── PRD.md                    # Yêu cầu sản phẩm và phạm vi
+├── ARCHITECTURE.md           # Kiến trúc và boundary
+├── DOMAIN-MODEL.md           # Miền dữ liệu và bất biến
+├── AUTHENTICATION.md         # Xác thực và phân quyền
+├── AI-JEV.md                 # Ranh giới JEV/OpenRouter
+├── ADMIN-OPERATIONS.md       # Quản trị và vận hành
+├── ROADMAP.md                # Lộ trình và các phần để sau
+├── DELIVERY-PLAN.md          # Kế hoạch giao hàng Day 0–5
+├── TEAM-BOARD.md             # Bảng triển khai human team
+├── adr/                      # Lịch sử quyết định kiến trúc, ổn định
+└── working/                  # Handoff, replan và bằng chứng tạm thời
+    ├── README.md             # Quy tắc và phân loại working docs
+    └── replan/               # Bằng chứng của lượt replan hiện tại
+```
 
-| Chủ đề | Quyết định |
-|---|---|
-| Ngôn ngữ giao diện/nội dung | Toàn bộ UI, thông báo, validation, report và nội dung sản phẩm hỗ trợ `en`/`vi`; người dùng chuyển bằng nút riêng. Thuật ngữ loại giao dịch trong API/domain vẫn là đúng hai giá trị `income` và `payment`; nhãn UI theo locale lần lượt là “Thu nhập”/“Thanh toán” hoặc “Income”/“Payment”. |
-| Tiền tệ | VND; số tiền là số nguyên dương theo VND, không dùng số thực cho tính toán tiền. |
-| Thời gian | Quy ước nghiệp vụ và hiển thị `Asia/Ho_Chi_Minh`; có thể lưu instant UTC nhưng mọi ngày/tháng báo cáo được quy đổi theo múi giờ Việt Nam. |
-| Lịch sử | Ledger giao dịch bất biến. Không sửa/xóa âm thầm; hiệu chỉnh bằng bản ghi đảo/điều chỉnh mới và audit trail. |
-| Ví và tiết kiệm | Ví là nguồn của mọi `payment`; tiền tiết kiệm là số dư/khoản mục riêng, không gộp vào ví. Chuyển vào/ra tiết kiệm là internal transfer, không phải `income`/`payment` và không tính vào tổng hai loại đó. |
-| Ngân sách | Theo tháng và danh mục; chỉ `payment` làm tăng mức sử dụng. Cảnh báo chạm/vượt ngưỡng không chặn thanh toán. |
-| Tính toán tiền | Backend/domain service và giao dịch DB là nguồn sự thật duy nhất. JEV chỉ phân loại, trích xuất, tóm tắt hoặc gợi ý. |
-| Cơ sở dữ liệu | MySQL được quản lý trên cloud, có transaction/foreign key/constraint và backup; xem `ARCHITECTURE.md`. |
-| Xác thực | Server-side opaque session trong cookie bảo mật cho ứng dụng Web; Google OAuth và local password đều đổi thành session; không dùng JWT làm session trình duyệt. |
-| Triển khai | React + TypeScript/TSX và Node.js API TypeScript trên Vercel (MVP), kết nối MySQL managed; nhà cung cấp cụ thể là quyết định triển khai, không ghi secret vào repo. |
+Root `docs/` là canonical product docs; `adr/` là canonical history; `working/` không được ghi đè quyết định trong ADR hoặc canonical docs.
 
-## Bản đồ tài liệu
+## 2. Quyết định đã chốt
 
-| Tài liệu | Nội dung chính | Đọc khi |
+| Chủ đề | Quyết định | ADR |
 |---|---|---|
-| [`PRD.md`](./PRD.md) | Tầm nhìn, người dùng, phạm vi, yêu cầu, acceptance criteria và out-of-scope | Cần hiểu sản phẩm phải làm gì |
-| [`ARCHITECTURE.md`](./ARCHITECTURE.md) | Kiến trúc lớp, stack, cloud, dữ liệu, auth boundary và vận hành | Cần quyết định hệ thống được xây như thế nào |
-| [`DOMAIN-MODEL.md`](./DOMAIN-MODEL.md) | Thực thể, ledger bất biến, công thức ví/tiết kiệm/ngân sách và invariant | Cần triển khai hoặc review nghiệp vụ tiền |
-| [`AUTHENTICATION.md`](./AUTHENTICATION.md) | Local account, Google OAuth, linking, OTP, session, Gmail notification và threat controls | Cần thiết kế auth hoặc recovery |
-| [`AI-JEV.md`](./AI-JEV.md) | Ranh giới JEV, pipeline sync/async, fallback, privacy và đánh giá | Cần tích hợp AI an toàn |
-| [`ADMIN-OPERATIONS.md`](./ADMIN-OPERATIONS.md) | Vai trò admin, report/issue workflow, least privilege và audit | Cần vận hành sản phẩm |
-| [`ROADMAP.md`](./ROADMAP.md) | MVP, các phase sau, rủi ro và câu hỏi mở không blocking | Cần lập kế hoạch thực hiện |
-| [`working/TEAM-BOARD.md`](./working/TEAM-BOARD.md) | Bảng Kanban, owner, scope, handoff và merge gate của lượt phân tích này | Cần truy vết cách tài liệu được tạo |
+| Xác thực | Chỉ Google OAuth trong MVP; identity theo `(google, sub)` | [ADR-0001](./adr/0001-google-oauth-only.md) |
+| Phiên trình duyệt | Opaque server-side session, cookie bảo mật, owner lấy từ session | [ADR-0002](./adr/0002-opaque-browser-session.md) |
+| Cơ sở dữ liệu | Cloud MySQL sau cổng kiểm chứng provider/region/free-tier/restore | [ADR-0003](./adr/0003-cloud-mysql-validation-gate.md) |
+| Triển khai/email | Domain Vercel; custom email domain và notification không nằm trên critical path | [ADR-0004](./adr/0004-vercel-domain-no-custom-email.md) |
+| Tiền | `income`/`payment` bất biến, VND nguyên, savings tách biệt, budget chỉ cảnh báo | [ADR-0005](./adr/0005-immutable-money-domain.md) |
+| JEV | Optional, backend-only, OpenRouter typed contract, default-off, manual fallback | [ADR-0006](./adr/0006-optional-openrouter-jev.md) |
+| Giao hàng | Thin-slice 4–5 ngày, bốn developer, Team Leader quyết định GO/NO-GO | [ADR-0007](./adr/0007-five-day-thin-slice.md) |
 
-## Thứ tự ưu tiên khi có mâu thuẫn
+## 3. Bản đồ tài liệu chuẩn
 
-1. Quyết định sản phẩm được nêu trong yêu cầu hiện hành.
-2. Invariant và ranh giới an toàn trong `DOMAIN-MODEL.md`/`AUTHENTICATION.md`.
-3. Quyết định kiến trúc trong `ARCHITECTURE.md`.
-4. Yêu cầu chức năng còn phù hợp của SRS Campus Coin.
-5. Giả định hoặc câu hỏi mở trong `ROADMAP.md`.
+| Tài liệu | Vai trò |
+|---|---|
+| [`PRD.md`](./PRD.md) | Mục tiêu, phạm vi MVP, acceptance và scope cut |
+| [`ARCHITECTURE.md`](./ARCHITECTURE.md) | Luồng lớp, boundary, triển khai và dependency |
+| [`DOMAIN-MODEL.md`](./DOMAIN-MODEL.md) | Thực thể, công thức, invariant và transaction |
+| [`AUTHENTICATION.md`](./AUTHENTICATION.md) | Google OAuth, session, CSRF, owner scope và threat controls |
+| [`AI-JEV.md`](./AI-JEV.md) | Boundary OpenRouter/JEV, probe, privacy và fallback |
+| [`ADMIN-OPERATIONS.md`](./ADMIN-OPERATIONS.md) | Least privilege, issue workflow, audit và incident |
+| [`ROADMAP.md`](./ROADMAP.md) | Mốc MVP, deferred work, risk và gate |
+| [`DELIVERY-PLAN.md`](./DELIVERY-PLAN.md) | Kế hoạch Day 0–5, owner, checklist và rollback |
+| [`DECISIONS.md`](./DECISIONS.md) | Chỉ mục quyết định tương thích ADR; chi tiết chuẩn ở `docs/adr/` |
+| [`TEAM-BOARD.md`](./TEAM-BOARD.md) | Bảng sở hữu và trạng thái triển khai của human team |
 
-## Phạm vi tài liệu và ngoài phạm vi
+## 4. Thứ tự ưu tiên khi mâu thuẫn
 
-Bộ tài liệu mô tả một web app quản lý thu nhập và thanh toán do người dùng tự nhập. Không tài liệu nào cấp phép tích hợp tài khoản ngân hàng, giữ tiền thật, xử lý thanh toán thật, cho vay, BNPL, tính lãi, đầu tư hoặc đưa lời khuyên tài chính được chứng nhận. Tài liệu cũng không chứa mã nguồn, credential thật hoặc dữ liệu cá nhân thật.
+1. Yêu cầu hiện hành và quyết định trực tiếp của Team Leader.
+2. ADR đã chấp nhận.
+3. Invariant trong `DOMAIN-MODEL.md` và `AUTHENTICATION.md`.
+4. PRD, architecture, delivery plan và roadmap.
+5. Handoff trong `docs/working/` chỉ là bằng chứng tư vấn, không được mở lại quyết định đã chốt.
 
-## Quy tắc thuật ngữ
+## 5. Thuật ngữ bắt buộc
 
-- Viết `income` và `payment` khi nói về enum/API/domain; dùng “Thu nhập” và “Thanh toán” ở UI.
-- Không dùng `expense` hoặc “chi phí” để đặt tên loại giao dịch. Có thể nói “mức sử dụng ngân sách” hoặc “tổng thanh toán”.
-- “Ví” là số dư khả dụng để thanh toán; “tiền tiết kiệm” là số dư tách biệt.
-- “Điều chỉnh/đảo giao dịch” luôn là bản ghi mới tham chiếu bản ghi cũ, không phải mutation.
-- Mọi ví dụ tiền dùng VND; mọi ngày/tháng nghiệp vụ dùng `Asia/Ho_Chi_Minh`.
+- Dùng `income` và `payment` cho enum/API/domain; UI dịch thành “Thu nhập” và “Thanh toán”.
+- Không dùng `expense` hoặc “chi phí” làm transaction type.
+- “Ví” là wallet; “savings” là aggregate tiết kiệm riêng; savings transfer không phải ledger transaction.
+- “JEV” luôn là advisory; không phải authority tài chính.
+- `en`/`vi` chỉ thay đổi trình bày, không thay đổi enum, công thức, audit hoặc authorization.
 
-## Quy tắc đa ngôn ngữ
+## 6. Quy tắc cập nhật và sở hữu nguồn
 
-- Mọi nội dung người dùng nhìn thấy phải có bản dịch `en` và `vi`: navigation, label, form, validation, lỗi nghiệp vụ, report, notification, nội dung admin và nhãn AI.
-- Nút chuyển ngôn ngữ là control riêng, hoạt động độc lập với nút dark/light; lựa chọn được lưu theo user hoặc trình duyệt.
-- Locale mặc định cho user Việt Nam là `vi-VN`; locale English dùng `en-US` hoặc `en-GB` theo quyết định triển khai, không thay đổi currency VND hoặc timezone `Asia/Ho_Chi_Minh`.
-- Enum/API/domain, tên field, mã lỗi và audit event giữ ổn định bằng tiếng Anh; chỉ lớp presentation/localization thay đổi nhãn hiển thị.
-- Không ghép chuỗi bằng cách trộn hai ngôn ngữ. Translation key phải có fallback an toàn và được kiểm tra khi thiếu bản dịch.
+| Nhóm sự thật | Nguồn duy nhất | Không ghi bản sao quyết định ở |
+|---|---|---|
+| Quyết định khó đảo ngược | [`adr/`](./adr/) | Handoff, roadmap, board |
+| Yêu cầu/phạm vi/acceptance | [`PRD.md`](./PRD.md) | ADR trừ phần lý do/quyết định |
+| Bất biến và công thức tiền | [`DOMAIN-MODEL.md`](./DOMAIN-MODEL.md) | UI/handoff |
+| Auth/session/owner scope | [`AUTHENTICATION.md`](./AUTHENTICATION.md) | Handoff cũ |
+| Trạng thái/gate hiện tại | [`DELIVERY-PLAN.md`](./DELIVERY-PLAN.md) | ADR |
+| Bằng chứng quy trình | [`working/`](./working/) | Canonical decision |
 
-## Cách cập nhật
-
-Thay đổi miền phải cập nhật đồng thời `PRD.md`, `DOMAIN-MODEL.md` và các acceptance criteria liên quan. Thay đổi auth phải cập nhật `AUTHENTICATION.md` và `ARCHITECTURE.md`. Thay đổi JEV/admin phải cập nhật tài liệu tương ứng và `ROADMAP.md`. Mọi quyết định mới cần ghi giả định, tác động và cách kiểm chứng; không ghi secret.
+Thay đổi auth phải cập nhật ADR-0001/0002, `AUTHENTICATION.md`, `ARCHITECTURE.md` và acceptance liên quan. Thay đổi money invariant phải cập nhật ADR-0005, `DOMAIN-MODEL.md`, `PRD.md` và delivery gate. Thay đổi JEV phải cập nhật ADR-0006 và `AI-JEV.md`. Không ghi secret, token, raw PII hoặc claim provider chưa kiểm chứng.

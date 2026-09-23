@@ -1,104 +1,68 @@
-# ADMIN-OPERATIONS — Quản trị và vận hành
+# Quản trị và vận hành — Campus Coin
 
-## 1. Mục tiêu
+## 1. Mục tiêu và ranh giới
 
-Admin của Campus Coin là vai trò vận hành nhẹ: tiếp nhận và xử lý report/issue về trải nghiệm app, theo dõi trạng thái, ghi note nội bộ và quản lý một số cấu hình nội dung/setting được phê duyệt. Admin không phải teller, không điều chỉnh số dư, không sửa lịch sử `income`/`payment`, không truy cập tài chính rộng hơn nhu cầu xử lý.
+Admin là vai trò vận hành nhẹ: tiếp nhận report/issue, triage, cập nhật trạng thái, ghi note nội bộ và quản lý cấu hình nội dung đã được cấp quyền. Admin không là teller, không điều chỉnh số dư, không sửa/xóa ledger, không bypass payment check và không xem toàn bộ tài chính user nếu không có scope hợp lệ.
 
-App vẫn là sản phẩm quản lý thu nhập và thanh toán của sinh viên; admin console không biến sản phẩm thành ngân hàng, lending, BNPL hay payment operation.
+## 2. Vai trò least privilege
 
-## 2. Vai trò và least privilege
-
-| Vai trò | Quyền | Không được |
+| Vai trò | Được phép | Không được phép |
 |---|---|---|
-| `user` | Tạo/xem dữ liệu của mình; quản lý category/budget/savings theo domain; gửi report | Xem user khác; sửa/xóa ledger history; bypass ví |
-| `support_admin` | Đọc queue report đã mask; đổi status/priority; ghi note; phản hồi template được duyệt | Xem raw ledger/số dư mặc định; sửa financial data; cấp role |
-| `content_admin` | Quản lý template/thông báo/danh mục mặc định theo version và approval; xem metrics tổng hợp | Sửa transaction/category reference lịch sử; truy cập PII không cần |
-| `ops_admin` | Quản lý setting vận hành, feature flag, job retry/incident theo audit; xem metadata masked | Xóa audit, thay đổi money rules trực tiếp, dùng JEV để authorize |
-| `admin_owner` | Quản lý role/approval/break-glass theo quy trình | Không được bỏ qua append-only/audit hoặc tự phê duyệt hành động nhạy cảm |
-
-MVP có thể gộp support/content/ops vào một admin account giới hạn, nhưng permission phải tách ở API và audit như các scope độc lập. Deny-by-default; không tin role do client gửi.
+| Support | Xem issue đã mask, hỏi thêm thông tin, cập nhật trạng thái | Xem raw ledger/balance hoặc đổi tiền |
+| Ops/content | Quản lý category/copy/feature flag được cấp quyền, có version/audit | Xóa category đã tham chiếu hoặc đổi invariant |
+| Security/owner | Xử lý incident, break-glass có reason/time-bound | Tắt kiểm soát để “sửa nhanh” |
+| Admin | Chỉ scope được cấp và audit đầy đủ | Sửa ledger, balance, audit hoặc JEV authority |
 
 ## 3. Report/issue workflow
 
 ```text
 User gửi report
-  -> validate + rate limit + redact/PII warning
-  -> tạo case (new)
-  -> triage: priority/category/owner (triaged)
-  -> điều tra tối thiểu, note nội bộ (investigating)
-  -> phản hồi/sửa content/config hoặc liên kết incident (resolved)
-  -> user xác nhận/timeout (closed)
+  -> validate + rate limit + mask PII
+  -> tạo case append-only
+  -> triage priority/status
+  -> assign owner
+  -> note/audit
+  -> resolve hoặc escalate incident
 ```
 
-Trạng thái tối thiểu: `new`, `triaged`, `investigating`, `waiting_user`, `resolved`, `closed`, `reopened`, `spam`. Mọi chuyển trạng thái ghi actor, timestamp, reason và correlation ID. Không xóa case; spam/PII cần redact theo retention và giữ audit event.
+- `P0`: nghi IDOR, mất ledger integrity, lộ secret/PII hoặc payment/savings invariant sai; disable write path nếu cần và escalate ngay.
+- `P1`: auth outage, nhiều user không tạo payment, provider failure ảnh hưởng core path.
+- `P2`: lỗi trải nghiệm, copy, category hoặc report không khẩn cấp.
 
-Report form phải có bản dịch `en`/`vi`, loại issue, mô tả theo locale, bước tái hiện, thiết bị/browser tùy chọn và consent đính kèm screenshot. Không yêu cầu user gửi password, OTP, cookie, token hoặc toàn bộ ledger. Nếu user tự dán secret, admin phải mask/redact và trigger security handling.
+Report không yêu cầu password, OTP, cookie, token hoặc full ledger. Input phải validate, rate-limit và redact.
 
-### Triage
+## 4. Xử lý report tài chính
 
-- `P0`: nghi ngờ unauthorized access, mất toàn vẹn ledger, lộ secret/PII hoặc payment/savings invariant sai; khóa workflow liên quan nếu cần, escalation security/owner ngay.
-- `P1`: nhiều user không tạo payment, auth outage, email reset hỏng, JEV gây output nguy hiểm; owner và incident note.
-- `P2`: lỗi chức năng giới hạn, report/notification sai, category/budget UX.
-- `P3`: câu hỏi, copy, enhancement, cosmetic.
+Nếu user báo sai số dư, thiếu payment hoặc correction: không sửa trực tiếp. Thu thập case ID, request/correlation ID, thời điểm và dữ liệu tối thiểu; chuyển Developer B kiểm tra projection/ledger. Correction chỉ qua domain command append-only có reason và audit. Không raw SQL delete/update để sửa.
 
-Severity không tự cấp quyền xem financial detail. Khi điều tra, dùng event ID/aggregate metric và dữ liệu synthetic trước; break-glass phải có lý do, approval và thời hạn.
+## 5. Content và setting
 
-## 4. Xử lý report tài chính an toàn
+Category mặc định, copy cảnh báo và feature flag phải có version, owner, reason, approval và audit. Disable/retire phải giữ history. Không bật JEV bằng client flag. JEV luôn default-off và không có money authority.
 
-Nếu report nói sai số dư, thiếu payment hoặc correction:
+## 6. Audit và privacy
 
-1. Support admin xác nhận case và xin thông tin tối thiểu (case ID, thời điểm, message lỗi), không yêu cầu export đầy đủ.
-2. Kiểm tra audit/transaction metadata đã mask hoặc chuyển owner có scope financial-support riêng; không SQL update/delete.
-3. Chạy đối soát domain/projection từ ledger immutable; nếu sai thật, mở correction/incident workflow có approval.
-4. Correction luôn append-only, reason + actor + original reference; user được thông báo ngắn gọn.
-5. Đóng case chỉ khi acceptance/reconciliation evidence được lưu.
+Audit append-only tối thiểu ghi actor, scope, target, action, reason, request/correlation ID, outcome và timestamp. Không ghi password, OTP, cookie, token, OAuth code, secret, raw JEV prompt/response hoặc financial detail không cần thiết. Break-glass cần reason, approval, time limit và review.
 
-Admin không được “sửa cho khớp” bằng cách đổi amount/category/date của bản ghi cũ. Không dùng JEV để xác định bản ghi đúng.
+## 7. Incident và rollback
 
-## 5. Content và operational settings
+- **Auth/IDOR:** chặn access, revoke session, preserve evidence, escalate Developer A.
+- **Ledger/payment/savings:** chuyển read-only hoặc disable write; không xóa row; reconcile từ immutable ledger.
+- **JEV/privacy/cost:** tắt JEV trước; manual picker vẫn phải hoạt động.
+- **DB/deploy:** dùng known-good deployment và runbook restore; Team Leader quyết định rollback/NO-GO.
 
-Content admin có thể version hóa danh mục mặc định, template email/notification, copy cảnh báo budget và feature flags được phép. Thay đổi phải:
+## 8. Metrics
 
-- Có schema/preview, copy review cho cả `en`/`vi` và effective time.
-- Không thay đổi enum `income`/`payment`, công thức money hoặc ranh giới savings.
-- Không xóa category có historical FK; disable/retire theo domain policy.
-- Có audit before/after metadata, người phê duyệt và rollback version an toàn.
-- Không dùng template để quảng cáo ngân hàng, vay, BNPL/pay-later hoặc tư vấn tài chính được chứng nhận.
+Chỉ thu aggregate cần cho vận hành: issue counts, auth failures, payment rejection, latency, JEV fallback/cost bucket, restore result và error rate. Không hiển thị tổng tiền của mọi user như một tính năng admin mặc định.
 
-## 6. Audit và dữ liệu admin
+## 9. Tiêu chí chấp nhận
 
-Audit event append-only tối thiểu cho: login/admin role change, report state/note, break-glass access, content setting change, correction request/approval, JEV job retry, email resend và export. Record actor, scope, target type/id, action, reason, request/correlation ID, result và timestamp theo `Asia/Ho_Chi_Minh` khi hiển thị.
+1. Admin triage/assign/status/note được issue mà không sửa ledger.
+2. Report không yêu cầu secret và được mask/rate-limit.
+3. Admin API server-enforce 403 và least privilege.
+4. Category/content changes có version/audit và không phá history.
+5. Payment/savings anomaly có incident path append-only/read-only.
+6. JEV/email/provider lỗi không làm hỏng money path.
 
-Không ghi password, OTP, session cookie, Google token, JEV secret hoặc raw personal description vào admin note/log. Financial detail mặc định masked/aggregated; access cụ thể cần scope, justification và time limit. Retention, deletion/redaction theo policy nhưng không xóa audit cần thiết để giữ chain-of-custody.
+## 10. Ngoài phạm vi
 
-## 7. Incident và vận hành
-
-- **Auth/email:** kiểm tra provider status, rate limit, queue; không tắt security control để “gửi cho nhanh”.
-- **Ledger/payment:** ưu tiên read-only/disable write path nếu invariant bị đe dọa; không rollback bằng cách xóa rows; preserve evidence.
-- **JEV:** tắt adapter/feature flag, fallback manual; ledger vẫn hoạt động.
-- **DB/backup:** bảo vệ read/write, kiểm tra restore staging, đối soát projection; không chạy destructive SQL production.
-- **Notification:** resend idempotent, tôn trọng opt-out; security email vẫn theo policy.
-
-Runbook phải có owner, điều kiện escalation, expected evidence và cách khôi phục; không đặt credential thật trong docs.
-
-## 8. Báo cáo người dùng và metrics
-
-User report/dashboard có thể hiển thị tổng `income`, `payment`, wallet, savings, budget usage của chính user; admin metrics toàn hệ thống chỉ aggregate: active users, case counts, JEV fallback rate, email failure rate, payment rejection counts và latency. Không hiển thị admin “tổng tiền mọi user” như một tính năng mặc định nếu không phục vụ vận hành hợp pháp.
-
-## 9. Acceptance criteria
-
-1. Admin có thể tạo/triage/assign/update status/note một report mà không sửa ledger.
-2. Report không yêu cầu password/OTP/token; input được validate/rate-limit và PII được mask.
-3. Support admin mặc định không thấy raw transaction detail/số dư; break-glass có reason, approval/time-bound audit.
-4. Content setting/category default thay đổi có version, approval, audit và không phá FK/lịch sử.
-5. Payment/savings/ledger anomaly có incident path read-only/append-only; không có raw SQL correction.
-6. JEV/email/DB failures có runbook, owner, retry/fallback; admin không cấp quyền cho model.
-7. Metrics admin là aggregate cần thiết và các timestamp hiển thị theo `Asia/Ho_Chi_Minh`.
-8. Tất cả UI admin, report status, template và thông điệp có bản dịch `en`/`vi`, đồng thời không quảng bá banking/lending/BNPL/pay-later.
-
-## 10. Out-of-scope
-
-- Admin sửa/xóa/hard-delete transaction, thay số dư ví/savings, bypass payment check hoặc xóa audit.
-- Admin xem toàn bộ tài chính user không có case/scope/approval.
-- Moderation mạng xã hội, marketplace, thu hộ, thanh toán thật, cấp tín dụng.
-- Tự động quyết định severity/correction bằng JEV mà không có người chịu trách nhiệm.
+Admin sửa/xóa transaction, đổi balance, bypass payment, xóa audit, đọc toàn bộ tài chính user, đọc Gmail, dùng Gmail cá nhân, hoặc trao autonomous money authority cho JEV.

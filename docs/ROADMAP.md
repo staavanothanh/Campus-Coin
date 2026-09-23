@@ -1,112 +1,72 @@
-# ROADMAP — Campus Coin
+# Lộ trình — Campus Coin
 
-## 1. Nguyên tắc lập lộ trình
+## 1. Nguyên tắc
 
-Ưu tiên tính đúng đắn và dễ hiểu của ví/savings/ledger trước tính năng AI hoặc mở rộng. Mỗi phase phải giữ các bất biến trong `DOMAIN-MODEL.md`, không làm yếu authentication/least privilege và không biến sản phẩm thành ngân hàng, lending, BNPL/pay-later hay dịch vụ tư vấn tài chính.
+Ưu tiên production thin-slice 4–5 ngày nhưng không hy sinh Google OAuth, owner scope, ledger immutable, wallet/savings separation, deterministic calculation, VND, `Asia/Ho_Chi_Minh`, `en`/`vi` và ranh giới no banking/lending/BNPL.
 
-## 2. MVP — đường dọc bắt buộc
+JEV và email tùy chọn không nằm trên money critical path. Provider chưa kiểm chứng thì tắt tính năng, không dùng fallback không an toàn.
 
-### M0: Nền tảng an toàn
+## 2. MVP
 
-- React + TypeScript/TSX, Node.js API TypeScript và managed MySQL cloud.
-- Environment/secret manager, TLS, migration, backup/restore staging, structured redacted logs.
-- Server-side opaque session, local password registration/login, Google OAuth, account linking guard, OTP reset.
-- Role `user`/limited admin, owner-scoped authorization, CSRF/rate limit/audit skeleton.
+### M0 — Google OAuth và nền tảng
 
-**Gate:** không có secret; auth flows có expiry/revoke; database restore được kiểm tra; tất cả API response lỗi tiếng Việt phù hợp.
+React + TypeScript/TSX, Node API TypeScript, Google OAuth state/PKCE/nonce/claims, opaque session, CSRF/origin, owner scope, Vercel-provided domain, env validation, TLS và redacted logs.
 
-### M1: Domain money tối thiểu
+**Gate:** callback production, session/IDOR, Vercel env/connectivity và DB candidate.
 
-- Onboarding nhập initial wallet balance.
-- Immutable ledger chỉ `income` và `payment`; category theo type.
-- Payment wallet check với transaction/row lock và idempotency.
-- Savings deposit/withdraw và optional monthly fixed auto-transfer, tách khỏi `income`/`payment` totals.
-- Correction/reversal append-only, audit trail.
+### M1 — Miền tiền
 
-**Gate:** invariant/concurrency/correction acceptance trong `DOMAIN-MODEL.md`; payment thiếu ví bị reject, budget không can thiệp authorization.
+Opening wallet, immutable `income`/`payment`, atomic insufficient-wallet block, savings deposit/withdraw, category lifecycle, budget warning, deterministic report và restore evidence.
 
-### M2: Budget, dashboard và trải nghiệm đa ngôn ngữ
+**Gate:** concurrency/idempotency, reconciliation, HCMC boundary, no client money authority.
 
-- Monthly/category budgets, usage chỉ payment, threshold/overrun warning non-blocking.
-- Dashboard wallet/savings/tổng income/payment, report period theo Asia/Ho_Chi_Minh, pie/bar switch.
-- Dark/light dedicated button và language switch dedicated button cho `en`/`vi`.
-- Translation catalog cho frontend, API errors, report, notification, admin và JEV output.
-- Default category disable; custom category historical integrity.
+### M2 — UI và admin
 
-**Gate:** report đối soát deterministic; pie/bar cùng số liệu; toàn bộ UI/content có bản dịch `en`/`vi`, VND.
+Dashboard, form income/payment, history, savings, budget/category, report pie/bar + table, `en`/`vi`, VND/HCMC, dark/light độc lập, accessibility, user report và admin issue queue.
 
-### M3: Report/admin vận hành
+**Gate:** JEV-off flow, mobile/keyboard/focus, least privilege và bilingual parity.
 
-- User report/issue form, admin queue/status/notes/least privilege.
-- Content/settings versioning, audit và incident/runbook tối thiểu.
-- Gmail security email + optional notification setting, queue/retry/idempotency.
+### M3 — JEV tùy chọn
 
-**Gate:** admin không sửa ledger; support detail masked; P0/P1 runbook và security escalation được diễn tập ở staging.
+Backend adapter OpenRouter typed System One/Decisions, model/endpoint probe, default-off, category suggestion only, schema/confidence/manual fallback, privacy/cost/latency evidence và kill switch.
 
-## 3. Phase sau MVP
+**Gate:** JEV off vẫn chạy đầy đủ; JEV không tính/authorize/write tiền.
 
-### P1: JEV có kiểm soát
+## 3. Lịch 5 ngày
 
-- Adapter contract/model registry và feature flag.
-- Sync category suggestion với confidence/manual override/fallback.
-- Async monthly summary từ aggregate, output validation, job idempotency/retry/dead-letter.
-- Privacy consent/retention, synthetic evaluation, quality/safety dashboards.
+| Ngày | Owner chính | Kết quả/gate |
+|---|---|---|
+| 0 | Team Leader + A/B/C/D | Scope, API, invariant, owner, logging và rollback trigger được khóa |
+| 1 | A/B/C/D | OAuth/Vercel, MySQL/restore, UI contract và OpenRouter probe có evidence |
+| 2 | A/B | Session/owner và money transaction; C/D tiêu thụ contract, JEV ngoài transaction |
+| 3 | C + A/B/D | UI/report/admin hai locale; security, reconciliation, fallback, redacted observability |
+| 4 | Tất cả | Integrated smoke, concurrency, restore, accessibility, privacy, rollback |
+| 5 | Team Leader/D | GO hoặc NO-GO/defer; không thêm feature |
 
-**Exit:** tắt JEV không đổi money behavior; JEV không tự commit; factual cross-check pass; fallback rate và cost có budget.
+## 4. Phần để sau
 
-### P2: Nhập/xuất và tiện ích
+Local password, account linking, OTP/reset, Gmail inbox, security email, notification tùy chọn, auto-transfer chưa có safety proof, CSV/PDF, recurring, prediction, complex AI summary/chat, banking, payment thật, lending, BNPL, interest, multi-currency, enterprise admin, custom domain/email và multi-provider auth.
 
-- CSV import preview + validation + user confirm; không auto-commit model output.
-- PDF/image export có privacy warning và rate limit.
-- Giao dịch lặp lại tạo rows riêng; không scheduler duplicate.
-- Saved tips/insights và history stale/regenerate semantics.
+## 5. Rủi ro và xử lý
 
-### P3: Độ tin cậy và mở rộng
+| Rủi ro | Xử lý |
+|---|---|
+| MySQL free tier thiếu restore/quota | Chọn candidate khác đã kiểm chứng hoặc Team Leader duyệt paid; không dùng local production |
+| OAuth callback/IDOR lỗi | NO-GO |
+| Wallet/savings invariant lỗi | NO-GO; không sửa ledger bằng SQL |
+| Vercel connection exhaustion | Bounded pool/connector hoặc đổi provider; không đoán số dư |
+| OpenRouter typed contract chưa rõ | JEV off; không parse chat |
+| JEV quality/privacy/cost kém | Tắt flag; manual picker là đường chính |
+| Email chưa sẵn sàng | Defer; không ảnh hưởng Google login |
 
-- Query/index tuning, read projection rebuild, point-in-time recovery drill.
-- Cloudflare runtime evaluation nếu MySQL/session/job constraints được chứng minh.
-- Accessibility audit và i18n/l10n audit: thiếu translation key, placeholder mismatch, overflow layout và locale persistence; không đổi VND/Asia/Ho_Chi_Minh nếu chưa có quyết định.
+## 6. Quyết định cần evidence sau Day 1
 
-## 4. Rủi ro và cách giảm thiểu
+MySQL provider/region/free-tier/restore, OpenRouter transport ID/model/quota/cost/latency/privacy, budget threshold và backup RPO/RTO thực tế. Không quyết định nào làm thay đổi enum, immutable history, wallet/savings, VND/HCMC hoặc no-banking boundary.
 
-| Rủi ro | Tác động | Giảm thiểu | Owner gợi ý |
-|---|---|---|---|
-| Concurrent payment làm ví âm | Critical: sai money state | MySQL transaction + row lock + invariant/reconciliation | Domain/API |
-| Sửa/xóa history để “sửa lỗi” | Mất audit/trust | Append-only reversal/correction + FK/audit | Domain/Ops |
-| OAuth link nhầm account | Account takeover/privacy | state/PKCE/nonce, re-auth, không merge email-only | Auth |
-| OTP abuse/account enumeration | Takeover/spam | hash-only, expiry, attempt/rate limits, generic response | Auth/Ops |
-| JEV bịa số hoặc prompt injection | Sai insight/privacy | aggregate input, schema/factual checks, advisory only, fallback | AI |
-| Managed DB outage/backup không restore | Mất availability/data | backup/PITR, restore drill, graceful read-only | Platform |
-| Serverless connection exhaustion | lỗi ngẫu nhiên/latency | pooler/driver phù hợp, bounded concurrency, metrics | Platform |
-| Email notification lộ dữ liệu | Privacy harm | minimize/mask, opt-in, security email split, provider controls | Auth/Ops |
-| Admin over-privilege | Insider/privacy | scoped roles, break-glass audit/time limit, aggregate default | Ops |
-| Terminology drift (`expense`, chi phí) | Người dùng hiểu sai domain | glossary/checklist/review docs và UI | Product |
+## 7. Định nghĩa hoàn thành
 
-## 5. Quyết định đã chốt và giả định
+Chỉ đánh dấu done khi source, focused smoke, migration/restore evidence, security review, redacted logs/rollback/runbook và docs đều đạt. UI scaffold, model response mẫu hoặc deploy thành công không đủ.
 
-- MySQL managed cloud được chọn thay MongoDB do transaction, FK và report/ledger integrity.
-- Opaque server session được chọn thay JWT browser session; JWT chỉ cân nhắc cho service-to-service thật sự.
-- Vercel là deployment target MVP; provider cụ thể, pooler, email provider và JEV endpoint là chi tiết triển khai sau.
-- Số dư ví ban đầu là baseline do user nhập, không biến thành `income`.
-- Savings transfer là internal transfer riêng, không thêm transaction type thứ ba.
-- Admin nhẹ và không có quyền sửa history; support data masked theo mặc định.
-- JEV không authoritative; mọi output phải có fallback/manual override.
-- CSV/PDF/recurring transaction/prediction không nằm trong core MVP trừ khi scope được re-approve.
+## 8. ADR liên quan
 
-## 6. Câu hỏi mở không blocking
-
-1. Chọn nhà cung cấp MySQL managed, pooler và region cụ thể nào để đáp ứng latency/backup/budget? Có thể quyết định ở deployment planning.
-2. Email OTP/Gmail-compatible provider nào, domain gửi và quota nào? Cần procurement/config, không đổi auth contract.
-3. `jev` chạy self-hosted hay provider managed, model/version và retention cụ thể nào? Cần security/privacy review trước bật production.
-4. Ngưỡng budget mặc định là 80/100% hay do user cấu hình hoàn toàn? Không ảnh hưởng rule warning non-blocking.
-5. Có cần email verify bắt buộc trước login hay chỉ trước sensitive actions? Chọn theo threat/risk và UX pilot.
-6. Có cần CSV/PDF/recurring trong release đầu tiên không? Đây là scope choice sau khi M0–M3 ổn định.
-7. Quy trình break-glass của admin cần một hay hai người phê duyệt? Quyết định theo đội vận hành.
-
-Các câu hỏi trên không cho phép thay đổi enum, immutable history, wallet/savings separation, VND, timezone, deterministic calculation hoặc out-of-scope banking/lending/BNPL. Nếu câu trả lời sau này làm thay đổi một invariant, phải cập nhật PRD, DOMAIN-MODEL, ARCHITECTURE và acceptance trước khi code.
-
-## 7. Definition of ready/done cho phase
-
-**Ready:** acceptance test, owner, data/privacy impact, migration/rollback note, UI copy cho cả `en`/`vi`, locale fallback và out-of-scope được ghi.
-
-**Done:** implementation + focused tests/verification, migration/backup evidence, security review nếu auth/financial/PII, docs cập nhật, metrics/logs redacted và rollback/runbook. Không đánh dấu done chỉ vì UI scaffold hoặc model trả kết quả mẫu.
+[ADR-0003](./adr/0003-cloud-mysql-validation-gate.md), [ADR-0006](./adr/0006-optional-openrouter-jev.md), [ADR-0007](./adr/0007-five-day-thin-slice.md).

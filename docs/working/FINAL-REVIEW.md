@@ -1,56 +1,33 @@
-# FINAL-REVIEW — Review cuối bộ tài liệu Campus Coin
+# Rà soát cuối tài liệu
+
+- **Ngày:** 2026-09-24
+- **Phạm vi:** Docs-only.
+- **Kết luận:** **Nhất quán PASS; release PENDING evidence và GO/NO-GO của Team Leader.**
 
 ## Kết quả
 
-`PASS WITH NON-BLOCKING OPEN DECISIONS` — bộ tài liệu đáp ứng phạm vi product/architecture documentation. Không còn blocker thuộc các invariant đã khóa. Các quyết định triển khai chưa chốt được liệt kê trong `ROADMAP.md` và không được suy diễn thành functionality.
+- Google OAuth-only, opaque session và owner scope nhất quán.
+- `income`/`payment` immutable, VND nguyên, savings tách biệt, budget warning-only và HCMC nhất quán.
+- UI dùng response authoritative, `en`/`vi`, VND/HCMC, accessibility và không có client money authority.
+- JEV optional/default-off/backend-only/typed/manual fallback; không tính, authorize hoặc ghi tiền.
+- Vercel domain, cloud MySQL, redacted log, migration, restore và rollback là các gate.
+- Scope cut không mở lại local password, linking, OTP/reset, Gmail hoặc JEV bắt buộc.
 
-## Phạm vi đã review
+## Còn phải kiểm chứng
 
-- `docs/README.md`
-- `docs/PRD.md`
-- `docs/ARCHITECTURE.md`
-- `docs/DOMAIN-MODEL.md`
-- `docs/AUTHENTICATION.md`
-- `docs/AI-JEV.md`
-- `docs/ADMIN-OPERATIONS.md`
-- `docs/ROADMAP.md`
-- `docs/working/TEAM-BOARD.md`
-- Bốn specialist handoff `CC-001` đến `CC-004`
-
-## Checklist consistency
-
-| Kiểm tra | Kết quả | Bằng chứng |
+| Gate | Owner | Hệ quả nếu thất bại |
 |---|---|---|
-| UI/nội dung đa ngôn ngữ | PASS | PRD/ARCHITECTURE/README yêu cầu toàn bộ user-facing content có bản dịch `en`/`vi`; nút chuyển ngôn ngữ độc lập với dark/light |
-| Transaction vocabulary | PASS | Enum/API chỉ `income` và `payment`; “Thanh toán” là nhãn UI; mọi `expense`/“chi phí” chỉ xuất hiện trong ranh giới/out-of-scope hoặc cảnh báo drift, không phải type |
-| Tiền tệ | PASS | VND xuyên README, PRD, domain, architecture, auth/JEV/admin/roadmap |
-| Múi giờ | PASS | `Asia/Ho_Chi_Minh` trong các canonical docs và handoffs; local month/date được định nghĩa rõ |
-| Immutable history | PASS | Append-only ledger, reversal/adjustment/replacement + audit; admin/JEV không sửa/xóa |
-| Wallet vs savings | PASS | Wallet là nguồn payment; savings aggregate riêng; internal transfer ngoài income/payment totals |
-| Budget | PASS | Chỉ payment tiêu thụ; warning/overrun không chặn nếu ví đủ; ví thiếu vẫn chặn |
-| Money authority | PASS | Backend/domain service + DB transaction là source of truth; JEV advisory/fallback |
-| DB/auth choice | PASS | Managed MySQL/InnoDB + opaque server-side session, trade-off ghi ở ARCHITECTURE |
-| Admin scope | PASS | Report/issue triage/status/note/content/settings; least privilege; không raw financial access mặc định |
-| Product boundary | PASS | Không ngân hàng, lending, BNPL/pay-later, payment thật, lãi suất hay financial advice |
-| Acceptance/out-of-scope | PASS | Có các mục rõ trong PRD, ARCHITECTURE, DOMAIN-MODEL, AUTHENTICATION, AI-JEV, ADMIN-OPERATIONS, ROADMAP |
-| Handoff/ownership | PASS | 4 file handoff riêng; board có owner/state/scope/acceptance/merge gate |
+| Google callback/claims/session/IDOR | A + Team Leader | NO-GO |
+| MySQL provider/region/TLS/connectivity/restore | B + Team Leader | NO-GO |
+| Domain transaction/reconciliation | B | NO-GO |
+| UI hai locale/accessibility/admin | C | NO-GO nếu core unusable |
+| Redaction/rollback/health | D | NO-GO |
+| OpenRouter typed contract/privacy/cost | D | Chỉ giữ JEV OFF |
 
-## File/link/heading evidence
+## Quy tắc release
 
-- Tám canonical files và bốn specialist handoffs cùng hai control-plane handoffs được tạo dưới `docs/`/`docs/working/`.
-- `docs/README.md` liên kết tương đối tới toàn bộ bảy tài liệu canonical còn lại và TEAM-BOARD.
-- Mỗi canonical doc có heading chính, các heading nghiệp vụ, acceptance criteria và/hoặc out-of-scope phù hợp.
-- `TEAM-BOARD.md` ghi tất cả cards ở `merged`, evidence, blocker status và merge gates.
-- `INTEGRATION-HANDOFF.md` ghi mapping specialist → canonical và quyết định tích hợp.
+Team Leader ghi GO chỉ khi non-JEV gates, auth, domain, restore, security, UI, rollback và production smoke đạt. JEV không đạt vẫn có thể launch với manual picker. Không dùng chat parsing để thay typed contract.
 
-## Ngoài phạm vi kiểm tra
+## Nguồn
 
-Đây là pass tài liệu; không chạy formatter, linter, build, test toàn dự án hoặc deploy. Chưa có source code để smoke test. Khi implementation bắt đầu, phải biến acceptance thành focused unit/integration/E2E tests và thực hiện security/restore/concurrency verification theo roadmap.
-
-## Quyết định/câu hỏi mở còn lại
-
-Provider/region MySQL, email/Gmail-compatible sender, JEV provider/model/version, RPO/RTO/retention, session duration, budget thresholds, break-glass approval và việc đưa CSV/PDF/recurring vào release đầu tiên chưa chốt. Đây là non-blocking implementation decisions; không được làm thay đổi invariant.
-
-## Rủi ro còn lại
-
-Các rủi ro triển khai chính: concurrent payment/lock, OAuth account linking, OTP abuse, serverless DB connections, provider/email privacy, JEV prompt injection/output drift và admin over-privilege. Mitigations và owner gợi ý ở `ROADMAP.md`; cần review trước code/deploy.
+[`../adr/README.md`](../adr/README.md), [`../DELIVERY-PLAN.md`](../DELIVERY-PLAN.md), [`replan/FINAL-REVIEW.md`](./replan/FINAL-REVIEW.md).
