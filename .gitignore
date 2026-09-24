@@ -1,2 +1,17 @@
+# SRS
 SRS_End-to-End Web Solutions/
+
+# Agents
 .agents/
+.codebase-memory/
+
+# env + vercel
+.env
+.env.*
+!.env.example
+.vercel
+.env*
+.vercel-env-sync/
+
+# temp
+.tmp/
