@@ -25,12 +25,13 @@ export class ApiError extends Error {
 }
 
 export async function api<T>(path: string, body?: object): Promise<T> {
-  const response = await fetch(`/api/v1${path}`, {
-    method: body ? 'POST' : 'GET',
-    credentials: 'include',
-    headers: body ? { 'Content-Type': 'application/json', ...(csrfToken ? { 'x-csrf-token': csrfToken } : {}) } : undefined,
-    body: body ? JSON.stringify(body) : undefined
-  });
+  const options: RequestInit = { method: body ? 'POST' : 'GET', credentials: 'include' };
+  if (body) {
+    options.headers = { 'Content-Type': 'application/json' };
+    if (csrfToken) options.headers['x-csrf-token'] = csrfToken;
+    options.body = JSON.stringify(body);
+  }
+  const response = await fetch(`/api/v1${path}`, options);
   const result = await response.json() as ApiResult<T>;
   if (!response.ok || !result.data) {
     throw new ApiError(response.status, result.error?.code || 'INTERNAL_ERROR', result.error?.message || 'Request failed');

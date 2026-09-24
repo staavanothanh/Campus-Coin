@@ -63,6 +63,8 @@ npm run dev
 
 API ở `http://127.0.0.1:3000/api/v1/health`; giao diện Vite ở `http://127.0.0.1:5173`. Chưa có cấu hình deploy Vercel cho runtime này.
 
+Lane MySQL của Developer B gồm migrations, repository, service tiền và test; xem [`db/README.md`](db/README.md). API/giao diện auth của Dev A vẫn là bản thử chưa nối với toàn bộ chức năng tài chính.
+
 ## 2. Cấu trúc project dự kiến
 
 ```text

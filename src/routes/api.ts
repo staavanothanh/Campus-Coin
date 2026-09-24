@@ -111,10 +111,11 @@ export async function handleRequest(req: IncomingMessage, res: ServerResponse) {
     if (method === 'GET' && userMatch) {
       const user = token ? await getSession(token) : null;
       if (!user) throw new AppError(401, 'UNAUTHORIZED', 'Bạn chưa đăng nhập');
-      if (!/^\d+$/.test(userMatch[1])) throw new AppError(404, 'NOT_FOUND', 'Không tìm thấy tài khoản');
-      if (user.id !== userMatch[1]) throw new AppError(403, 'FORBIDDEN', 'Không có quyền xem tài khoản này');
+      const userId = userMatch[1];
+      if (!userId || !/^\d+$/.test(userId)) throw new AppError(404, 'NOT_FOUND', 'Không tìm thấy tài khoản');
+      if (user.id !== userId) throw new AppError(403, 'FORBIDDEN', 'Không có quyền xem tài khoản này');
       const [rows] = await getDb().execute<UserRow[]>(
-        'SELECT id, email, display_name, locale, role, email_verified, status FROM users WHERE id = ? LIMIT 1', [userMatch[1]]
+        'SELECT id, email, display_name, locale, role, email_verified, status FROM users WHERE id = ? LIMIT 1', [userId]
       );
       if (!rows[0]) throw new AppError(404, 'NOT_FOUND', 'Không tìm thấy tài khoản');
       return send(res, 200, { data: publicUser(rows[0]) });
@@ -127,7 +128,9 @@ export async function handleRequest(req: IncomingMessage, res: ServerResponse) {
       const [rows] = await getDb().query<(RowDataPacket & { total: number; verified: number })[]>(
         'SELECT COUNT(*) AS total, COALESCE(SUM(email_verified), 0) AS verified FROM users'
       );
-      return send(res, 200, { data: { totalUsers: rows[0].total, verifiedUsers: rows[0].verified } });
+      const stats = rows[0];
+      if (!stats) throw new AppError(500, 'INTERNAL_ERROR', 'Không đọc được thống kê');
+      return send(res, 200, { data: { totalUsers: stats.total, verifiedUsers: stats.verified } });
     }
 
     return send(res, 404, { error: { code: 'NOT_FOUND', message: 'Không tìm thấy đường dẫn' } });
