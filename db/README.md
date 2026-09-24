@@ -54,12 +54,25 @@ Xem `.env.example`; giá trị thật chỉ ở secret manager/Vercel environmen
 
 Runtime role chỉ DML (xem `db/grants.example.sql`); migration role có DDL. Pool runtime `waitForConnections`, `queueLimit=0`, timezone `Z` (UTC); kỳ HCMC tính ở application.
 
+### MySQL local dev (không phải production — ADR-0003)
+
+Production vẫn là cloud MySQL managed qua TLS. Local MySQL chỉ để chạy migration/preflight/test gated trước khi có cloud candidate.
+
+Thiết lập đã kiểm chứng trên Windows (MySQL Community 8.0.41 ZIP portable, `.tmp/mysql/`, gitignored):
+
+1. `mysqld --initialize-insecure` → `--defaults-file=.tmp/mysql/my.ini` (datadir riêng, `bind-address=127.0.0.1`, `utf8mb4/utf8mb4_0900_ai_ci`, `console`).
+2. **`log-bin-trust-function-creators=1` trong `my.ini`** — bắt buộc để migration 0001 tạo trigger append-only; thiếu nó MySQL trả `ERROR 1419` (thiếu SUPER privilege khi binary logging bật).
+3. Tạo DB + role theo `db/grants.example.sql` với password dev. Tài khoản `'%'` đủ dùng cho `127.0.0.1` qua TCP (`skip_name_resolve=0` vẫn resolve `127.0.0.1` → host khớp `%`); không cần thêm tài khoản `@localhost`.
+4. `.env` local: `CAMPUS_COIN_DB_SSL=disabled`, `_MIGRATE_USER`/`_MIGRATE_PASSWORD` trỏ role migration.
+
+Chạy: `npm run db:preflight` → `db:migrate` → `npm test` với `CAMPUS_COIN_TEST_DB=1` → `npm run db:datatest`.
+
 ## Invariant đã mã hóa
 
 - Tiền: `BIGINT UNSIGNED` integer VND; CHECK `amount > 0`; wallet/savings CHECK `>= 0`; không floating point.
 - Append-only: trigger chặn UPDATE/DELETE trên `ledger_transactions`, `savings_transfers`, `audit_events`, `issue_events`.
 - Ledger correction: row mới có `reference_id` + `reason`; CHECK chặn original có reference; service chặn chain (target phải original, một correction duy nhất).
-- Owner scope: mọi query có `user_id` predicate; category custom scope theo owner; system category `user_id NULL`.
+- Owner scope: mọi query có `user_id` predicate; category custom scope theo owner; system category `user_id NULL`. Antijoin correction trong report/budget phải kèm `c.user_id = t.user_id` (index `idx_ledger_user_reference`) — thiếu predicate đó khiến MySQL dò `DISTINCT reference_id` toàn bảng, chi phí theo tổng tenant thay vì theo owner, và dữ liệu tenant khác lọt vào đường tính tiền.
 - Idempotency: `mutation_idempotency` claim trước (placeholder) + response sau trong cùng transaction; retry cùng key+body → replay, khác body → `IDEMPOTENCY_CONFLICT`.
 - Lock order: payment/income lock wallet `FOR UPDATE`; savings lock wallet rồi savings (cố định); correction lock target rồi wallet.
 - Migration: `GET_LOCK('campus_coin.migrations')`, ghi `schema_migrations` (version, checksum), forward-only.
