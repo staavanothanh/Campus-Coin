@@ -1,0 +1,106 @@
+:root {
+  font-family: Arial, sans-serif;
+  color: #193d35;
+  background: #e7efea;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; }
+button, input { font: inherit; }
+button { cursor: pointer; }
+
+.screen {
+  min-height: 100vh;
+  padding: 24px;
+  background: linear-gradient(145deg, #ecf3ee, #d9e8dc);
+}
+
+.topbar {
+  max-width: 980px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.topbar strong { font-size: 24px; }
+.topbar button {
+  border: 1px solid #b4cdc0;
+  border-radius: 6px;
+  background: white;
+  padding: 8px 12px;
+  color: #205844;
+}
+
+.authCard {
+  width: min(100%, 500px);
+  margin: 70px auto 0;
+  padding: 36px;
+  background: white;
+  box-shadow: 0 16px 40px #1e4b3824;
+}
+
+h1 { font-size: 38px; margin: 0 0 20px; }
+.emailHint { margin-top: -8px; color: #60736a; }
+form { display: grid; gap: 18px; }
+form label { display: grid; gap: 8px; font-weight: bold; }
+
+form input:not([type='checkbox']) {
+  width: 100%;
+  height: 54px;
+  border: 1px solid #cedbd2;
+  border-radius: 7px;
+  padding: 0 14px;
+  color: #213a31;
+}
+
+form input:focus { outline: 2px solid #316e51; }
+.passwordField { position: relative; }
+.passwordField input { padding-right: 70px; }
+.passwordField button {
+  position: absolute;
+  right: 8px;
+  top: 8px;
+  width: 54px;
+  height: 38px;
+  border: 0;
+  background: transparent;
+  color: #60736a;
+}
+
+form .checkLabel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #5d6b63;
+  font-weight: normal;
+}
+
+.primaryButton {
+  width: 100%;
+  min-height: 54px;
+  border: 0;
+  border-radius: 6px;
+  background: #205844;
+  color: white;
+  font-weight: bold;
+}
+
+button:disabled { opacity: .6; cursor: wait; }
+.textButton {
+  display: block;
+  margin: 20px auto 0;
+  border: 0;
+  background: transparent;
+  color: #205844;
+  font-weight: bold;
+}
+
+.message { margin-bottom: 0; color: #236b49; line-height: 1.5; }
+.subtitle { margin: 24px auto; text-align: center; color: #536d5d; }
+
+@media (max-width: 540px) {
+  .screen { padding: 16px; }
+  .authCard { margin-top: 36px; padding: 28px 22px; }
+  h1 { font-size: 32px; }
+}

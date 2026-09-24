@@ -28,31 +28,170 @@ tags:
   - name: JEV
   - name: Health
 paths:
-  /auth/google/start:
-    get:
+  /auth/register:
+    post:
       tags: [Auth]
       security: []
-      summary: Bắt đầu Google OAuth
+      summary: Gửi OTP để bắt đầu đăng ký bằng email
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
       responses:
-        '302': {description: Redirect tới Google OAuth consent}
-        '500': {$ref: '#/components/responses/InternalError'}
-  /auth/google/callback:
+        '201':
+          description: Mã OTP đã gửi; tài khoản chưa được tạo
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '400': {$ref: '#/components/responses/ValidationError'}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /auth/verify-registration:
+    post:
+      tags: [Auth]
+      security: []
+      summary: Xác minh OTP và tạo tài khoản bằng email, họ tên, mật khẩu
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifyRegistrationRequest'
+      responses:
+        '200':
+          description: Xác minh thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '400': {$ref: '#/components/responses/ValidationError'}
+        '422': {$ref: '#/components/responses/DomainValidationError'}
+  /auth/resend-otp:
+    post:
+      tags: [Auth]
+      security: []
+      summary: Gửi lại mã OTP
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResendOtpRequest'
+      responses:
+        '200':
+          description: OTP đã gửi lại
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '429': {$ref: '#/components/responses/RateLimited'}
+  /auth/login:
+    post:
+      tags: [Auth]
+      security: []
+      summary: Đăng nhập email và mật khẩu
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Đăng nhập thành công, thiết lập session cookie
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionResponse'
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/AccountDisabled'}
+  /auth/forgot-password:
+    post:
+      tags: [Auth]
+      security: []
+      summary: Yêu cầu OTP đặt lại mật khẩu
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ForgotPasswordRequest'
+      responses:
+        '200':
+          description: Phản hồi tiêu chuẩn không để lộ sự tồn tại của email
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+  /auth/reset-password:
+    post:
+      tags: [Auth]
+      security: []
+      summary: Đặt lại mật khẩu với OTP
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResetPasswordRequest'
+      responses:
+        '200':
+          description: Đặt lại mật khẩu thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '400': {$ref: '#/components/responses/ValidationError'}
+        '422': {$ref: '#/components/responses/DomainValidationError'}
+  /auth/csrf:
     get:
       tags: [Auth]
       security: []
-      summary: Xử lý callback Google OAuth
+      summary: Lấy CSRF token
+      responses:
+        '200':
+          description: Token CSRF
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CsrfTokenResponse'
+  /users/me:
+    get:
+      tags: [Auth]
+      summary: Lấy thông tin user hiện tại (owner scope)
+      responses:
+        '200':
+          description: Thông tin user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '401': {$ref: '#/components/responses/Unauthorized'}
+  /users/{userId}:
+    get:
+      tags: [Auth]
+      summary: Lấy thông tin user theo ID (chống IDOR - chỉ cho phép lấy id của chính mình)
       parameters:
-        - {$ref: '#/components/parameters/OAuthCode'}
-        - {$ref: '#/components/parameters/OAuthState'}
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
       responses:
-        '302': {description: Redirect tới onboarding hoặc dashboard; response đặt session cookie}
-        '400': {$ref: '#/components/responses/InvalidOAuthState'}
-        '401': {$ref: '#/components/responses/UnverifiedEmail'}
-        '500': {$ref: '#/components/responses/OAuthExchangeFailed'}
+        '200':
+          description: Thông tin user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
   /auth/session:
     get:
       tags: [Auth]
-      summary: Lấy session hiện tại và trạng thái onboarding
+      summary: Lấy người dùng và CSRF token của phiên hiện tại
       responses:
         '200':
           description: Session hợp lệ
@@ -65,7 +204,7 @@ paths:
       summary: Revoke session hiện tại
       x-csrf-required: true
       responses:
-        '204': {description: Session đã revoke và cookie được clear}
+        '200': {description: Session đã revoke và cookie được clear, content: {application/json: {schema: {$ref: '#/components/schemas/MessageResponse'}}}}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/CsrfInvalid'}
   /users/me/preferences:
@@ -410,10 +549,9 @@ components:
     UserResponse: {type: object, required: [data], properties: {data: {$ref: '#/components/schemas/User'}}}
     Session:
       type: object
-      required: [user, walletInitialized, csrfToken]
+      required: [user, csrfToken]
       properties:
         user: {$ref: '#/components/schemas/User'}
-        walletInitialized: {type: boolean}
         csrfToken: {type: string, description: Token dùng trong memory cho state-changing request}
     SessionResponse: {type: object, required: [data], properties: {data: {$ref: '#/components/schemas/Session'}}}
     UpdatePreferencesRequest:
@@ -448,6 +586,7 @@ components:
         description: {type: string, maxLength: 500}
         confirmedCategorySuggestion: {type: boolean, default: false}
     CorrectionRole: {type: string, enum: [reversal, adjustment, replacement]}
+    TransactionRole: {type: string, enum: [original, reversal, adjustment, replacement]}
     CreateCorrectionRequest:
       type: object
       required: [correctionRole, reason]
@@ -466,7 +605,7 @@ components:
         categoryId: {type: string}
         occurredAt: {type: string, format: date-time}
         description: {type: [string, 'null']}
-        role: {$ref: '#/components/schemas/CorrectionRole'}
+        role: {$ref: '#/components/schemas/TransactionRole'}
         referenceId: {type: [string, 'null']}
         createdAt: {type: string, format: date-time}
     BudgetWarning:
@@ -702,3 +841,59 @@ components:
         message: {type: string}
         details: {type: array, items: {$ref: '#/components/schemas/ErrorDetail'}}
     ErrorResponse: {type: object, required: [error], properties: {error: {$ref: "#/components/schemas/ApiError"}}}
+    RegisterRequest:
+      type: object
+      required: [email]
+      properties:
+        email: {type: string, format: email}
+    VerifyRegistrationRequest:
+      type: object
+      required: [email, otp, fullName, password]
+      properties:
+        email: {type: string, format: email}
+        otp: {type: string, minLength: 6, maxLength: 6}
+        fullName: {type: string, minLength: 2, maxLength: 120}
+        password: {type: string, minLength: 8, maxLength: 128}
+        locale: {$ref: '#/components/schemas/Locale'}
+    ResendOtpRequest:
+      type: object
+      required: [email, purpose]
+      properties:
+        email: {type: string, format: email}
+        purpose: {type: string, enum: [registration, password_reset]}
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email: {type: string, format: email}
+        password: {type: string, minLength: 1}
+    ForgotPasswordRequest:
+      type: object
+      required: [email]
+      properties:
+        email: {type: string, format: email}
+    ResetPasswordRequest:
+      type: object
+      required: [email, otp, newPassword]
+      properties:
+        email: {type: string, format: email}
+        otp: {type: string, minLength: 6, maxLength: 6}
+        newPassword: {type: string, minLength: 8}
+    MessageResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+          required: [message]
+          properties:
+            message: {type: string}
+    CsrfTokenResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+          required: [csrfToken]
+          properties:
+            csrfToken: {type: string}

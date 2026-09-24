@@ -9,10 +9,34 @@
     "api:bundle": "redocly bundle docs/contracts/openapi.yaml -o artifacts/openapi.json",
     "api:types": "openapi-typescript docs/contracts/openapi.yaml -o artifacts/api.d.ts",
     "verify:docs": "npm run api:validate && git diff --check",
-    "test": "node --test"
+    "start": "tsx src/server.ts",
+    "dev": "vite --host 127.0.0.1",
+    "dev:api": "tsx watch src/server.ts",
+    "build": "tsc --noEmit && vite build",
+    "typecheck": "tsc --noEmit",
+    "test": "node --import tsx --test",
+    "db:status": "cross-env node --env-file=.env src/infrastructure/db/migrate.ts status",
+    "db:preflight": "cross-env node --env-file=.env src/infrastructure/db/migrate.ts preflight",
+    "db:datatest": "cross-env node --env-file=.env datatest/run.ts",
+    "db:migrate": "cross-env node --env-file=.env src/infrastructure/db/migrate.ts up"
   },
   "devDependencies": {
     "@redocly/cli": "^2.54.2",
-    "openapi-typescript": "^7.13.0"
+    "@types/node": "^26.6.2",
+    "@types/nodemailer": "^8.0.2",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.1",
+    "cross-env": "^10.1.0",
+    "openapi-typescript": "^7.13.0",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3",
+    "vite": "^8.3.0"
+  },
+  "dependencies": {
+    "mysql2": "^3.24.4",
+    "nodemailer": "^10.0.10",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
   }
 }

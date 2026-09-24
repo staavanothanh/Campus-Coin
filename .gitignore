@@ -1,18 +1,25 @@
 # SRS
 SRS_End-to-End Web Solutions/
+SRS/
 
 # Agents
 .agents/
 .codebase-memory/
 node_modules/
+dist/
 
 # env + vercel
 .env
 .env.*
 !.env.example
 .vercel
-.env*
 .vercel-env-sync/
 
 # temp
 .tmp/
+
+# Local guidance / notes
+START_HERE.md
+START_HERE*
+MY_README.md
+MY_README*

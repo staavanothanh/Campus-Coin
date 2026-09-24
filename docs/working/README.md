@@ -14,6 +14,7 @@
 ## Phân loại
 
 - `CC-*.md`: handoff chuyên môn của các lane phân tích ban đầu.
+- [`CC-005-dev-a-auth-ui-proposal.md`](CC-005-dev-a-auth-ui-proposal.md): nhánh thử email/mật khẩu/OTP của Dev A; chưa được nhóm duyệt thay ADR-0001.
 - `INTEGRATION-HANDOFF.md`: bản tích hợp các handoff.
 - `FINAL-REVIEW.md`: kết quả rà soát tài liệu.
 - `TEAM-BOARD.md`: bảng điều phối working pass.

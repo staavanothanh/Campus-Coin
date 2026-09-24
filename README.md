@@ -4,7 +4,7 @@
 
 Campus Coin không phải ngân hàng, không giữ tiền thật, không xử lý payment thật, không cho vay, không BNPL và không cung cấp tư vấn tài chính được chứng nhận.
 
-> Trạng thái hiện tại: đang chuẩn bị API contract và môi trường phát triển local. Chưa có application runtime hoàn chỉnh.
+> Nhánh `hiep` hiện có API/React thử nghiệm cho đăng nhập email và OTP, cùng lane MySQL của Developer B. Phần tài chính chưa được nối vào giao diện. Email/OTP là đề xuất của Dev A, chưa thay thế quyết định Google OAuth-only của nhóm.
 
 ## 1. Bắt đầu nhanh
 
@@ -14,7 +14,7 @@ Campus Coin không phải ngân hàng, không giữ tiền thật, không xử l
 - npm `11` hoặc compatible.
 - Git.
 - Không dùng pnpm, Yarn hoặc Bun khi chưa có quyết định riêng.
-- Không cần database local cho bước contract hiện tại.
+- Chỉ cần MySQL và SMTP khi chạy luồng đăng ký/đăng nhập thật; kiểm tra contract và build giao diện không cần chúng.
 
 Kiểm tra:
 
@@ -52,9 +52,16 @@ artifacts/api.d.ts
 
 Không sửa tay hai file này. Nguồn duy nhất là [`docs/contracts/openapi.yaml`](docs/contracts/openapi.yaml).
 
-### Trạng thái source runtime
+### Chạy bản thử Dev A trên nhánh `hiep`
 
-Hiện workspace mới có contract/tooling và tài liệu. Khi app runtime được tạo, scripts `dev`, `build`, `lint`, `typecheck` và test cụ thể phải được thêm vào `package.json` cùng implementation tương ứng; không coi script placeholder là môi trường chạy được.
+Sao chép `.env.example` thành `.env` và điền các biến MySQL, SMTP, `OTP_SECRET`, `SESSION_SECRET` bằng giá trị của môi trường thử riêng. Không commit `.env`. Sau khi migration được nhóm duyệt và áp dụng trên database thử, chạy API và giao diện ở hai terminal:
+
+```bash
+npm run dev:api
+npm run dev
+```
+
+API ở `http://127.0.0.1:3000/api/v1/health`; giao diện Vite ở `http://127.0.0.1:5173`. Chưa có cấu hình deploy Vercel cho runtime này.
 
 ## 2. Cấu trúc project dự kiến
 
@@ -96,7 +103,7 @@ Hiện workspace mới có contract/tooling và tài liệu. Khi app runtime đ�
 └── SRS_End-to-End Web Solutions/     # SRS nguồn; không sửa tùy tiện
 ```
 
-`src/` và `tests/` chưa được scaffold. Cấu trúc này là target architecture, không phải claim các thư mục runtime đã tồn tại.
+`src/`, `db/`, `test/` và `tests/` đã có mã thật. Cây trên là kiến trúc tổng thể dự kiến, không phải danh sách đầy đủ các file hiện tại. Xem [`db/README.md`](db/README.md) cho lane MySQL và [`docs/working/CC-005-dev-a-auth-ui-proposal.md`](docs/working/CC-005-dev-a-auth-ui-proposal.md) cho luồng Dev A.
 
 ## 3. Tài liệu cần đọc theo task
 
@@ -155,7 +162,7 @@ Thứ tự ưu tiên khi có mâu thuẫn:
 
 Không được phá các bất biến sau:
 
-- Google OAuth-only; không local password, linking, OTP/reset hoặc Gmail inbox.
+- Quyết định chung hiện tại là Google OAuth-only. Nhánh `hiep` đang thử email/mật khẩu/OTP theo đề xuất riêng; không nhập `main` khi chưa được Team Leader duyệt.
 - Session opaque server-side, expiry/revocation, CSRF/Origin và owner isolation.
 - Payment lock wallet, kiểm tra đủ tiền atomic; wallet không bao giờ âm.
 - Savings lock theo thứ tự wallet rồi savings.
@@ -202,7 +209,7 @@ Khi runtime tồn tại, tối thiểu cần:
 - Unit: domain formula, amount/date/category/idempotency rules.
 - Integration: API, session, CSRF, owner scope, repository, MySQL transaction/migration.
 - Contract: provider response và consumer fixtures cùng validate từ OpenAPI.
-- E2E/smoke: Google login, onboarding, income, payment success/failure, concurrent payment, savings, budget warning, report, locale/theme, admin least privilege và JEV-off.
+- E2E/smoke sau khi nhóm chốt auth: đăng nhập, onboarding, income, payment success/failure, concurrent payment, savings, budget warning, report, locale/theme, admin least privilege và JEV-off.
 - Regression test cho bug đã sửa.
 
 Chạy test hẹp trước; chỉ chạy full suite khi blueprint step, CI gate hoặc Team Leader yêu cầu.
@@ -224,17 +231,17 @@ npm run api:validate
 npm run api:bundle
 npm run api:types
 npm run verify:docs
+npm run typecheck
+npm run build
+npm test
 git diff --check
 ```
 
-Các lệnh sau chỉ khả dụng sau khi implementation tương ứng tồn tại:
+Các lệnh kiểm tra database cần `.env` và database thử riêng:
 
 ```bash
-npm run dev
-npm run build
-npm run lint
-npm run typecheck
-npm test
+npm run db:preflight
+npm run db:status
 ```
 
 Không tự thêm hoặc chạy lệnh chưa được khai báo trong `package.json` nếu chưa đọc manifest và xác định toolchain.

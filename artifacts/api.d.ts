@@ -4,14 +4,263 @@
  */
 
 export interface paths {
-    "/auth/google/start": {
+    "/auth/register": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** Bắt đầu Google OAuth */
+        get?: never;
+        put?: never;
+        /** Gửi OTP để bắt đầu đăng ký bằng email */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["RegisterRequest"];
+                };
+            };
+            responses: {
+                /** @description Mã OTP đã gửi; tài khoản chưa được tạo */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MessageResponse"];
+                    };
+                };
+                400: components["responses"]["ValidationError"];
+                409: components["responses"]["Conflict"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/verify-registration": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Xác minh OTP và tạo tài khoản bằng email, họ tên, mật khẩu */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["VerifyRegistrationRequest"];
+                };
+            };
+            responses: {
+                /** @description Xác minh thành công */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MessageResponse"];
+                    };
+                };
+                400: components["responses"]["ValidationError"];
+                422: components["responses"]["DomainValidationError"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/resend-otp": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Gửi lại mã OTP */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ResendOtpRequest"];
+                };
+            };
+            responses: {
+                /** @description OTP đã gửi lại */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MessageResponse"];
+                    };
+                };
+                429: components["responses"]["RateLimited"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Đăng nhập email và mật khẩu */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["LoginRequest"];
+                };
+            };
+            responses: {
+                /** @description Đăng nhập thành công, thiết lập session cookie */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SessionResponse"];
+                    };
+                };
+                401: components["responses"]["Unauthorized"];
+                403: components["responses"]["AccountDisabled"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/forgot-password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Yêu cầu OTP đặt lại mật khẩu */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ForgotPasswordRequest"];
+                };
+            };
+            responses: {
+                /** @description Phản hồi tiêu chuẩn không để lộ sự tồn tại của email */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MessageResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/reset-password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Đặt lại mật khẩu với OTP */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ResetPasswordRequest"];
+                };
+            };
+            responses: {
+                /** @description Đặt lại mật khẩu thành công */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MessageResponse"];
+                    };
+                };
+                400: components["responses"]["ValidationError"];
+                422: components["responses"]["DomainValidationError"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/csrf": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lấy CSRF token */
         get: {
             parameters: {
                 query?: never;
@@ -21,14 +270,15 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
-                /** @description Redirect tới Google OAuth consent */
-                302: {
+                /** @description Token CSRF */
+                200: {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content?: never;
+                    content: {
+                        "application/json": components["schemas"]["CsrfTokenResponse"];
+                    };
                 };
-                500: components["responses"]["InternalError"];
             };
         };
         put?: never;
@@ -39,36 +289,73 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/auth/google/callback": {
+    "/users/me": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** Xử lý callback Google OAuth */
+        /** Lấy thông tin user hiện tại (owner scope) */
         get: {
             parameters: {
-                query: {
-                    code: components["parameters"]["OAuthCode"];
-                    state: components["parameters"]["OAuthState"];
-                };
+                query?: never;
                 header?: never;
                 path?: never;
                 cookie?: never;
             };
             requestBody?: never;
             responses: {
-                /** @description Redirect tới onboarding hoặc dashboard; response đặt session cookie */
-                302: {
+                /** @description Thông tin user */
+                200: {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content?: never;
+                    content: {
+                        "application/json": components["schemas"]["UserResponse"];
+                    };
                 };
-                400: components["responses"]["InvalidOAuthState"];
-                401: components["responses"]["UnverifiedEmail"];
-                500: components["responses"]["OAuthExchangeFailed"];
+                401: components["responses"]["Unauthorized"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/users/{userId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lấy thông tin user theo ID (chống IDOR - chỉ cho phép lấy id của chính mình) */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    userId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Thông tin user */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["UserResponse"];
+                    };
+                };
+                401: components["responses"]["Unauthorized"];
+                403: components["responses"]["Forbidden"];
             };
         };
         put?: never;
@@ -86,7 +373,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Lấy session hiện tại và trạng thái onboarding */
+        /** Lấy người dùng và CSRF token của phiên hiện tại */
         get: {
             parameters: {
                 query?: never;
@@ -137,11 +424,13 @@ export interface paths {
             requestBody?: never;
             responses: {
                 /** @description Session đã revoke và cookie được clear */
-                204: {
+                200: {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content?: never;
+                    content: {
+                        "application/json": components["schemas"]["MessageResponse"];
+                    };
                 };
                 401: components["responses"]["Unauthorized"];
                 403: components["responses"]["CsrfInvalid"];
@@ -1283,7 +1572,6 @@ export interface components {
         };
         Session: {
             user: components["schemas"]["User"];
-            walletInitialized: boolean;
             /** @description Token dùng trong memory cho state-changing request */
             csrfToken: string;
         };
@@ -1322,6 +1610,8 @@ export interface components {
         };
         /** @enum {string} */
         CorrectionRole: "reversal" | "adjustment" | "replacement";
+        /** @enum {string} */
+        TransactionRole: "original" | "reversal" | "adjustment" | "replacement";
         CreateCorrectionRequest: {
             correctionRole: components["schemas"]["CorrectionRole"];
             reason: string;
@@ -1336,7 +1626,7 @@ export interface components {
             /** Format: date-time */
             occurredAt: string;
             description?: string | null;
-            role: components["schemas"]["CorrectionRole"];
+            role: components["schemas"]["TransactionRole"];
             referenceId?: string | null;
             /** Format: date-time */
             createdAt: string;
@@ -1562,6 +1852,49 @@ export interface components {
         };
         ErrorResponse: {
             error: components["schemas"]["ApiError"];
+        };
+        RegisterRequest: {
+            /** Format: email */
+            email: string;
+        };
+        VerifyRegistrationRequest: {
+            /** Format: email */
+            email: string;
+            otp: string;
+            fullName: string;
+            password: string;
+            locale?: components["schemas"]["Locale"];
+        };
+        ResendOtpRequest: {
+            /** Format: email */
+            email: string;
+            /** @enum {string} */
+            purpose: "registration" | "password_reset";
+        };
+        LoginRequest: {
+            /** Format: email */
+            email: string;
+            password: string;
+        };
+        ForgotPasswordRequest: {
+            /** Format: email */
+            email: string;
+        };
+        ResetPasswordRequest: {
+            /** Format: email */
+            email: string;
+            otp: string;
+            newPassword: string;
+        };
+        MessageResponse: {
+            data: {
+                message: string;
+            };
+        };
+        CsrfTokenResponse: {
+            data: {
+                csrfToken: string;
+            };
         };
     };
     responses: {
