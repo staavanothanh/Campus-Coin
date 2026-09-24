@@ -41,7 +41,7 @@ Run only this focused contract test command from the isolated worktree:
 node --test test/provider-contract/*.test.js
 ```
 
-The repository uses Node's built-in `node --test` runner. The tests use deterministic injected fetch functions; no real provider calls or API keys are used. Expected RED must be caused by missing adapter module/API, not test setup or dependency failures. No dependency installation, provider implementation, full suite, build, formatter, linter, network call, commit, push, PR, or merge is in scope.
+The repository uses Node's built-in `node --test` runner. The tests use deterministic injected fetch functions; no real provider calls or API keys are used. Expected RED must be caused by missing adapter module/API, not test setup or dependency failures. No dependency installation, provider implementation, full suite, build, formatter, linter, network call, push, PR, or merge is in scope. The test-only changes were committed locally on the isolated branch as authorized; nothing was committed to `main`.
 
 ## Files
 
