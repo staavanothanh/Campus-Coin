@@ -1,0 +1,2603 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Campus Coin API",
+    "version": "1.0.0-mvp",
+    "license": {
+      "name": "MIT",
+      "identifier": "MIT"
+    },
+    "description": "Hợp đồng HTTP canonical cho Campus Coin MVP.\nAPI không trao quyền tính số dư, authorize payment hoặc ghi tiền cho client/JEV.\n"
+  },
+  "servers": [
+    {
+      "url": "https://{host}/api/v1",
+      "variables": {
+        "host": {
+          "default": "campus-coin.vercel.app"
+        }
+      }
+    },
+    {
+      "url": "https://localhost.invalid/api/v1",
+      "description": "Môi trường phát triển local; override bằng biến môi trường khi chạy thật"
+    }
+  ],
+  "security": [
+    {
+      "sessionCookie": []
+    }
+  ],
+  "tags": [
+    {
+      "name": "Auth"
+    },
+    {
+      "name": "Wallet"
+    },
+    {
+      "name": "Ledger"
+    },
+    {
+      "name": "Savings"
+    },
+    {
+      "name": "Categories"
+    },
+    {
+      "name": "Budgets"
+    },
+    {
+      "name": "Reports"
+    },
+    {
+      "name": "Issues"
+    },
+    {
+      "name": "Admin"
+    },
+    {
+      "name": "JEV"
+    },
+    {
+      "name": "Health"
+    }
+  ],
+  "paths": {
+    "/auth/google/start": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "security": [],
+        "summary": "Bắt đầu Google OAuth",
+        "responses": {
+          "302": {
+            "description": "Redirect tới Google OAuth consent"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/auth/google/callback": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "security": [],
+        "summary": "Xử lý callback Google OAuth",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OAuthCode"
+          },
+          {
+            "$ref": "#/components/parameters/OAuthState"
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "Redirect tới onboarding hoặc dashboard; response đặt session cookie"
+          },
+          "400": {
+            "$ref": "#/components/responses/InvalidOAuthState"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnverifiedEmail"
+          },
+          "500": {
+            "$ref": "#/components/responses/OAuthExchangeFailed"
+          }
+        }
+      }
+    },
+    "/auth/session": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Lấy session hiện tại và trạng thái onboarding",
+        "responses": {
+          "200": {
+            "description": "Session hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/AccountDisabled"
+          }
+        }
+      }
+    },
+    "/auth/logout": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Revoke session hiện tại",
+        "x-csrf-required": true,
+        "responses": {
+          "204": {
+            "description": "Session đã revoke và cookie được clear"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/CsrfInvalid"
+          }
+        }
+      }
+    },
+    "/users/me/preferences": {
+      "patch": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Cập nhật preference người dùng",
+        "x-csrf-required": true,
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdatePreferencesRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Preference đã cập nhật",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/CsrfInvalid"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        }
+      }
+    },
+    "/wallet": {
+      "get": {
+        "tags": [
+          "Wallet"
+        ],
+        "summary": "Lấy wallet authoritative của user hiện tại",
+        "responses": {
+          "200": {
+            "description": "Wallet",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WalletResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/wallet/baseline": {
+      "post": {
+        "tags": [
+          "Wallet"
+        ],
+        "summary": "Khởi tạo opening wallet balance một lần",
+        "x-csrf-required": true,
+        "x-idempotency-required": true,
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WalletBaselineRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Wallet đã khởi tạo",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WalletResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/CsrfInvalid"
+          },
+          "409": {
+            "$ref": "#/components/responses/WalletAlreadyInitialized"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        }
+      }
+    },
+    "/ledger/transactions": {
+      "get": {
+        "tags": [
+          "Ledger"
+        ],
+        "summary": "Liệt kê ledger transaction của user hiện tại",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Cursor"
+          },
+          {
+            "$ref": "#/components/parameters/Limit"
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/TransactionType"
+            }
+          },
+          {
+            "name": "categoryId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Ledger page",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransactionPageResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Ledger"
+        ],
+        "summary": "Tạo income hoặc payment immutable",
+        "x-csrf-required": true,
+        "x-idempotency-required": true,
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTransactionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Transaction đã commit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransactionResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/CsrfInvalid"
+          },
+          "409": {
+            "$ref": "#/components/responses/IdempotencyConflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/DomainValidationError"
+          }
+        }
+      }
+    },
+    "/ledger/transactions/{transactionId}": {
+      "get": {
+        "tags": [
+          "Ledger"
+        ],
+        "summary": "Lấy một transaction",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/TransactionId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Transaction",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransactionResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/ledger/transactions/{transactionId}/corrections": {
+      "post": {
+        "tags": [
+          "Ledger"
+        ],
+        "summary": "Tạo correction append-only",
+        "x-csrf-required": true,
+        "x-idempotency-required": true,
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/TransactionId"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCorrectionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Correction đã commit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransactionResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/CsrfInvalid"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/DomainValidationError"
+          }
+        }
+      }
+    },
+    "/savings": {
+      "get": {
+        "tags": [
+          "Savings"
+        ],
+        "summary": "Lấy savings aggregate",
+        "responses": {
+          "200": {
+            "description": "Savings",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SavingsResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/savings/transfers": {
+      "get": {
+        "tags": [
+          "Savings"
+        ],
+        "summary": "Liệt kê savings transfer",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Cursor"
+          },
+          {
+            "$ref": "#/components/parameters/Limit"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Savings transfer page",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SavingsTransferPageResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Savings"
+        ],
+        "summary": "Gửi hoặc rút savings atomic",
+        "x-csrf-required": true,
+        "x-idempotency-required": true,
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSavingsTransferRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Transfer đã commit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SavingsTransferResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/CsrfInvalid"
+          },
+          "409": {
+            "$ref": "#/components/responses/IdempotencyConflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/DomainValidationError"
+          }
+        }
+      }
+    },
+    "/categories": {
+      "get": {
+        "tags": [
+          "Categories"
+        ],
+        "summary": "Liệt kê category system và user",
+        "parameters": [
+          {
+            "name": "appliesTo",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/TransactionType"
+            }
+          },
+          {
+            "name": "includeDisabled",
+            "in": "query",
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Categories",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CategoryListResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Categories"
+        ],
+        "summary": "Tạo custom category",
+        "x-csrf-required": true,
+        "x-idempotency-required": true,
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCategoryRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Category đã tạo",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CategoryResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/CsrfInvalid"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        }
+      }
+    },
+    "/categories/{categoryId}": {
+      "patch": {
+        "tags": [
+          "Categories"
+        ],
+        "summary": "Đổi tên hoặc disable custom category",
+        "x-csrf-required": true,
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CategoryId"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateCategoryRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Category đã cập nhật",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CategoryResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        }
+      }
+    },
+    "/budgets": {
+      "get": {
+        "tags": [
+          "Budgets"
+        ],
+        "summary": "Lấy budget theo tháng HCMC",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Month"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Budget list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BudgetListResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        }
+      }
+    },
+    "/budgets/{categoryId}": {
+      "put": {
+        "tags": [
+          "Budgets"
+        ],
+        "summary": "Tạo hoặc thay thế budget payment category theo tháng",
+        "x-csrf-required": true,
+        "x-idempotency-required": true,
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CategoryId"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpsertBudgetRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Budget đã cập nhật",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BudgetResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/CsrfInvalid"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/DomainValidationError"
+          }
+        }
+      }
+    },
+    "/budgets/summary": {
+      "get": {
+        "tags": [
+          "Budgets"
+        ],
+        "summary": "Lấy tổng quan budget theo tháng",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Month"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Budget summary",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BudgetSummaryResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/reports/monthly": {
+      "get": {
+        "tags": [
+          "Reports"
+        ],
+        "summary": "Báo cáo deterministic theo tháng HCMC",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Month"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Monthly report",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MonthlyReportResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        }
+      }
+    },
+    "/reports/dashboard": {
+      "get": {
+        "tags": [
+          "Reports"
+        ],
+        "summary": "Snapshot dashboard authoritative",
+        "responses": {
+          "200": {
+            "description": "Dashboard",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DashboardResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/issues": {
+      "post": {
+        "tags": [
+          "Issues"
+        ],
+        "summary": "Tạo issue hỗ trợ",
+        "x-csrf-required": true,
+        "x-idempotency-required": true,
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateIssueRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Issue đã tạo",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IssueResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/CsrfInvalid"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
+    "/issues/me": {
+      "get": {
+        "tags": [
+          "Issues"
+        ],
+        "summary": "Liệt kê issue của user hiện tại",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Cursor"
+          },
+          {
+            "$ref": "#/components/parameters/Limit"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Issue page",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IssuePageResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/admin/issues": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Triage issue toàn hệ thống",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Cursor"
+          },
+          {
+            "$ref": "#/components/parameters/Limit"
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/IssueStatus"
+            }
+          },
+          {
+            "name": "priority",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/IssuePriority"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Admin issue page",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IssuePageResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        }
+      }
+    },
+    "/admin/issues/{issueId}": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Lấy issue và timeline đã mask",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IssueId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Issue detail",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IssueResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Cập nhật status hoặc priority issue",
+        "x-csrf-required": true,
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IssueId"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateIssueRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Issue đã cập nhật",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IssueResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/admin/issues/{issueId}/notes": {
+      "post": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Thêm admin note append-only",
+        "x-csrf-required": true,
+        "x-idempotency-required": true,
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IssueId"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAdminNoteRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Note đã tạo"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/admin/audit-logs": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Truy vấn audit đã redact",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Cursor"
+          },
+          {
+            "$ref": "#/components/parameters/Limit"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Audit page",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditPageResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        }
+      }
+    },
+    "/ai/category-suggestion": {
+      "post": {
+        "tags": [
+          "JEV"
+        ],
+        "summary": "Gợi ý category trước submit, luôn advisory",
+        "x-csrf-required": true,
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CategorySuggestionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "JEV suggestion hoặc manual/disabled fallback",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CategorySuggestionResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/CsrfInvalid"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "tags": [
+          "Health"
+        ],
+        "security": [],
+        "summary": "Liveness không chạm database",
+        "responses": {
+          "200": {
+            "description": "API đang chạy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health/ready": {
+      "get": {
+        "tags": [
+          "Health"
+        ],
+        "summary": "Readiness có kiểm tra dependency",
+        "responses": {
+          "200": {
+            "description": "Dependency sẵn sàng",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadinessResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "sessionCookie": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "cc_session",
+        "description": "Opaque server-side session cookie; không phải JWT."
+      }
+    },
+    "parameters": {
+      "OAuthCode": {
+        "name": "code",
+        "in": "query",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      },
+      "OAuthState": {
+        "name": "state",
+        "in": "query",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      },
+      "Cursor": {
+        "name": "cursor",
+        "in": "query",
+        "schema": {
+          "type": "string",
+          "maxLength": 512
+        }
+      },
+      "Limit": {
+        "name": "limit",
+        "in": "query",
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "default": 20
+        }
+      },
+      "Month": {
+        "name": "month",
+        "in": "query",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "pattern": "^\\\\d{4}-(0[1-9]|1[0-2])$"
+        },
+        "example": "2026-09"
+      },
+      "TransactionId": {
+        "name": "transactionId",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      },
+      "CategoryId": {
+        "name": "categoryId",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      },
+      "IssueId": {
+        "name": "issueId",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      }
+    },
+    "responses": {
+      "Unauthorized": {
+        "description": "Thiếu, hết hạn hoặc bị revoke session",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      },
+      "AccountDisabled": {
+        "description": "Tài khoản bị disable",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      },
+      "CsrfInvalid": {
+        "description": "CSRF hoặc Origin không hợp lệ",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      },
+      "Forbidden": {
+        "description": "Không đủ quyền",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "Không tìm thấy resource hoặc resource ngoài owner scope",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      },
+      "Conflict": {
+        "description": "Xung đột state hoặc uniqueness",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      },
+      "IdempotencyConflict": {
+        "description": "Idempotency key đã dùng với body khác",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      },
+      "ValidationError": {
+        "description": "Input không hợp lệ",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      },
+      "DomainValidationError": {
+        "description": "Vi phạm domain hoặc invariant",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      },
+      "RateLimited": {
+        "description": "Vượt rate limit",
+        "headers": {
+          "Retry-After": {
+            "schema": {
+              "type": "integer"
+            }
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      },
+      "InternalError": {
+        "description": "Lỗi server đã được sanitize",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      },
+      "InvalidOAuthState": {
+        "description": "OAuth state/PKCE không hợp lệ",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      },
+      "UnverifiedEmail": {
+        "description": "Google email chưa verified",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      },
+      "OAuthExchangeFailed": {
+        "description": "Code exchange hoặc claim validation thất bại",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      },
+      "WalletAlreadyInitialized": {
+        "description": "Wallet đã khởi tạo",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      },
+      "ServiceUnavailable": {
+        "description": "Dependency chưa sẵn sàng",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "TransactionType": {
+        "type": "string",
+        "enum": [
+          "income",
+          "payment"
+        ]
+      },
+      "Locale": {
+        "type": "string",
+        "enum": [
+          "en",
+          "vi"
+        ]
+      },
+      "MoneyVnd": {
+        "type": "integer",
+        "minimum": 0,
+        "description": "Số nguyên VND; không dùng floating point"
+      },
+      "PositiveMoneyVnd": {
+        "type": "integer",
+        "minimum": 1,
+        "description": "Số nguyên VND dương"
+      },
+      "User": {
+        "type": "object",
+        "required": [
+          "id",
+          "displayName",
+          "email",
+          "locale",
+          "role"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "locale": {
+            "$ref": "#/components/schemas/Locale"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "user",
+              "admin",
+              "security"
+            ]
+          }
+        }
+      },
+      "UserResponse": {
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/User"
+          }
+        }
+      },
+      "Session": {
+        "type": "object",
+        "required": [
+          "user",
+          "walletInitialized",
+          "csrfToken"
+        ],
+        "properties": {
+          "user": {
+            "$ref": "#/components/schemas/User"
+          },
+          "walletInitialized": {
+            "type": "boolean"
+          },
+          "csrfToken": {
+            "type": "string",
+            "description": "Token dùng trong memory cho state-changing request"
+          }
+        }
+      },
+      "SessionResponse": {
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/Session"
+          }
+        }
+      },
+      "UpdatePreferencesRequest": {
+        "type": "object",
+        "minProperties": 1,
+        "properties": {
+          "displayName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "locale": {
+            "$ref": "#/components/schemas/Locale"
+          }
+        }
+      },
+      "Wallet": {
+        "type": "object",
+        "required": [
+          "walletId",
+          "initialized",
+          "initialBalanceVnd",
+          "availableBalanceVnd",
+          "currency",
+          "updatedAt"
+        ],
+        "properties": {
+          "walletId": {
+            "type": "string"
+          },
+          "initialized": {
+            "type": "boolean"
+          },
+          "initialBalanceVnd": {
+            "$ref": "#/components/schemas/MoneyVnd"
+          },
+          "availableBalanceVnd": {
+            "$ref": "#/components/schemas/MoneyVnd"
+          },
+          "currency": {
+            "type": "string",
+            "const": "VND"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "WalletResponse": {
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/Wallet"
+          }
+        }
+      },
+      "WalletBaselineRequest": {
+        "type": "object",
+        "required": [
+          "initialBalanceVnd"
+        ],
+        "properties": {
+          "initialBalanceVnd": {
+            "$ref": "#/components/schemas/MoneyVnd"
+          }
+        }
+      },
+      "CreateTransactionRequest": {
+        "type": "object",
+        "required": [
+          "type",
+          "amountVnd",
+          "categoryId",
+          "occurredAt"
+        ],
+        "properties": {
+          "type": {
+            "$ref": "#/components/schemas/TransactionType"
+          },
+          "amountVnd": {
+            "$ref": "#/components/schemas/PositiveMoneyVnd"
+          },
+          "categoryId": {
+            "type": "string"
+          },
+          "occurredAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "confirmedCategorySuggestion": {
+            "type": "boolean",
+            "default": false
+          }
+        }
+      },
+      "CorrectionRole": {
+        "type": "string",
+        "enum": [
+          "reversal",
+          "adjustment",
+          "replacement"
+        ]
+      },
+      "CreateCorrectionRequest": {
+        "type": "object",
+        "required": [
+          "correctionRole",
+          "reason"
+        ],
+        "properties": {
+          "correctionRole": {
+            "$ref": "#/components/schemas/CorrectionRole"
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          },
+          "newAmountVnd": {
+            "$ref": "#/components/schemas/PositiveMoneyVnd"
+          },
+          "newCategoryId": {
+            "type": "string"
+          }
+        }
+      },
+      "Transaction": {
+        "type": "object",
+        "required": [
+          "id",
+          "type",
+          "amountVnd",
+          "categoryId",
+          "occurredAt",
+          "role",
+          "createdAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "type": {
+            "$ref": "#/components/schemas/TransactionType"
+          },
+          "amountVnd": {
+            "$ref": "#/components/schemas/PositiveMoneyVnd"
+          },
+          "categoryId": {
+            "type": "string"
+          },
+          "occurredAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "role": {
+            "$ref": "#/components/schemas/CorrectionRole"
+          },
+          "referenceId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "BudgetWarning": {
+        "type": "object",
+        "required": [
+          "isOverrun",
+          "limitVnd",
+          "usedVnd"
+        ],
+        "properties": {
+          "isOverrun": {
+            "type": "boolean"
+          },
+          "limitVnd": {
+            "$ref": "#/components/schemas/MoneyVnd"
+          },
+          "usedVnd": {
+            "$ref": "#/components/schemas/MoneyVnd"
+          }
+        }
+      },
+      "TransactionResponse": {
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "type": "object",
+            "required": [
+              "transaction"
+            ],
+            "properties": {
+              "transaction": {
+                "$ref": "#/components/schemas/Transaction"
+              },
+              "budgetWarning": {
+                "$ref": "#/components/schemas/BudgetWarning"
+              }
+            }
+          }
+        }
+      },
+      "PageMeta": {
+        "type": "object",
+        "required": [
+          "hasNext"
+        ],
+        "properties": {
+          "cursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "hasNext": {
+            "type": "boolean"
+          }
+        }
+      },
+      "TransactionPageResponse": {
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Transaction"
+            }
+          },
+          "meta": {
+            "$ref": "#/components/schemas/PageMeta"
+          }
+        }
+      },
+      "Savings": {
+        "type": "object",
+        "required": [
+          "balanceVnd",
+          "currency",
+          "updatedAt"
+        ],
+        "properties": {
+          "balanceVnd": {
+            "$ref": "#/components/schemas/MoneyVnd"
+          },
+          "currency": {
+            "type": "string",
+            "const": "VND"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "SavingsResponse": {
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/Savings"
+          }
+        }
+      },
+      "TransferDirection": {
+        "type": "string",
+        "enum": [
+          "deposit",
+          "withdraw"
+        ]
+      },
+      "CreateSavingsTransferRequest": {
+        "type": "object",
+        "required": [
+          "direction",
+          "amountVnd"
+        ],
+        "properties": {
+          "direction": {
+            "$ref": "#/components/schemas/TransferDirection"
+          },
+          "amountVnd": {
+            "$ref": "#/components/schemas/PositiveMoneyVnd"
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 500
+          }
+        }
+      },
+      "SavingsTransfer": {
+        "type": "object",
+        "required": [
+          "id",
+          "direction",
+          "amountVnd",
+          "createdAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "direction": {
+            "$ref": "#/components/schemas/TransferDirection"
+          },
+          "amountVnd": {
+            "$ref": "#/components/schemas/PositiveMoneyVnd"
+          },
+          "note": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "SavingsTransferResponse": {
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/SavingsTransfer"
+          }
+        }
+      },
+      "SavingsTransferPageResponse": {
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SavingsTransfer"
+            }
+          },
+          "meta": {
+            "$ref": "#/components/schemas/PageMeta"
+          }
+        }
+      },
+      "CategoryStatus": {
+        "type": "string",
+        "enum": [
+          "active",
+          "disabled",
+          "retired"
+        ]
+      },
+      "Category": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "appliesTo",
+          "status",
+          "isDefault"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "object",
+            "required": [
+              "en",
+              "vi"
+            ],
+            "properties": {
+              "en": {
+                "type": "string"
+              },
+              "vi": {
+                "type": "string"
+              }
+            }
+          },
+          "appliesTo": {
+            "$ref": "#/components/schemas/TransactionType"
+          },
+          "status": {
+            "$ref": "#/components/schemas/CategoryStatus"
+          },
+          "isDefault": {
+            "type": "boolean"
+          }
+        }
+      },
+      "CategoryResponse": {
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/Category"
+          }
+        }
+      },
+      "CategoryListResponse": {
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Category"
+            }
+          }
+        }
+      },
+      "CreateCategoryRequest": {
+        "type": "object",
+        "required": [
+          "nameEn",
+          "appliesTo"
+        ],
+        "properties": {
+          "nameEn": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "nameVi": {
+            "type": "string",
+            "maxLength": 80
+          },
+          "appliesTo": {
+            "$ref": "#/components/schemas/TransactionType"
+          }
+        }
+      },
+      "UpdateCategoryRequest": {
+        "type": "object",
+        "minProperties": 1,
+        "properties": {
+          "nameEn": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "nameVi": {
+            "type": "string",
+            "maxLength": 80
+          },
+          "status": {
+            "$ref": "#/components/schemas/CategoryStatus"
+          }
+        }
+      },
+      "Budget": {
+        "type": "object",
+        "required": [
+          "categoryId",
+          "month",
+          "limitVnd",
+          "usedVnd",
+          "isOverrun"
+        ],
+        "properties": {
+          "categoryId": {
+            "type": "string"
+          },
+          "month": {
+            "type": "string",
+            "pattern": "^\\\\d{4}-(0[1-9]|1[0-2])$"
+          },
+          "limitVnd": {
+            "$ref": "#/components/schemas/MoneyVnd"
+          },
+          "usedVnd": {
+            "$ref": "#/components/schemas/MoneyVnd"
+          },
+          "isOverrun": {
+            "type": "boolean"
+          }
+        }
+      },
+      "BudgetResponse": {
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/Budget"
+          }
+        }
+      },
+      "BudgetListResponse": {
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Budget"
+            }
+          }
+        }
+      },
+      "UpsertBudgetRequest": {
+        "type": "object",
+        "required": [
+          "month",
+          "limitVnd"
+        ],
+        "properties": {
+          "month": {
+            "type": "string",
+            "pattern": "^\\\\d{4}-(0[1-9]|1[0-2])$"
+          },
+          "limitVnd": {
+            "$ref": "#/components/schemas/MoneyVnd"
+          }
+        }
+      },
+      "BudgetSummary": {
+        "type": "object",
+        "required": [
+          "month",
+          "totalLimitVnd",
+          "totalUsedVnd",
+          "exceededCategoryCount"
+        ],
+        "properties": {
+          "month": {
+            "type": "string"
+          },
+          "totalLimitVnd": {
+            "$ref": "#/components/schemas/MoneyVnd"
+          },
+          "totalUsedVnd": {
+            "$ref": "#/components/schemas/MoneyVnd"
+          },
+          "exceededCategoryCount": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "BudgetSummaryResponse": {
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/BudgetSummary"
+          }
+        }
+      },
+      "MonthlyReport": {
+        "type": "object",
+        "required": [
+          "month",
+          "openingWalletBalanceVnd",
+          "totalIncomeVnd",
+          "totalPaymentVnd",
+          "closingWalletBalanceVnd",
+          "categoryBreakdown"
+        ],
+        "properties": {
+          "month": {
+            "type": "string"
+          },
+          "openingWalletBalanceVnd": {
+            "$ref": "#/components/schemas/MoneyVnd"
+          },
+          "totalIncomeVnd": {
+            "$ref": "#/components/schemas/MoneyVnd"
+          },
+          "totalPaymentVnd": {
+            "$ref": "#/components/schemas/MoneyVnd"
+          },
+          "closingWalletBalanceVnd": {
+            "$ref": "#/components/schemas/MoneyVnd"
+          },
+          "categoryBreakdown": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CategoryTotal"
+            }
+          }
+        }
+      },
+      "CategoryTotal": {
+        "type": "object",
+        "required": [
+          "categoryId",
+          "amountVnd"
+        ],
+        "properties": {
+          "categoryId": {
+            "type": "string"
+          },
+          "amountVnd": {
+            "$ref": "#/components/schemas/MoneyVnd"
+          }
+        }
+      },
+      "MonthlyReportResponse": {
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/MonthlyReport"
+          }
+        }
+      },
+      "Dashboard": {
+        "type": "object",
+        "required": [
+          "wallet",
+          "savings",
+          "currentMonth",
+          "recentTransactions"
+        ],
+        "properties": {
+          "wallet": {
+            "$ref": "#/components/schemas/Wallet"
+          },
+          "savings": {
+            "$ref": "#/components/schemas/Savings"
+          },
+          "currentMonth": {
+            "$ref": "#/components/schemas/MonthlyReport"
+          },
+          "recentTransactions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Transaction"
+            }
+          }
+        }
+      },
+      "DashboardResponse": {
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/Dashboard"
+          }
+        }
+      },
+      "IssueStatus": {
+        "type": "string",
+        "enum": [
+          "open",
+          "in_triage",
+          "resolved",
+          "closed"
+        ]
+      },
+      "IssuePriority": {
+        "type": "string",
+        "enum": [
+          "P0",
+          "P1",
+          "P2"
+        ]
+      },
+      "Issue": {
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "status",
+          "priority",
+          "createdAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/IssueStatus"
+          },
+          "priority": {
+            "$ref": "#/components/schemas/IssuePriority"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "IssueResponse": {
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/Issue"
+          }
+        }
+      },
+      "IssuePageResponse": {
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Issue"
+            }
+          },
+          "meta": {
+            "$ref": "#/components/schemas/PageMeta"
+          }
+        }
+      },
+      "CreateIssueRequest": {
+        "type": "object",
+        "required": [
+          "title",
+          "description",
+          "category"
+        ],
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "financial_dispute",
+              "bug",
+              "other"
+            ]
+          },
+          "relatedTransactionId": {
+            "type": "string"
+          }
+        }
+      },
+      "UpdateIssueRequest": {
+        "type": "object",
+        "minProperties": 1,
+        "properties": {
+          "status": {
+            "$ref": "#/components/schemas/IssueStatus"
+          },
+          "priority": {
+            "$ref": "#/components/schemas/IssuePriority"
+          }
+        }
+      },
+      "CreateAdminNoteRequest": {
+        "type": "object",
+        "required": [
+          "note"
+        ],
+        "properties": {
+          "note": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+          }
+        }
+      },
+      "AuditEvent": {
+        "type": "object",
+        "required": [
+          "id",
+          "action",
+          "outcome",
+          "createdAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "action": {
+            "type": "string"
+          },
+          "outcome": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "AuditPageResponse": {
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AuditEvent"
+            }
+          },
+          "meta": {
+            "$ref": "#/components/schemas/PageMeta"
+          }
+        }
+      },
+      "CategorySuggestionRequest": {
+        "type": "object",
+        "required": [
+          "transactionType",
+          "description",
+          "locale"
+        ],
+        "properties": {
+          "transactionType": {
+            "$ref": "#/components/schemas/TransactionType"
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "locale": {
+            "$ref": "#/components/schemas/Locale"
+          }
+        }
+      },
+      "CategorySuggestion": {
+        "type": "object",
+        "required": [
+          "status",
+          "categoryId",
+          "confidence",
+          "reasonCode"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "suggested",
+              "manual",
+              "disabled",
+              "unavailable"
+            ]
+          },
+          "categoryId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 1
+          },
+          "reasonCode": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "low_confidence",
+              "timeout",
+              "quota",
+              "schema",
+              "flag_off",
+              "privacy",
+              null
+            ]
+          }
+        }
+      },
+      "CategorySuggestionResponse": {
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/CategorySuggestion"
+          }
+        }
+      },
+      "Health": {
+        "type": "object",
+        "required": [
+          "status",
+          "timestamp"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "const": "pass"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "HealthResponse": {
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/Health"
+          }
+        }
+      },
+      "Readiness": {
+        "type": "object",
+        "required": [
+          "status",
+          "checks"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "pass",
+              "fail"
+            ]
+          },
+          "checks": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "ReadinessResponse": {
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/Readiness"
+          }
+        }
+      },
+      "ErrorDetail": {
+        "type": "object",
+        "required": [
+          "code",
+          "message"
+        ],
+        "properties": {
+          "field": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "ApiError": {
+        "type": "object",
+        "required": [
+          "code",
+          "message"
+        ],
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "details": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ErrorDetail"
+            }
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "$ref": "#/components/schemas/ApiError"
+          }
+        }
+      }
+    }
+  }
+}

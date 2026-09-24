@@ -1,0 +1,18 @@
+{
+  "name": "campus-coin",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Campus Coin API contract and application workspace",
+  "type": "module",
+  "scripts": {
+    "api:validate": "redocly lint docs/contracts/openapi.yaml",
+    "api:bundle": "redocly bundle docs/contracts/openapi.yaml -o artifacts/openapi.json",
+    "api:types": "openapi-typescript docs/contracts/openapi.yaml -o artifacts/api.d.ts",
+    "verify:docs": "npm run api:validate && git diff --check",
+    "test": "node --test"
+  },
+  "devDependencies": {
+    "@redocly/cli": "^2.54.2",
+    "openapi-typescript": "^7.13.0"
+  }
+}
