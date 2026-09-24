@@ -1,6 +1,8 @@
 // DB environment: validate presence/shape fail-closed, tuyệt đối không in/log giá trị.
 // Identifier bắt buộc: CAMPUS_COIN_DB_* (xem .env.example).
 
+import { readFileSync } from "node:fs";
+
 export type DbSslMode = "required" | "verify-ca" | "disabled";
 
 export interface DbEnv {
@@ -90,4 +92,30 @@ export function migrationCreds(env: DbEnv): { user: string; password: string } {
     return { user: env.migrateUser, password: env.migratePassword };
   }
   return { user: env.user, password: env.password };
+}
+
+/** SSL option cho mysql2 (ConnectionOptions và PoolOptions dùng cùng shape này). */
+export interface DbSslOption {
+  rejectUnauthorized: boolean;
+  ca?: string;
+}
+
+/**
+ * Dựng SSL option từ DbEnv — MỘT nguồn duy nhất cho pool, CLI migrate và test harness.
+ * `verify-ca` đọc nội dung PEM từ `caPath`; mysql2 cần nội dung chứng chỉ, không phải
+ * đường dẫn. Truyền path sẽ làm OpenSSL không tìm thấy CA và fail
+ * "self-signed certificate in certificate chain" (đúng đường Aiven/free tier bắt buộc).
+ */
+export function sslOption(env: DbEnv): DbSslOption | undefined {
+  switch (env.sslMode) {
+    case "verify-ca":
+      // readDbEnv đã bắt buộc caPath khi verify-ca.
+      return { rejectUnauthorized: true, ca: readFileSync(env.caPath!, "utf8") };
+    case "disabled":
+      // Chỉ local dev; production phải required|verify-ca (kiểm tra ở preflight).
+      return undefined;
+    case "required":
+    default:
+      return { rejectUnauthorized: true };
+  }
 }

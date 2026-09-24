@@ -15,29 +15,13 @@ import {
   supportsCheckConstraints,
   type MigrationConnection,
 } from "./migration-engine.ts";
-import { DbEnvError, migrationCreds, readDbEnv, type DbEnv } from "./env.ts";
+import { sslOption, DbEnvError, migrationCreds, readDbEnv, type DbEnv } from "./env.ts";
 
 const MIGRATIONS_DIR =
   process.env["CAMPUS_COIN_MIGRATIONS_DIR"] ??
   path.resolve(import.meta.dirname, "..", "..", "..", "db", "migrations");
 
-function sslOption(dbEnv: DbEnv): mysql.ConnectionOptions["ssl"] {
-  switch (dbEnv.sslMode) {
-    case "verify-ca": {
-      const ca = dbEnv.caPath;
-      if (ca === undefined) {
-        // Không đến được: readDbEnv đã validate CA path cho verify-ca.
-        throw new Error("CAMPUS_COIN_DB_CA_PATH missing for verify-ca");
-      }
-      return { rejectUnauthorized: true, ca };
-    }
-    case "disabled":
-      return undefined;
-    case "required":
-    default:
-      return { rejectUnauthorized: true };
-  }
-}
+
 
 async function connect(dbEnv: DbEnv, multipleStatements: boolean): Promise<mysql.Connection> {
   const creds = migrationCreds(dbEnv);

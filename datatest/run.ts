@@ -8,7 +8,7 @@
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import mysql, { type Connection } from "mysql2/promise";
-import { DbEnvError, migrationCreds, readDbEnv } from "../src/infrastructure/db/env.ts";
+import { DbEnvError, migrationCreds, readDbEnv, sslOption } from "../src/infrastructure/db/env.ts";
 import { applyMigration, scanMigrationDir, type MigrationConnection } from "../src/infrastructure/db/migration-engine.ts";
 
 const SQL_DIR =
@@ -69,12 +69,7 @@ async function main(): Promise<number> {
   }
 
   const creds = migrationCreds(dbEnv);
-  const ssl =
-    dbEnv.sslMode === "verify-ca"
-      ? { rejectUnauthorized: true, ca: dbEnv.caPath }
-      : dbEnv.sslMode === "disabled"
-        ? undefined
-        : { rejectUnauthorized: true };
+  const ssl = sslOption(dbEnv);
 
   let admin: Connection | null = null;
   let mig: Connection | null = null;

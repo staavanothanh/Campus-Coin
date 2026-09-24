@@ -93,6 +93,58 @@ Chạy: `npm run db:preflight` → `db:migrate` → `npm test` với `CAMPUS_COI
    - FK không lỗi; ledger/audit không có row bị sửa/xóa (append-only); idempotency không trùng response.
 3. Reconcile fail → fail closed, mở incident, không mở write path (xem `docs/ADMIN-OPERATIONS.md`).
 
+## Đưa lên cloud (Aiven MySQL free tier + Vercel)
+
+Nguồn: Aiven docs — free tier (1 node, 1 CPU, 1 GB RAM, 1 GB disk, `max_connections=76`, có backup, không static IP/VPC/integration, không SLA), TLS certificates (project CA riêng), MySQL backups (full daily + binlog → PITR). Đây là **kế hoạch**, chưa có evidence nào được đo trên Aiven — mọi mục ở §Day-1 verification phải chạy thật rồi mới ghi nhận.
+
+### Bước 1 — Provision (thủ công, cần tài khoản Aiven của Team Leader)
+
+1. Tạo project → service **Aiven for MySQL**, free plan. Chọn cloud/region gần Việt Nam (Singapore `ap-southeast-1` là candidate; không chốt khi chưa đo latency).
+2. Ghi lại `host`, `port`, `user` (`avnadmin`), `password`, `database` (mặc định `defaultdb`) từ **Overview → Connection information**.
+3. **Tải CA certificate** (Overview → CA Certificate). Bắt buộc: Aiven MySQL dùng project CA riêng, không phải CA hệ điều hành.
+4. Tạo database `campus_coin` (`CREATE DATABASE campus_coin CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci`) và 2 role theo `db/grants.example.sql`: `cc_migrate` (DDL + DML), `cc_runtime` (chỉ DML). Không dùng `avnadmin` cho runtime.
+5. IP filter: free tier **không có static IP**, còn Vercel serverless không có egress IP cố định. Hai lựa chọn — chọn có ý thức, không im lặng:
+   - Mở `0.0.0.0/0` (đơn giản, mặc định Aiven) và dựa vào TLS + credential mạnh; hoặc
+   - Vercel Secure Compute / static egress (paid) rồi allowlist CIDR — ghi rõ đây là scope cut nếu bỏ.
+
+### Bước 2 — Repo phải sửa trước khi trỏ lên Aiven
+
+- `CAMPUS_COIN_DB_SSL=verify-ca` + `CAMPUS_COIN_DB_CA_PATH=<ca.pem>`. Chế độ `required` trong code hiện tại verify bằng system CA → **sẽ fail với Aiven**. Đường `verify-ca` đã có code nhưng **chưa từng chạy thật lần nào**; đây là rủi ro chính, phải test trước.
+- `CAMPUS_COIN_DB_CONNECTION_LIMIT`: Aiven free `max_connections=76`. Giữ pool nhỏ (5) — Vercel có nhiều instance serverless, pool per-instance nhân lên nhanh. `db:preflight` cảnh báo nếu vượt.
+- CA rotation: Aiven xoay project CA định kỳ và gửi email; CA bundle phải cập nhật theo, nếu không connection fail. Ghi owner cho việc này (lane B).
+
+### Bước 3 — Chạy migration lên cloud
+
+Migration chạy từ máy dev/DBA (không phải từ serverless runtime) bằng role `cc_migrate`:
+
+1. `npm run db:preflight` — phải pass với `verify-ca` (đây là cổng quan trọng nhất).
+2. `npm run db:status` → `npm run db:migrate`.
+3. Lưu ý Aiven: backup dùng `--lock-ddl`, nên DDL (`ALTER TABLE`) có thể gặp **"Waiting for backup lock"** trong cửa sổ backup — retry, không coi là lỗi migration.
+
+### Bước 4 — Verify từ Vercel
+
+- Đặt `CAMPUS_COIN_DB_*` trong Vercel Project Environment (Production tách khỏi Preview; preview **không** dùng DB production). CA bundle: dán nội dung PEM vào env hoặc file trong deployment — kiểm tra cách `readFileSync(caPath)` hoạt động trên filesystem serverless trước khi chốt.
+- Health check gọi `SELECT 1` qua pool để xác nhận connectivity thật từ deployment.
+- Đo latency Vercel → Aiven (region xa làm mỗi round-trip đắt: write path hiện 13 round-trip/giao dịch, xem mục benchmark bên dưới).
+
+### Bước 5 — Backup/restore rehearsal (Day-4 gate, chưa làm)
+
+Aiven có full backup hằng ngày + binlog (PITR), nhưng **restore phải được diễn tập thật**: restore vào service cô lập → chạy `CAMPUS_COIN_TEST_DB=1 npm test` + reconcile (wallet/savings/FK/append-only/idempotency) → chỉ mở write path khi reconcile sạch. Aiven không cho forking ở free tier, nên cần phương án restore riêng (service tạm hoặc `mysqldump` ra máy rồi restore vào DB cô lập).
+
+## Benchmark local (MySQL 8.0.41, chỉ để tham chiếu — không phải số của cloud)
+
+Đo trên bảng `ledger_transactions` ~101.000 row / 21 tenant:
+
+| Thao tác | p50 | p95 |
+|---|---|---|
+| `monthlyReport` (tháng hiện tại) | 4.6 ms | 6.9 ms |
+| `dashboard` | 5.3 ms | 6.7 ms |
+| `listTransactions` page 1 | 2.0 ms | 2.3 ms |
+| `createTransaction` payment (có budget check) | 8.7 ms | 62 ms |
+| 20 payment song song | 240 ms (≈83 tx/s) | — |
+
+Ghi chú: trần ghi ~176 write/s là chi phí fsync của ổ đĩa local (`flush=1, sync_binlog=1`), không phải giới hạn của schema. User có 120.000 row/1 owner cho `monthlyReport` ~370 ms — report tính từ ledger immutable không projection (ADR-0005); nếu cần nhanh hơn ở quy mô đó thì phải thiết kế projection, không tự thêm.
+
 ## Restore/incident
 
 - Restore dữ liệu theo runbook provider (mysqldump/export tool của provider, thời điểm đã chọn); sau restore luôn chạy reconcile bước 2 ở trên.
