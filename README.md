@@ -54,7 +54,7 @@ Không sửa tay hai file này. Nguồn duy nhất là [`docs/contracts/openapi.
 
 ### Trạng thái source runtime
 
-Hiện workspace mới có contract/tooling và tài liệu. Khi app runtime được tạo, scripts `dev`, `build`, `lint`, `typecheck` và test cụ thể phải được thêm vào `package.json` cùng implementation tương ứng; không coi script placeholder là môi trường chạy được.
+Workspace có contract/tooling, tài liệu và lane MySQL (migrations + persistence services, `src/infrastructure/db`, `src/infrastructure/persistence`, `src/application`, tests). Scripts `typecheck`, `db:preflight`, `db:status`, `db:migrate`, `test` đã khả dụng. `dev`, `build`, `lint` chưa tồn tại cho đến khi app runtime (routes/UI) được tạo; không coi script placeholder là môi trường chạy được.
 
 ## 2. Cấu trúc project dự kiến
 
@@ -96,7 +96,7 @@ Hiện workspace mới có contract/tooling và tài liệu. Khi app runtime đ�
 └── SRS_End-to-End Web Solutions/     # SRS nguồn; không sửa tùy tiện
 ```
 
-`src/` và `tests/` chưa được scaffold. Cấu trúc này là target architecture, không phải claim các thư mục runtime đã tồn tại.
+`db/` và `src/`/`tests/` đã có phần persistence MySQL (migrations, pool, repositories, services money) và unit tests; app runtime (routes/UI) chưa được scaffold. Cấu trúc trên là target architecture — xem [`db/README.md`](db/README.md) cho lane DB.
 
 ## 3. Tài liệu cần đọc theo task
 
@@ -224,6 +224,10 @@ npm run api:validate
 npm run api:bundle
 npm run api:types
 npm run verify:docs
+npm run typecheck
+npm test
+npm run db:preflight   # cần CAMPUS_COIN_DB_* (xem db/README.md)
+npm run db:migrate
 git diff --check
 ```
 
