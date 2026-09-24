@@ -54,7 +54,23 @@ Không sửa tay hai file này. Nguồn duy nhất là [`docs/contracts/openapi.
 
 ### Chạy bản thử Dev A trên nhánh `hiep`
 
-Sao chép `.env.example` thành `.env` và điền các biến MySQL, SMTP, `OTP_SECRET`, `SESSION_SECRET` bằng giá trị của môi trường thử riêng. Không commit `.env`. Sau khi migration được nhóm duyệt và áp dụng trên database thử, chạy API và giao diện ở hai terminal:
+Sao chép `.env.example` thành `.env` và điền các biến MySQL, SMTP, `OTP_SECRET`, `SESSION_SECRET` bằng giá trị của môi trường thử riêng. Không commit `.env`.
+
+Nếu dùng MySQL với `CAMPUS_COIN_DB_SSL=verify-ca`, tải CA certificate từ chính nhà cung cấp MySQL. Với `CAMPUS_COIN_DB_CA_PATH=ca.pem`, đặt file `ca.pem` tại thư mục gốc repository, cùng cấp với `package.json`. Tên file trong `.env` không tự tạo ra chứng chỉ; `ca.pem` được Git bỏ qua. Không tắt TLS để chữa lỗi thiếu file CA trên cloud.
+
+Các biến còn lại cho bản thử đăng nhập email:
+
+| Biến | Cần điền gì |
+|---|---|
+| `CLIENT_ORIGIN` | Địa chỉ giao diện local, mặc định `http://127.0.0.1:5173`; phải đúng địa chỉ đang mở. |
+| `OTP_SECRET` và `SESSION_SECRET` | Hai chuỗi ngẫu nhiên **khác nhau**, mỗi chuỗi ít nhất 32 byte; chỉ lưu trong `.env`. Dùng `node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"` hai lần để tạo. |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE` | Máy chủ gửi mail. Với Gmail: `smtp.gmail.com`, `587`, `false` (STARTTLS). |
+| `SMTP_USER` | Địa chỉ Gmail dùng để gửi OTP. |
+| `SMTP_PASS` | App Password của Gmail, không phải mật khẩu đăng nhập Gmail. Tài khoản cần bật xác minh hai bước trước khi tạo App Password. |
+| `EMAIL_FROM` | Địa chỉ gửi, nên dùng cùng Gmail trong `SMTP_USER`. |
+| `CAMPUS_COIN_DB_MIGRATE_USER` và `CAMPUS_COIN_DB_MIGRATE_PASSWORD` | Tài khoản MySQL có quyền chạy migration, nếu nhóm đã tạo riêng. Để trống thì công cụ dùng tài khoản DB thường; không chạy migration trên database dùng chung khi chưa được nhóm đồng ý. |
+
+Sau khi điền, chạy `npm run db:preflight` để kiểm tra kết nối MySQL (chỉ đọc). Nếu có `FAIL`, xử lý lỗi đó trước khi chạy API. `npm run db:migrate` ghi vào database, chỉ chạy sau khi nhóm xác nhận database đích, backup và quyền migration. OTP thật chỉ kiểm tra được khi SMTP đã cấu hình và bạn dùng email do mình sở hữu. Sau khi migration được nhóm duyệt và áp dụng trên database thử, chạy API và giao diện ở hai terminal:
 
 ```bash
 npm run dev:api

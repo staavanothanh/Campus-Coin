@@ -114,3 +114,30 @@ test("applyMigration: chạy SQL rồi ghi schema_migrations", async () => {
   assert.equal(calls[1]!.sql.startsWith("INSERT INTO schema_migrations"), true);
   assert.deepEqual(calls[1]!.params, ["0001", "0001_a.sql", "abc"]);
 });
+
+test("scanMigrationDir: LF và CRLF có cùng checksum", async () => {
+  const dir = makeDir({
+    "0001_lf.sql": "CREATE TABLE a (id INT);\nSELECT 1;\n",
+    "0002_crlf.sql": "CREATE TABLE a (id INT);\r\nSELECT 1;\r\n",
+  });
+  try {
+    const files = await scanMigrationDir(dir);
+    assert.equal(files[0]!.checksum, files[1]!.checksum);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("planMigrations: chấp nhận checksum CRLF đã lưu trước đây", async () => {
+  const dir = makeDir({ "0001_old.sql": "SELECT 1;\nSELECT 2;\n" });
+  try {
+    const files = await scanMigrationDir(dir);
+    const oldSql = files[0]!.sql.replace(/\n/g, "\r\n");
+    const oldChecksum = createHash("sha256").update(oldSql, "utf8").digest("hex");
+    const plan = planMigrations(files, new Map([["0001", oldChecksum]]));
+    assert.deepEqual(plan.appliedClean, ["0001"]);
+    assert.deepEqual(plan.appliedMismatch, []);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});

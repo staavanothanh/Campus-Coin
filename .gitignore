@@ -12,6 +12,7 @@ dist/
 .env
 .env.*
 !.env.example
+/ca.pem
 .vercel
 .vercel-env-sync/
 

@@ -35,7 +35,12 @@ export class MigrationError extends Error {
 const FILE_PATTERN = /^(\d{4})_[a-z0-9_]+\.sql$/;
 
 function fileChecksum(sql: string): string {
-  return createHash("sha256").update(sql, "utf8").digest("hex");
+  return createHash("sha256").update(sql.replace(/\r\n/g, "\n"), "utf8").digest("hex");
+}
+
+function oldWindowsChecksum(sql: string): string {
+  const crlf = sql.replace(/\r\n/g, "\n").replace(/\n/g, "\r\n");
+  return createHash("sha256").update(crlf, "utf8").digest("hex");
 }
 
 /** Quét db/migrations theo thứ tự version; bỏ file không đúng pattern (không âm thầm). */
@@ -99,7 +104,7 @@ export function planMigrations(files: MigrationFile[], applied: Map<string, stri
     const recorded = applied.get(file.version);
     if (recorded === undefined) {
       plan.pending.push(file);
-    } else if (recorded === file.checksum) {
+    } else if (recorded === file.checksum || recorded === oldWindowsChecksum(file.sql)) {
       plan.appliedClean.push(file.version);
     } else {
       plan.appliedMismatch.push({ version: file.version, expected: file.checksum, actual: recorded });
