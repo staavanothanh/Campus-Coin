@@ -4,6 +4,7 @@ SRS_End-to-End Web Solutions/
 # Agents
 .agents/
 .codebase-memory/
+node_modules/
 
 # env + vercel
 .env
