@@ -33,12 +33,15 @@ export class MigrationError extends Error {
 }
 
 const FILE_PATTERN = /^(\d{4})_[a-z0-9_]+\.sql$/;
+const VALID_STATEMENT_STARTS = new Set([
+  "ALTER", "CREATE", "DELETE", "DROP", "INSERT", "RENAME", "REPLACE", "SELECT", "SET", "TRUNCATE", "UPDATE",
+]);
 
 function fileChecksum(sql: string): string {
   return createHash("sha256").update(sql, "utf8").digest("hex");
 }
 
-/** Quét db/migrations theo thứ tự version; bỏ file không đúng pattern (không âm thầm). */
+/** Quét migration theo thứ tự version; bỏ qua auxiliary files nhưng từ chối SQL filename sai pattern. */
 export async function scanMigrationDir(dir: string): Promise<MigrationFile[]> {
   let entries: string[];
   try {
@@ -49,8 +52,25 @@ export async function scanMigrationDir(dir: string): Promise<MigrationFile[]> {
   const files: MigrationFile[] = [];
   for (const entry of entries) {
     const match = FILE_PATTERN.exec(entry);
-    if (match === null) continue;
-    const sql = await readFile(path.join(dir, entry), "utf8");
+    if (match === null) {
+      if (entry.toLowerCase().endsWith(".sql")) {
+        throw new MigrationError(`invalid migration filename: ${entry} (expected NNNN_name.sql)`);
+      }
+      continue;
+    }
+    const sql = await readFile(path.join(dir, entry), "utf8").catch((error: unknown) => {
+      throw new MigrationError(`cannot read migration file ${entry}: ${String(error)}`);
+    });
+    const executableSql = sql
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .replace(/(^|\n)\s*--[^\r\n]*/g, "$1")
+      .replace(/(^|\n)\s*#[^\r\n]*/g, "$1")
+      .trim();
+    if (executableSql.length === 0) throw new MigrationError(`migration file is empty: ${entry}`);
+    const firstKeyword = /^[a-z]+/i.exec(executableSql)?.[0].toUpperCase();
+    if (firstKeyword === undefined || !VALID_STATEMENT_STARTS.has(firstKeyword)) {
+      throw new MigrationError(`invalid SQL migration content: ${entry}`);
+    }
     files.push({
       version: match[1]!,
       name: entry,
@@ -59,6 +79,18 @@ export async function scanMigrationDir(dir: string): Promise<MigrationFile[]> {
     });
   }
   files.sort((a, b) => (a.version < b.version ? -1 : a.version > b.version ? 1 : 0));
+  for (let index = 1; index < files.length; index += 1) {
+    if (files[index - 1]!.version === files[index]!.version) {
+      throw new MigrationError(`duplicate migration version ${files[index]!.version}: ${files[index - 1]!.name}, ${files[index]!.name}`);
+    }
+  }
+  for (let index = 0; index < files.length; index += 1) {
+    const file = files[index]!;
+    const expectedVersion = String(index + 1).padStart(4, "0");
+    if (file.version !== expectedVersion) {
+      throw new MigrationError(`migration version gap: expected ${expectedVersion}, found ${file.version}`);
+    }
+  }
   return files;
 }
 
@@ -87,6 +119,8 @@ export interface MigrationPlan {
   pending: MigrationFile[];
   appliedClean: string[];
   appliedMismatch: Array<{ version: string; expected: string; actual: string }>;
+  appliedMissing: string[];
+  pendingOutOfOrder: string[];
 }
 
 /**
@@ -94,17 +128,27 @@ export interface MigrationPlan {
  * Checksum lệch → lỗi hard (fail closed): không âm thầm apply lại file đã chạy.
  */
 export function planMigrations(files: MigrationFile[], applied: Map<string, string>): MigrationPlan {
-  const plan: MigrationPlan = { pending: [], appliedClean: [], appliedMismatch: [] };
+  const plan: MigrationPlan = {
+    pending: [],
+    appliedClean: [],
+    appliedMismatch: [],
+    appliedMissing: [],
+    pendingOutOfOrder: [],
+  };
+  const localVersions = new Set(files.map((file) => file.version));
+  const appliedVersions = [...applied.keys()].sort();
   for (const file of files) {
     const recorded = applied.get(file.version);
     if (recorded === undefined) {
       plan.pending.push(file);
+      if (appliedVersions.some((version) => version > file.version)) plan.pendingOutOfOrder.push(file.version);
     } else if (recorded === file.checksum) {
       plan.appliedClean.push(file.version);
     } else {
       plan.appliedMismatch.push({ version: file.version, expected: file.checksum, actual: recorded });
     }
   }
+  plan.appliedMissing = [...applied.keys()].filter((version) => !localVersions.has(version)).sort();
   return plan;
 }
 
@@ -119,6 +163,18 @@ export async function acquireMigrationLock(conn: MigrationConnection, timeoutSec
 
 export async function releaseMigrationLock(conn: MigrationConnection): Promise<void> {
   await conn.query("SELECT RELEASE_LOCK(?)", ["campus_coin.migrations"]);
+}
+
+/** Run the supplied reload/re-plan/apply work while holding the session migration lock. */
+export async function withMigrationLock<T>(conn: MigrationConnection, action: () => Promise<T>): Promise<T> {
+  if (!(await acquireMigrationLock(conn))) {
+    throw new MigrationError("could not acquire migration lock (another migration may be running)");
+  }
+  try {
+    return await action();
+  } finally {
+    await releaseMigrationLock(conn).catch(() => undefined);
+  }
 }
 
 /**
@@ -154,9 +210,15 @@ export function supportsCheckConstraints(version: string): boolean {
  */
 export async function applyMigration(conn: MigrationConnection, file: MigrationFile): Promise<void> {
   await conn.query(file.sql);
-  await conn.query("INSERT INTO schema_migrations (version, name, checksum) VALUES (?, ?, ?)", [
-    file.version,
-    file.name,
-    file.checksum,
-  ]);
+  try {
+    await conn.query("INSERT INTO schema_migrations (version, name, checksum) VALUES (?, ?, ?)", [
+      file.version,
+      file.name,
+      file.checksum,
+    ]);
+  } catch (error) {
+    throw new MigrationError(
+      `${file.version} DDL completed but schema_migrations recording failed; inspect database state before retry: ${String(error)}`,
+    );
+  }
 }

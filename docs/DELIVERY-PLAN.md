@@ -74,9 +74,42 @@ Không nằm trên critical path: local auth, linking, OTP/reset, Gmail inbox/c�
 
 Trigger gồm OAuth bypass/IDOR, wallet/savings invariant, destructive migration, DB data loss, secret/PII leak hoặc deploy-wide failure. Tắt JEV trước nếu liên quan; deploy known-good; restore/reconcile từ immutable ledger; không xóa/sửa ledger. Team Leader quyết định resume/read-only/rollback.
 
-## 12. Blocker hiện tại
+## 12. Trạng thái và blocker DevB
 
-Chưa có blocker cho việc lập kế hoạch. Launch vẫn bị chặn bởi Day-1/Day-4 evidence về Google OAuth/Vercel, MySQL provider/region/restore, domain/security, UI/release và production smoke. OpenRouter chưa được claim; JEV có thể giữ off.
+Đã có schema MySQL và migrations `0001`–`0027`, các service/repository wallet, ledger, savings, budget, report, unit tests, gated MySQL tests và contract smoke tests. Migration owner/projection được chia thành một DDL statement mỗi version để resume sau lỗi statement-level. Branch local đang ahead 5/behind 0 so với `main`; chưa có PR hoặc CI result. Workflow MySQL thật và lệnh gate bắt buộc đã được thêm nhưng chưa chạy trong môi trường này. Source/test pass chưa đồng nghĩa DB/restore/provider đã được xác minh.
+
+| ID | Blocker | Owner | Điều kiện đóng |
+|---|---|---|---|
+| `BLK-OWNER-01` | Migrations `0011`/`0013`/`0014` thêm composite FK và `0018`/`0020`/`0023` chặn cross-owner/type SQL trực tiếp | B | Chờ migrations + datatest thực thi trên MySQL 8 thật; không đóng trước đó |
+| `BLK-IDEMP-01` | Helper dùng DB được truyền vào; category/budget claim/replay/conflict cùng body hash và audit atomically | B | Unit/typecheck đã pass; chờ gated MySQL concurrency/replay test |
+| `BLK-API-01` | Fetch-compatible handlers cho core/issue routes, validation, origin/CSRF port và envelope đã có | A + B | Chờ host mount, auth/session adapter và distributed rate-limit thật; route unit test không thay thế OAuth/session integration |
+| `BLK-ISSUE-01` | Issue service/repository owner scope, related transaction ownership, atomic event/audit và admin role checks đã có | B | Chờ gated MySQL tests; admin role phải đến từ trusted session adapter |
+| `BLK-MIG-01` | `cmdUp` khóa trước khi load/re-plan; có MySQL concurrency integration test | B | Unit test pass; chờ concurrency test MySQL thật |
+| `BLK-MIG-02` | Filename, duplicate/gap, SQL rỗng/statement header và DB-only/out-of-order versions fail-closed | B | Unit tests pass; cú pháp đầy đủ được xác minh bằng fresh migration trên MySQL; DDL failure có thể để lại partial schema, chưa ghi version |
+| `BLK-HARNESS-01` | Harness dùng shared `sslOption`, admin test account riêng và runtime principal table/column grants | B | Chờ chạy `verify-ca` test thật trên disposable cloud candidate; local CI dùng MySQL riêng |
+| `BLK-MATH-01` | Checked arithmetic và exact DB integer parsing được thêm cho money/report/projection paths | B | Focused unit tests pass; chờ toàn bộ gated MySQL suite |
+| `BLK-CURSOR-01` | Cursor HMAC-SHA256 versioned, key bắt buộc khi dùng, limit/length bound | A + B | Focused tamper/boundary tests pass; key rotation/production secret provisioning còn là deploy gate |
+| `BLK-GRANT-01` | Grants chuyển từ schema-wide DML sang table/column scope; wallet/savings projections chỉ cập nhật qua trigger-definer; runtime grant test đã có | B + Team Leader | Chờ test bằng MySQL principal thật. Shared runtime DB identity không cung cấp row-level user identity; nếu acceptance yêu cầu cấm cả arbitrary SQL update issue/custom category ngoài service, cần chốt DB command/credential boundary trước khi đóng blocker |
+| `BLK-CI-01` | `test:mysql:required` ép gate và GitHub workflow MySQL 8.0.41 đã thêm | B + D | Workflow/check chưa chạy; cần CI result xanh trên PR |
+| `BLK-RECON-01` | `db:reconcile` đối chiếu wallet/savings projection từ immutable rows; `/health/ready` ping DB | B | Unit tests pass; restore rehearsal và reconciliation trên restored DB còn mở |
+
+### Dọn trước khi merge
+
+- [x] Sửa `docs/working/aiven-handoff.md`: không claim CA/endpoint/admin user chưa xác minh; không dùng admin user cho runtime.
+- [x] Benchmark tạo schema unique local-only và drop schema; không DELETE append-only history.
+- [x] Có `test:mysql:required`; `npm test` mặc định vẫn có thể skip suite DB và không được dùng làm evidence MySQL.
+- [ ] Chỉ mở PR sau khi diff, secret/PII, migration, restore, owner scope và test evidence được review.
+
+### Thứ tự merge đề xuất
+
+1. Owner isolation + idempotency.
+2. API routes/envelopes + issue/admin boundary.
+3. TLS harness và migration/restore/reconcile.
+4. Overflow + signed cursor.
+5. Integration/e2e gate chạy với MySQL thật.
+6. Dọn handoff/benchmark và mở PR sau khi CI MySQL thật xanh; hiện chưa có CI result.
+
+Các blocker cũ về OAuth/IDOR, provider/region/restore, domain invariant, secret/PII, accessibility và rollback vẫn là launch gate. OpenRouter chưa được claim; JEV có thể giữ off.
 
 ## 13. ADR liên quan
 

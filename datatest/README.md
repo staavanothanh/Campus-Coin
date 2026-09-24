@@ -5,14 +5,15 @@ Kiểm tra invariant ở lớp database (schema, seed, trigger append-only, CHEC
 ## Chạy
 
 ```bash
-# Cần CAMPUS_COIN_DB_* giống db:preflight (xem db/README.md và .env.example)
+# Cần MySQL local disposable, CAMPUS_COIN_DB_* và CAMPUS_COIN_TEST_DB_ADMIN_*.
+# Runner tạo/drop schema tạm; không trỏ tới production hoặc DB dùng chung.
 npm run db:datatest
 ```
 
 Runner (Node + mysql2):
 
 1. Tạo database tạm `campus_coin_datatest_<pid>_<ts>`.
-2. Apply migrations `db/migrations/` (0001 schema + 0002 seed).
+2. Apply mọi migration hiện có trong `db/migrations/` bằng test-admin account.
 3. Chạy từng file trong `datatest/sql/` theo thứ tự tên.
 4. Drop database tạm; exit code = 0 khi toàn bộ PASS.
 
@@ -60,6 +61,21 @@ DELETE FROM ledger_transactions WHERE id = 1;
 | `034_budget_invalid_month.sql` | expect-error | CHECK month YYYY-MM |
 | `035_foreign_key_missing_category.sql` | expect-error | FK category tồn tại |
 | `036_dup_idempotency.sql` | expect-error | UNIQUE (user, scope, idempotency_key) |
+| `037_cross_owner_correction.sql` | expect-error | composite FK chặn correction tham chiếu owner khác |
+| `038_cross_owner_ledger_category.sql` | expect-error | trigger chặn custom category của owner khác |
+| `039_cross_owner_budget_category.sql` | expect-error | trigger chặn budget trên category owner khác |
+| `040_cross_owner_issue_transaction.sql` | expect-error | composite FK issue→ledger cùng owner |
+| `041_cross_owner_savings_idempotency.sql` | expect-error | savings transfer/idempotency cùng owner |
+| `042_cross_owner_issue_update.sql` | expect-error | issue không đổi owner trực tiếp |
+| `043_duplicate_correction.sql` | expect-error | chỉ một correction cho mỗi original |
+| `044_ledger_category_type_mismatch.sql` | expect-error | ledger category phải cùng type |
+| `045_budget_income_category.sql` | expect-error | budget chỉ nhận payment category |
+| `046_correction_chain.sql` | expect-error | correction chỉ tham chiếu original cùng type/owner |
+| `047_runtime_cannot_create_system_category.sql` | expect-error | runtime không tạo global/default category |
+| `048_amount_over_safe_integer.sql` | expect-error | database chặn amount vượt `Number.MAX_SAFE_INTEGER` |
+| `049_runtime_cannot_modify_system_category.sql` | expect-error | system category không thể bị thay đổi trực tiếp |
+| `050_direct_payment_insufficient_wallet.sql` | expect-error | trigger chặn SQL payment làm wallet âm |
+| `051_direct_savings_withdraw_insufficient.sql` | expect-error | trigger chặn SQL withdraw vượt savings balance |
 
 ## Giới hạn
 

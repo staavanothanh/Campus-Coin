@@ -1,6 +1,7 @@
 // Wallet: một user một wallet; available_balance là projection cập nhật trong transaction.
 
 import { amountFromDb, isoFromDb } from "./rows.ts";
+import { isNonNegativeVnd } from "../../domain/money.ts";
 
 export interface WalletRow {
   id: number;
@@ -64,21 +65,13 @@ export async function insertWallet(
   db: WalletScalar,
   userId: number,
   initialBalanceVnd: number,
+  idempotencyId: number,
 ): Promise<number> {
+  if (!isNonNegativeVnd(initialBalanceVnd)) throw new Error("invalid wallet balance");
   const [result] = (await db.query(
-    `INSERT INTO wallet_accounts (user_id, initialized, initial_balance_vnd, available_balance_vnd, currency)
-     VALUES (?, 1, ?, ?, 'VND')`,
-    [userId, initialBalanceVnd, initialBalanceVnd],
+    `INSERT INTO wallet_accounts (user_id, initialized, initial_balance_vnd, available_balance_vnd, currency, idempotency_id)
+     VALUES (?, 1, ?, ?, 'VND', ?)`,
+    [userId, initialBalanceVnd, initialBalanceVnd, idempotencyId],
   )) as [{ insertId: number | string }, unknown];
   return Number(result.insertId);
-}
-
-export async function updateWalletBalance(db: WalletScalar, userId: number, newBalanceVnd: number): Promise<void> {
-  const [result] = (await db.query(
-    "UPDATE wallet_accounts SET available_balance_vnd = ? WHERE user_id = ?",
-    [newBalanceVnd, userId],
-  )) as [{ affectedRows: number }, unknown];
-  if (result.affectedRows !== 1) {
-    throw new Error(`wallet row missing for user ${userId}`);
-  }
 }

@@ -18,11 +18,24 @@ export function deltaFromDb(value: unknown): number {
 }
 
 function safeNumber(value: unknown, label: string, allowNegative: boolean): number {
-  const n = typeof value === "number" ? value : typeof value === "string" ? Number(value) : typeof value === "bigint" ? Number(value) : NaN;
-  if (!Number.isSafeInteger(n) || (!allowNegative && n < 0)) {
+  let integer: bigint;
+  if (typeof value === "bigint") {
+    integer = value;
+  } else if (typeof value === "number" && Number.isSafeInteger(value)) {
+    integer = BigInt(value);
+  } else if (typeof value === "string" && /^-?\d+$/.test(value)) {
+    integer = BigInt(value);
+  } else {
     throw new Error(`db ${label} out of safe integer range`);
   }
-  return n;
+  if (
+    integer > BigInt(Number.MAX_SAFE_INTEGER) ||
+    integer < BigInt(Number.MIN_SAFE_INTEGER) ||
+    (!allowNegative && integer < 0n)
+  ) {
+    throw new Error(`db ${label} out of safe integer range`);
+  }
+  return Number(integer);
 }
 
 export function isoFromDb(value: unknown): string {

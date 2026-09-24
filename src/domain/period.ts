@@ -1,3 +1,5 @@
+import { createHmac, timingSafeEqual } from "node:crypto";
+
 // Kỳ nghiệp vụ theo Asia/Ho_Chi_Minh (ADR-0005, DOMAIN-MODEL §1).
 // Việt Nam không dùng DST; HCMC = UTC+7 cố định. Nếu policy DST thay đổi,
 // phải thay module này bằng Temporal/ICU thay vì sửa từng query.
@@ -14,7 +16,11 @@ export function isMonthKey(value: unknown): value is string {
 
 /** month key (HCMC) ứng với một UTC instant. */
 export function monthKeyOf(utcMs: number): string {
-  const local = new Date(utcMs + HCMC_UTC_OFFSET_MS);
+  if (!Number.isSafeInteger(utcMs)) throw new Error("invalid UTC timestamp");
+  const localMs = utcMs + HCMC_UTC_OFFSET_MS;
+  if (!Number.isSafeInteger(localMs)) throw new Error("invalid UTC timestamp");
+  const local = new Date(localMs);
+  if (!Number.isFinite(local.getTime())) throw new Error("invalid UTC timestamp");
   const y = local.getUTCFullYear();
   const m = String(local.getUTCMonth() + 1).padStart(2, "0");
   return `${y}-${m}`;
@@ -41,22 +47,51 @@ export function monthRangeUtc(monthKey: string): { startUtcMs: number; endExclus
   return { startUtcMs, endExclusiveUtcMs: endUtcMs };
 }
 
-// --- Keyset cursor: opaque base64url(JSON {v, id}), validate schema khi decode. ---
-// Cursor không ký HMAC ở giai đoạn này; mọi query luôn scope user_id ở server nên
-// cursor bị sửa chỉ ảnh hưởng list của chính owner (không lộ dữ liệu chéo).
-// API-REVIEW đề xuất signed cursor — sẽ gắn với secrets của lane A khi chốt.
-
 const CURSOR_VERSION = 1;
+export const MAX_CURSOR_LENGTH = 512;
+export const MIN_PAGE_LIMIT = 1;
+export const MAX_PAGE_LIMIT = 100;
 
-export function encodeCursor(id: number): string {
-  const json = JSON.stringify({ v: CURSOR_VERSION, id });
-  return Buffer.from(json, "utf8").toString("base64url");
+export function isPageLimit(value: unknown): value is number {
+  return typeof value === "number" && Number.isInteger(value) && value >= MIN_PAGE_LIMIT && value <= MAX_PAGE_LIMIT;
 }
 
-export function decodeCursor(cursor: string): number {
+export function encodeCursor(id: number, signingKey: string): string {
+  assertSigningKey(signingKey);
+  if (!Number.isSafeInteger(id) || id < 1) throw new Error("invalid cursor");
+  const payload = Buffer.from(JSON.stringify({ v: CURSOR_VERSION, id }), "utf8").toString("base64url");
+  const signedValue = `v${CURSOR_VERSION}.${payload}`;
+  const signature = createHmac("sha256", signingKey).update(signedValue).digest("base64url");
+  const cursor = `${signedValue}.${signature}`;
+  if (cursor.length > MAX_CURSOR_LENGTH) throw new Error("invalid cursor");
+  return cursor;
+}
+
+export function decodeCursor(cursor: string, signingKey: string): number {
+  assertSigningKey(signingKey);
+  if (typeof cursor !== "string" || cursor.length === 0 || cursor.length > MAX_CURSOR_LENGTH) {
+    throw new Error("invalid cursor");
+  }
+  const parts = cursor.split(".");
+  if (parts.length !== 3) throw new Error("invalid cursor");
+  const [version, payload, signature] = parts;
+  if (version !== `v${CURSOR_VERSION}` || payload === undefined || signature === undefined) {
+    throw new Error("invalid cursor");
+  }
+  if (!/^[A-Za-z0-9_-]+$/.test(payload) || !/^[A-Za-z0-9_-]+$/.test(signature)) {
+    throw new Error("invalid cursor");
+  }
+  const signedValue = `${version}.${payload}`;
+  const expected = createHmac("sha256", signingKey).update(signedValue).digest();
+  const actual = Buffer.from(signature, "base64url");
+  if (actual.toString("base64url") !== signature || actual.length !== expected.length || !timingSafeEqual(actual, expected)) {
+    throw new Error("invalid cursor");
+  }
   let parsed: unknown;
   try {
-    parsed = JSON.parse(Buffer.from(cursor, "base64url").toString("utf8"));
+    const payloadBytes = Buffer.from(payload, "base64url");
+    if (payloadBytes.toString("base64url") !== payload) throw new Error("invalid cursor");
+    parsed = JSON.parse(payloadBytes.toString("utf8"));
   } catch {
     throw new Error("invalid cursor");
   }
@@ -71,4 +106,10 @@ export function decodeCursor(cursor: string): number {
     throw new Error("invalid cursor");
   }
   return id;
+}
+
+function assertSigningKey(signingKey: string): void {
+  if (typeof signingKey !== "string" || Buffer.byteLength(signingKey, "utf8") < 32 || signingKey.trim() !== signingKey) {
+    throw new Error("invalid cursor signing key");
+  }
 }

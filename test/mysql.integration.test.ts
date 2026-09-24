@@ -1,5 +1,5 @@
 // Integration MySQL — gated: chỉ chạy khi CAMPUS_COIN_TEST_DB=1 và có CAMPUS_COIN_DB_*.
-// Tạo database tạm, migrate 0001+0002, chạy services thật, drop database sau cùng.
+// Tạo database tạm, migrate mọi version local, chạy services thật, drop database sau cùng.
 // Chạy: set CAMPUS_COIN_TEST_DB=1 && npm test -- test/mysql.integration.test.ts
 
 import { test, before, after, describe } from "node:test";
@@ -16,6 +16,7 @@ import { monthlyReport } from "../src/application/report.service.ts";
 import { createCustomCategory, updateUserCategory } from "../src/application/category.service.ts";
 import { currentMonthKey } from "../src/domain/period.ts";
 import { DomainError } from "../src/domain/errors.ts";
+import { reconcileFinancialProjections } from "../src/application/reconciliation.service.ts";
 
 const ENABLED = process.env["CAMPUS_COIN_TEST_DB"] === "1";
 
@@ -74,6 +75,14 @@ if (!ENABLED) {
     return Number(rows[0]!.n);
   }
 
+  async function auditCountFor(userId: number, action: string): Promise<number> {
+    const [rows] = (await getPool().query(
+      `SELECT COUNT(*) AS n FROM \`${harness.dbName}\`.audit_events WHERE user_id = ? AND action = ?`,
+      [userId, action],
+    )) as [{ n: number | string }[], unknown];
+    return Number(rows[0]!.n);
+  }
+
   before(async () => {
     await harness.start();
   });
@@ -90,6 +99,27 @@ if (!ENABLED) {
       const byType = new Map(counts[0].map((r) => [r.applies_to, Number(r.n)]));
       assert.equal(byType.get("income"), 4);
       assert.equal(byType.get("payment"), 7);
+    });
+  });
+
+  describe("wallet/savings reconciliation", () => {
+    test("rebuild comparison matches projections after ledger and savings mutations", async () => {
+      const userId = await newUserId();
+      await initWalletFor(userId, 50_000);
+      await createTx(userId, "income", 20_000, 1);
+      await createTransfer(getPool(), {
+        userId,
+        direction: "deposit",
+        amountVnd: 10_000,
+        note: null,
+        idempotencyKey: randomUUID(),
+        requestHash: canonicalHash({ direction: "deposit", amountVnd: 10_000 }),
+      });
+
+      const result = await reconcileFinancialProjections(getPool());
+      assert.equal(result.isConsistent, true);
+      assert.equal(result.walletMismatches, 0);
+      assert.equal(result.savingsMismatches, 0);
     });
   });
 
@@ -170,6 +200,8 @@ if (!ENABLED) {
         nameEn: "Disable me",
         nameVi: "",
         appliesTo: "payment",
+        idempotencyKey: randomUUID(),
+        requestHash: canonicalHash({ nameEn: "Disable me", nameVi: "", appliesTo: "payment" }),
       });
       assert.notEqual(created, null);
       await updateUserCategory(getPool(), {
@@ -181,6 +213,40 @@ if (!ENABLED) {
         createTx(userId, "payment", 10_000, Number(created!.id)),
         expectCode("CATEGORY_DISABLED"),
       );
+    });
+
+    test("custom category retry replays; same key with different body conflicts", async () => {
+      const userId = await newUserId();
+      const key = randomUUID();
+      const body = { nameEn: "Books", nameVi: "Sách", appliesTo: "payment" as const };
+      const input = { userId, ...body, idempotencyKey: key, requestHash: canonicalHash(body) };
+
+      const [first, replay] = await Promise.all([
+        createCustomCategory(getPool(), input),
+        createCustomCategory(getPool(), input),
+      ]);
+      assert.deepEqual(replay, first);
+      assert.equal(await auditCountFor(userId, "category.create"), 1);
+
+      await assert.rejects(
+        createCustomCategory(getPool(), {
+          ...input,
+          nameVi: "Tài liệu",
+          requestHash: canonicalHash({ ...body, nameVi: "Tài liệu" }),
+        }),
+        expectCode("IDEMPOTENCY_CONFLICT"),
+      );
+      const [rows] = (await getPool().query(
+        `SELECT COUNT(*) AS n FROM \`${harness.dbName}\`.categories WHERE user_id = ? AND name_en = ?`,
+        [userId, body.nameEn],
+      )) as [{ n: number | string }[], unknown];
+      assert.equal(Number(rows[0]!.n), 1);
+      assert.equal(await auditCountFor(userId, "category.create"), 1);
+
+      const otherUserId = await newUserId();
+      const otherOwnerResult = await createCustomCategory(getPool(), { ...input, userId: otherUserId });
+      assert.notEqual(otherOwnerResult?.id, first?.id);
+      assert.equal(await auditCountFor(otherUserId, "category.create"), 1);
     });
   });
 
@@ -321,7 +387,13 @@ if (!ENABLED) {
       const userId = await newUserId();
       await initWalletFor(userId, 500_000);
       const month = currentMonthKey();
-      await upsertUserBudget(getPool(), { userId, categoryId: 5, month, limitVnd: 200_000 });
+      const budgetBody = { categoryId: 5, month, limitVnd: 200_000 };
+      await upsertUserBudget(getPool(), {
+        userId,
+        ...budgetBody,
+        idempotencyKey: randomUUID(),
+        requestHash: canonicalHash(budgetBody),
+      });
       const first = await createTx(userId, "payment", 150_000, 5);
       assert.equal(first.budgetWarning.isOverrun, false);
       assert.equal(first.budgetWarning.usedVnd, 150_000);
@@ -336,6 +408,39 @@ if (!ENABLED) {
       const summary = await monthBudgetSummary(getPool(), userId, month);
       assert.equal(summary.exceededCategoryCount, 1);
       assert.equal(summary.totalUsedVnd, 250_000);
+    });
+
+    test("budget upsert retry replays; same key with different body conflicts", async () => {
+      const userId = await newUserId();
+      const month = currentMonthKey();
+      const key = randomUUID();
+      const body = { categoryId: 5, month, limitVnd: 200_000 };
+      const input = { userId, ...body, idempotencyKey: key, requestHash: canonicalHash(body) };
+
+      const [first, replay] = await Promise.all([
+        upsertUserBudget(getPool(), input),
+        upsertUserBudget(getPool(), input),
+      ]);
+      assert.deepEqual(replay, first);
+      assert.equal(await auditCountFor(userId, "budget.upsert"), 1);
+
+      await assert.rejects(
+        upsertUserBudget(getPool(), {
+          ...input,
+          limitVnd: 300_000,
+          requestHash: canonicalHash({ ...body, limitVnd: 300_000 }),
+        }),
+        expectCode("IDEMPOTENCY_CONFLICT"),
+      );
+      const budgets = await listMonthBudgets(getPool(), userId, month);
+      assert.equal(budgets.length, 1);
+      assert.equal(budgets[0]!.limitVnd, body.limitVnd);
+      assert.equal(await auditCountFor(userId, "budget.upsert"), 1);
+
+      const otherUserId = await newUserId();
+      const otherOwnerResult = await upsertUserBudget(getPool(), { ...input, userId: otherUserId });
+      assert.equal(otherOwnerResult.limitVnd, body.limitVnd);
+      assert.equal(await auditCountFor(otherUserId, "budget.upsert"), 1);
     });
   });
 
@@ -391,28 +496,45 @@ if (!ENABLED) {
       assert.equal(pageB.data.length, 0);
     });
 
-    test("report owner-scope: correction của owner khác không loại row của owner này", async () => {
-      // Regression cho antijoin owner-scoped (index idx_ledger_user_reference).
-      // Service chặn correction chéo owner, nên dựng trạng thái này ở tầng DB:
-      // một correction của B trỏ tới đúng id của row thuộc A. Semantics đúng:
-      // report A vẫn tính row đó (correction thuộc owner khác).
+    test("database rejects cross-owner correction SQL before it can affect reports", async () => {
       const userA = await newUserId();
       const userB = await newUserId();
       await initWalletFor(userA, 1_000_000);
       await initWalletFor(userB, 1_000_000);
       const txA = await createTx(userA, "income", 100_000, 1);
-      const txB = await createTx(userB, "income", 50_000, 1);
       const targetId = Number(txA.transaction.id);
+      const correctionKey = randomUUID();
+      const correctionHash = canonicalHash({ targetId });
       await getPool().query(
-        `INSERT INTO ledger_transactions (user_id, type, amount_vnd, category_id, occurred_at, role, reference_id, reason)
-         VALUES (?, 'income', 100000, 1, UTC_TIMESTAMP(3), 'reversal', ?, 'cross-owner probe')`,
-        [userB, targetId],
+        `INSERT INTO mutation_idempotency (user_id, scope, idempotency_key, request_hash, response_json)
+         VALUES (?, 'ledger.correction', ?, ?, CAST('{}' AS JSON))`,
+        [userB, correctionKey, correctionHash],
       );
-      const month = currentMonthKey();
-      const reportA = await monthlyReport(getPool(), userA, month);
-      assert.equal(reportA.totalIncomeVnd, 100_000, "correction của B không được loại row của A");
-      const reportB = await monthlyReport(getPool(), userB, month);
-      assert.equal(reportB.totalIncomeVnd, 50_000, "B vẫn giữ income của chính mình");
+      const [claimRows] = (await getPool().query(
+        "SELECT id FROM mutation_idempotency WHERE user_id = ? AND scope = 'ledger.correction' AND idempotency_key = ?",
+        [userB, correctionKey],
+      )) as [{ id: number | string }[], unknown];
+      await assert.rejects(getPool().query(
+        `INSERT INTO ledger_transactions
+          (user_id, type, amount_vnd, category_id, occurred_at, role, reference_id, reason, idempotency_id)
+         VALUES (?, 'income', 100000, 1, UTC_TIMESTAMP(3), 'reversal', ?, 'cross-owner probe', ?)`,
+        [userB, targetId, Number(claimRows[0]!.id)],
+      ));
+      const reportA = await monthlyReport(getPool(), userA, currentMonthKey());
+      assert.equal(reportA.totalIncomeVnd, 100_000);
+      await assert.rejects(
+        createCorrection(getPool(), {
+          userId: userB,
+          targetId,
+          role: "reversal",
+          reason: "cross-owner service probe",
+          newAmountVnd: null,
+          newCategoryId: null,
+          idempotencyKey: randomUUID(),
+          requestHash: canonicalHash({ targetId }),
+        }),
+        expectCode("CORRECTION_TARGET_NOT_FOUND"),
+      );
     });
 
     test("keyset pagination: limit 2 → 2 trang, không trùng, có hasNext", async () => {

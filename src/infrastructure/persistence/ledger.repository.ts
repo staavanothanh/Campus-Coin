@@ -3,6 +3,8 @@
 
 import type { CorrectionRole, TransactionType } from "../../domain/money.ts";
 import { amountFromDb, idFromDb, isoFromDb } from "./rows.ts";
+import { isPageLimit } from "../../domain/period.ts";
+import { isPositiveVnd } from "../../domain/money.ts";
 
 export interface LedgerRow {
   id: number;
@@ -69,6 +71,7 @@ export interface NewLedgerRow {
 }
 
 export async function insertLedgerRow(db: LedgerScalar, row: NewLedgerRow): Promise<number> {
+  if (!isPositiveVnd(row.amountVnd)) throw new Error("invalid ledger amount");
   const [result] = (await db.query(
     `INSERT INTO ledger_transactions
        (user_id, type, amount_vnd, category_id, occurred_at, role, reference_id, description, reason, idempotency_id)
@@ -132,6 +135,7 @@ export async function listTransactionsPage(
   userId: number,
   query: TransactionQuery,
 ): Promise<{ rows: LedgerRow[]; hasNext: boolean }> {
+  if (!isPageLimit(query.limit)) throw new Error("invalid page limit");
   const conditions = ["user_id = ?"];
   const params: unknown[] = [userId];
   if (query.cursorId !== null) {

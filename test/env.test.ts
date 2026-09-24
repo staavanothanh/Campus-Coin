@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { DbEnvError, migrationCreds, readDbEnv } from "../src/infrastructure/db/env.ts";
+import { DbEnvError, migrationCreds, readCursorSigningKey, readDbEnv, ServerEnvError } from "../src/infrastructure/db/env.ts";
 
 function baseEnv(): NodeJS.ProcessEnv {
   return {
@@ -17,6 +17,25 @@ test("readDbEnv: defaults khi chỉ set bắt buộc", () => {
   assert.equal(env.sslMode, "required");
   assert.equal(env.connectionLimit, 5);
   assert.equal(env.migrateUser, undefined);
+});
+
+test("readDbEnv: permits empty password only for explicit loopback MySQL tests", () => {
+  const localTest = readDbEnv({
+    ...baseEnv(),
+    CAMPUS_COIN_DB_HOST: "127.0.0.1",
+    CAMPUS_COIN_DB_PASSWORD: "",
+    CAMPUS_COIN_TEST_DB: "1",
+  });
+  assert.equal(localTest.password, "");
+  assert.throws(
+    () => readDbEnv({
+      ...baseEnv(),
+      CAMPUS_COIN_DB_HOST: "db.example.invalid",
+      CAMPUS_COIN_DB_PASSWORD: "",
+      CAMPUS_COIN_TEST_DB: "1",
+    }),
+    (error: unknown) => error instanceof DbEnvError && error.message.includes("CAMPUS_COIN_DB_PASSWORD"),
+  );
 });
 
 test("readDbEnv: thiếu biến bắt buộc → fail closed", () => {
@@ -50,4 +69,12 @@ test("migrationCreds: ưu tiên migrate role, fallback runtime role", () => {
   assert.deepEqual(migrationCreds(withMigrate), { user: "cc_migrate", password: "mig-secret" });
   const runtimeOnly = readDbEnv(baseEnv());
   assert.deepEqual(migrationCreds(runtimeOnly), { user: "cc_runtime", password: "secret-placeholder" });
+});
+
+test("readCursorSigningKey: requires a sufficiently long unpadded environment value", () => {
+  const key = "test-only-cursor-signing-key-with-32-bytes-minimum";
+  assert.equal(readCursorSigningKey({ CAMPUS_COIN_CURSOR_SIGNING_KEY: key }), key);
+  assert.throws(() => readCursorSigningKey({}), ServerEnvError);
+  assert.throws(() => readCursorSigningKey({ CAMPUS_COIN_CURSOR_SIGNING_KEY: "too-short" }), ServerEnvError);
+  assert.throws(() => readCursorSigningKey({ CAMPUS_COIN_CURSOR_SIGNING_KEY: `${key} ` }), ServerEnvError);
 });

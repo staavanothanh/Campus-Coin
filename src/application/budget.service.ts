@@ -8,35 +8,46 @@ import { findBudget, listBudgetsByMonth, upsertBudget, type BudgetRow } from "..
 import { paymentTotalForCategory, paymentTotalsByCategory } from "../infrastructure/persistence/report.repository.ts";
 import { insertAuditEvent } from "../infrastructure/persistence/audit.repository.ts";
 import { isMonthKey, monthRangeUtc } from "../domain/period.ts";
-import { isNonNegativeVnd } from "../domain/money.ts";
-import { categoryNotFound, categoryTypeMismatch, invalidInput } from "../domain/errors.ts";
+import { addSafeIntegers, isNonNegativeVnd } from "../domain/money.ts";
+import { categoryDisabled, categoryNotFound, categoryTypeMismatch, invalidInput } from "../domain/errors.ts";
 import { toBudget, type BudgetView } from "./map.ts";
+import { withIdempotentMutation } from "./idempotency.ts";
 
 export interface UpsertBudgetInput {
   userId: number;
   categoryId: number;
   month: string;
   limitVnd: number;
+  idempotencyKey: string;
+  requestHash: string;
 }
 
 export async function upsertUserBudget(db: Db, input: UpsertBudgetInput): Promise<BudgetView> {
   if (!isMonthKey(input.month)) throw invalidInput("month must be YYYY-MM");
   if (!isNonNegativeVnd(input.limitVnd)) throw invalidInput("limitVnd must be a non-negative integer VND");
-  return withConnection(async (conn) => {
-    const category = await findCategoryById(conn, input.userId, input.categoryId);
-    if (category === null) throw categoryNotFound();
-    if (category.appliesTo !== "payment") throw categoryTypeMismatch();
-    await upsertBudget(conn, input.userId, input.categoryId, input.month, input.limitVnd);
-    await insertAuditEvent(conn, {
-      userId: input.userId,
-      actorType: "user",
-      actorUserId: input.userId,
-      action: "budget.upsert",
-      scope: "budget",
-      targetId: input.categoryId,
-      outcome: "success",
-    });
-    return readBudgetView(conn, input.userId, input.categoryId, input.month);
+  return withIdempotentMutation({
+    db,
+    userId: input.userId,
+    scope: "budget.upsert",
+    idempotencyKey: input.idempotencyKey,
+    requestHash: input.requestHash,
+    mutate: async (conn, idempotencyId) => {
+      const category = await findCategoryById(conn, input.userId, input.categoryId, true);
+      if (category === null) throw categoryNotFound();
+      if (category.appliesTo !== "payment") throw categoryTypeMismatch();
+      if (category.status !== "active") throw categoryDisabled();
+      await upsertBudget(conn, input.userId, input.categoryId, input.month, input.limitVnd, idempotencyId);
+      await insertAuditEvent(conn, {
+        userId: input.userId,
+        actorType: "user",
+        actorUserId: input.userId,
+        action: "budget.upsert",
+        scope: "budget",
+        targetId: input.categoryId,
+        outcome: "success",
+      });
+      return readBudgetView(conn, input.userId, input.categoryId, input.month);
+    },
   });
 }
 
@@ -66,8 +77,8 @@ export async function monthBudgetSummary(db: Db, userId: number, month: string):
     let exceeded = 0;
     for (const b of budgets) {
       const usedVnd = usedByCategory.get(b.categoryId) ?? 0;
-      totalLimitVnd += b.limitVnd;
-      totalUsedVnd += usedVnd;
+      totalLimitVnd = addSafeIntegers(totalLimitVnd, b.limitVnd);
+      totalUsedVnd = addSafeIntegers(totalUsedVnd, usedVnd);
       if (usedVnd > b.limitVnd) exceeded += 1;
     }
     return { month, totalLimitVnd, totalUsedVnd, exceededCategoryCount: exceeded };

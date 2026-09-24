@@ -2,6 +2,8 @@
 
 import type { TransferDirection } from "../../domain/money.ts";
 import { amountFromDb, isoFromDb } from "./rows.ts";
+import { isPageLimit } from "../../domain/period.ts";
+import { isPositiveVnd } from "../../domain/money.ts";
 
 export interface SavingsRow {
   id: number;
@@ -53,24 +55,6 @@ export async function lockSavingsForUpdate(db: SavingsScalar, userId: number): P
   return row === undefined ? null : mapSavingsRow(row);
 }
 
-export async function insertSavingsAccount(db: SavingsScalar, userId: number): Promise<number> {
-  const [result] = (await db.query(
-    "INSERT INTO savings_accounts (user_id, balance_vnd, currency) VALUES (?, 0, 'VND')",
-    [userId],
-  )) as [{ insertId: number | string }, unknown];
-  return Number(result.insertId);
-}
-
-export async function updateSavingsBalance(db: SavingsScalar, userId: number, newBalanceVnd: number): Promise<void> {
-  const [result] = (await db.query("UPDATE savings_accounts SET balance_vnd = ? WHERE user_id = ?", [
-    newBalanceVnd,
-    userId,
-  ])) as [{ affectedRows: number }, unknown];
-  if (result.affectedRows !== 1) {
-    throw new Error(`savings row missing for user ${userId}`);
-  }
-}
-
 export interface NewTransferRow {
   userId: number;
   direction: TransferDirection;
@@ -80,6 +64,7 @@ export interface NewTransferRow {
 }
 
 export async function insertSavingsTransfer(db: SavingsScalar, row: NewTransferRow): Promise<number> {
+  if (!isPositiveVnd(row.amountVnd)) throw new Error("invalid savings transfer amount");
   const [result] = (await db.query(
     "INSERT INTO savings_transfers (user_id, direction, amount_vnd, note, idempotency_id) VALUES (?, ?, ?, ?, ?)",
     [row.userId, row.direction, row.amountVnd, row.note, row.idempotencyId],
@@ -129,6 +114,7 @@ export async function listSavingsTransfersPage(
   cursorId: number | null,
   limit: number,
 ): Promise<{ rows: SavingsTransferRow[]; hasNext: boolean }> {
+  if (!isPageLimit(limit)) throw new Error("invalid page limit");
   const params: unknown[] = [userId];
   let cursorClause = "";
   if (cursorId !== null) {

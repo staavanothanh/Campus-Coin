@@ -5,15 +5,14 @@
 import path from "node:path";
 import mysql from "mysql2/promise";
 import {
-  acquireMigrationLock,
   applyMigration,
   loadAppliedMigrations,
   MigrationError,
   planMigrations,
-  releaseMigrationLock,
   scanMigrationDir,
   supportsCheckConstraints,
   type MigrationConnection,
+  withMigrationLock,
 } from "./migration-engine.ts";
 import { sslOption, DbEnvError, migrationCreds, readDbEnv, type DbEnv } from "./env.ts";
 
@@ -146,14 +145,24 @@ async function cmdPreflight(): Promise<number> {
     const files = await scanMigrationDir(MIGRATIONS_DIR);
     const applied = await loadAppliedMigrations(conn as unknown as MigrationConnection);
     const plan = planMigrations(files, applied);
+    const hasDrift = plan.appliedMismatch.length > 0 || plan.appliedMissing.length > 0 || plan.pendingOutOfOrder.length > 0;
     results.push({
-      ok: plan.appliedMismatch.length === 0,
+      ok: !hasDrift,
       warn: false,
       label: "migration files vs schema_migrations",
-      detail:
-        plan.appliedMismatch.length > 0
-          ? `checksum mismatch: ${plan.appliedMismatch.map((m) => m.version).join(", ")}`
-          : `applied=${plan.appliedClean.length} pending=${plan.pending.length} total=${files.length}`,
+      detail: hasDrift
+        ? [
+            ...(plan.appliedMismatch.length > 0
+              ? [`checksum mismatch: ${plan.appliedMismatch.map((m) => m.version).join(", ")}`]
+              : []),
+            ...(plan.appliedMissing.length > 0
+              ? [`applied versions missing locally: ${plan.appliedMissing.join(", ")}`]
+              : []),
+            ...(plan.pendingOutOfOrder.length > 0
+              ? [`pending versions precede already-applied versions: ${plan.pendingOutOfOrder.join(", ")}`]
+              : []),
+          ].join("; ")
+        : `applied=${plan.appliedClean.length} pending=${plan.pending.length} total=${files.length}`,
     });
   } catch (error) {
     results.push({ ok: false, warn: false, label: "preflight execution", detail: String(error) });
@@ -190,8 +199,17 @@ async function cmdStatus(): Promise<number> {
         : "pending ";
       console.log(`${state}  ${file.version}  ${file.name}`);
     }
-    if (plan.appliedMismatch.length > 0) {
-      console.log(`FAIL  ${plan.appliedMismatch.length} checksum mismatch — dừng mọi deploy, kiểm tra thủ công`);
+    if (plan.appliedMismatch.length > 0 || plan.appliedMissing.length > 0 || plan.pendingOutOfOrder.length > 0) {
+      if (plan.appliedMismatch.length > 0) {
+        console.log(`FAIL  checksum mismatch: ${plan.appliedMismatch.map((m) => m.version).join(", ")}`);
+      }
+      if (plan.appliedMissing.length > 0) {
+        console.log(`FAIL  applied versions missing locally: ${plan.appliedMissing.join(", ")}`);
+      }
+      if (plan.pendingOutOfOrder.length > 0) {
+        console.log(`FAIL  pending versions precede already-applied versions: ${plan.pendingOutOfOrder.join(", ")}`);
+      }
+      console.log("HINT  dừng deploy và kiểm tra migration history thủ công");
       return 1;
     }
     return 0;
@@ -220,22 +238,25 @@ async function cmdUp(): Promise<number> {
   try {
     conn = await connect(dbEnv, true);
     const files = await scanMigrationDir(MIGRATIONS_DIR);
-    const applied = await loadAppliedMigrations(conn as unknown as MigrationConnection);
-    const plan = planMigrations(files, applied);
-    if (plan.appliedMismatch.length > 0) {
-      console.log(`FAIL  checksum mismatch: ${plan.appliedMismatch.map((m) => m.version).join(", ")}`);
-      return 1;
-    }
-    if (plan.pending.length === 0) {
-      console.log("up to date");
-      return 0;
-    }
-    const locked = await acquireMigrationLock(conn as unknown as MigrationConnection);
-    if (!locked) {
-      console.log("FAIL  không lấy được migration lock (migration khác đang chạy?)");
-      return 1;
-    }
-    try {
+    return await withMigrationLock(conn as unknown as MigrationConnection, async () => {
+      const applied = await loadAppliedMigrations(conn as unknown as MigrationConnection);
+      const plan = planMigrations(files, applied);
+      if (plan.appliedMismatch.length > 0 || plan.appliedMissing.length > 0 || plan.pendingOutOfOrder.length > 0) {
+        if (plan.appliedMismatch.length > 0) {
+          console.log(`FAIL  checksum mismatch: ${plan.appliedMismatch.map((m) => m.version).join(", ")}`);
+        }
+        if (plan.appliedMissing.length > 0) {
+          console.log(`FAIL  applied versions missing locally: ${plan.appliedMissing.join(", ")}`);
+        }
+        if (plan.pendingOutOfOrder.length > 0) {
+          console.log(`FAIL  pending versions precede already-applied versions: ${plan.pendingOutOfOrder.join(", ")}`);
+        }
+        return 1;
+      }
+      if (plan.pending.length === 0) {
+        console.log("up to date");
+        return 0;
+      }
       for (const file of plan.pending) {
         try {
           await applyMigration(conn as unknown as MigrationConnection, file);
@@ -247,9 +268,7 @@ async function cmdUp(): Promise<number> {
         }
       }
       return 0;
-    } finally {
-      await releaseMigrationLock(conn as unknown as MigrationConnection).catch(() => undefined);
-    }
+    });
   } catch (error) {
     if (error instanceof MigrationError) {
       console.log(`FAIL  ${error.message}`);

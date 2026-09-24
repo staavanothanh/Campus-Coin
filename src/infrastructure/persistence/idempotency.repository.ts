@@ -27,8 +27,8 @@ export async function findIdempotency(
 }
 
 /**
- * Claim idempotency row trước (placeholder) để mutation có thể ghi idempotency_id vào
- * row money (ledger/savings_transfers không cho UPDATE). response_json cập nhật sau
+ * Claim idempotency row trước (placeholder) để mutation có thể liên kết idempotency_id
+ * vào row cần thiết. response_json cập nhật sau
  * khi mutate xong — cả hai nằm trong cùng transaction nên không ai thấy placeholder.
  * ER_DUP_ENTRY → trả null để service xác định replay/conflict.
  */

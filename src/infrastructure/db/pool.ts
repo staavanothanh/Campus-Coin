@@ -48,10 +48,13 @@ export function getPool(dbEnv: DbEnv = readDbEnv()): Pool {
 
 /** Reset pool (dùng trong test). */
 export function resetPool(): void {
-  if (pool !== null) {
-    void pool.end();
-    pool = null;
-  }
+  void closePool().catch(() => undefined);
+}
+
+export async function closePool(): Promise<void> {
+  const current = pool;
+  pool = null;
+  if (current !== null) await current.end();
 }
 
 /** Chạy fn trong transaction ngắn; rollback khi lỗi, commit khi thành công. */

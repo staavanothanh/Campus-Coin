@@ -14,17 +14,19 @@ import {
   listTransactionsPage,
   type LedgerRow,
 } from "../infrastructure/persistence/ledger.repository.ts";
-import { lockWalletForUpdate, updateWalletBalance } from "../infrastructure/persistence/wallet.repository.ts";
+import { lockWalletForUpdate } from "../infrastructure/persistence/wallet.repository.ts";
 import { insertAuditEvent } from "../infrastructure/persistence/audit.repository.ts";
 import { findBudget } from "../infrastructure/persistence/budget.repository.ts";
 import { paymentTotalForCategory } from "../infrastructure/persistence/report.repository.ts";
 import {
   decodeCursor,
   encodeCursor,
+  isPageLimit,
   monthKeyOf,
   monthRangeUtc,
 } from "../domain/period.ts";
 import {
+  addSafeIntegers,
   isCorrectionRole,
   isPositiveVnd,
   isTransactionType,
@@ -33,6 +35,7 @@ import {
   type CorrectionRole,
   type TransactionType,
 } from "../domain/money.ts";
+import { readCursorSigningKey } from "../infrastructure/db/env.ts";
 import {
   categoryDisabled,
   categoryNotFound,
@@ -87,13 +90,20 @@ async function lockWalletWithCheck(conn: PoolConnection, userId: number): Promis
   return { balance: wallet.availableBalanceVnd };
 }
 
+async function assertWalletProjection(conn: PoolConnection, userId: number, expectedBalance: number): Promise<void> {
+  const wallet = await lockWalletForUpdate(conn, userId);
+  if (wallet === null || wallet.availableBalanceVnd !== expectedBalance) {
+    throw new Error("wallet projection trigger did not apply the ledger delta");
+  }
+}
+
 async function validateCategoryForType(
   conn: PoolConnection,
   userId: number,
   categoryId: number,
   type: TransactionType,
 ): Promise<void> {
-  const category = await findCategoryById(conn, userId, categoryId);
+  const category = await findCategoryById(conn, userId, categoryId, true);
   if (category === null) throw categoryNotFound();
   if (category.appliesTo !== type) throw categoryTypeMismatch();
   if (category.status !== "active") throw categoryDisabled();
@@ -121,6 +131,7 @@ export async function createTransaction(
   }
   const occurredAtMs = parseOccurredAt(input.occurredAt);
   return withIdempotentMutation({
+    db,
     userId: input.userId,
     scope: "ledger.create",
     idempotencyKey: input.idempotencyKey,
@@ -130,7 +141,7 @@ export async function createTransaction(
       await validateCategoryForType(conn, input.userId, input.categoryId, input.type);
       if (input.type === "payment" && balance < input.amountVnd) throw insufficientWalletBalance();
       const delta = walletDeltaForOriginal(input.type, input.amountVnd);
-      const newBalance = balance + delta;
+      const newBalance = addSafeIntegers(balance, delta);
       const ledgerId = await insertLedgerRow(conn, {
         userId: input.userId,
         type: input.type,
@@ -143,7 +154,7 @@ export async function createTransaction(
         reason: null,
         idempotencyId,
       });
-      await updateWalletBalance(conn, input.userId, newBalance);
+      await assertWalletProjection(conn, input.userId, newBalance);
       await insertAuditEvent(conn, {
         userId: input.userId,
         actorType: "user",
@@ -181,9 +192,11 @@ export async function listTransactions(
   query: ListTransactionsQuery,
 ): Promise<{ data: TransactionView[]; meta: { cursor: string | null; hasNext: boolean } }> {
   let cursorId: number | null = null;
+  if (!isPageLimit(query.limit)) throw invalidInput("limit must be an integer from 1 to 100");
   if (query.cursor !== undefined) {
+    const signingKey = readCursorSigningKey();
     try {
-      cursorId = decodeCursor(query.cursor);
+      cursorId = decodeCursor(query.cursor, signingKey);
     } catch {
       throw invalidInput("invalid cursor");
     }
@@ -211,7 +224,10 @@ export async function listTransactions(
   const last = page.rows[page.rows.length - 1];
   return {
     data: page.rows.map(toTransaction),
-    meta: { cursor: page.hasNext && last !== undefined ? encodeCursor(last.id) : null, hasNext: page.hasNext },
+    meta: {
+      cursor: page.hasNext && last !== undefined ? encodeCursor(last.id, readCursorSigningKey()) : null,
+      hasNext: page.hasNext,
+    },
   };
 }
 
@@ -237,12 +253,14 @@ export async function createCorrection(db: Db, input: CreateCorrectionInput): Pr
     }
   }
   return withIdempotentMutation({
+    db,
     userId: input.userId,
     scope: "ledger.correction",
     idempotencyKey: input.idempotencyKey,
     requestHash: input.requestHash,
     mutate: async (conn, idempotencyId) => {
-      // Khóa target để serial hóa correction đồng thời trên cùng một row.
+      // Mutations lock wallet first; then target/category to keep one global order.
+      const { balance } = await lockWalletWithCheck(conn, input.userId);
       const target = await findTransactionById(conn, input.userId, input.targetId, true);
       if (target === null) throw correctionTargetNotFound();
       if (target.role !== "original") throw correctionNotAllowed("only original transactions can be corrected");
@@ -265,9 +283,8 @@ export async function createCorrection(db: Db, input: CreateCorrectionInput): Pr
           : target.categoryId;
       await validateCategoryForType(conn, input.userId, newCategoryId, target.type);
 
-      const { balance } = await lockWalletWithCheck(conn, input.userId);
       const delta = walletDeltaForCorrection(target.type, input.role, newAmountVnd, target.amountVnd);
-      const newBalance = balance + delta;
+      const newBalance = addSafeIntegers(balance, delta);
       if (newBalance < 0) throw insufficientWalletBalance();
 
       // Correction ghi vào cùng kỳ của target (occurred_at = target's) — default pending Team Leader
@@ -284,7 +301,7 @@ export async function createCorrection(db: Db, input: CreateCorrectionInput): Pr
         reason: input.reason,
         idempotencyId,
       });
-      await updateWalletBalance(conn, input.userId, newBalance);
+      await assertWalletProjection(conn, input.userId, newBalance);
       await insertAuditEvent(conn, {
         userId: input.userId,
         actorType: "user",

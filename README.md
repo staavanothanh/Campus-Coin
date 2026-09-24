@@ -54,7 +54,7 @@ Không sửa tay hai file này. Nguồn duy nhất là [`docs/contracts/openapi.
 
 ### Trạng thái source runtime
 
-Workspace có contract/tooling, tài liệu và lane MySQL (migrations + persistence services, `src/infrastructure/db`, `src/infrastructure/persistence`, `src/application`, tests). Scripts `typecheck`, `db:preflight`, `db:status`, `db:migrate`, `test` đã khả dụng. `dev`, `build`, `lint` chưa tồn tại cho đến khi app runtime (routes/UI) được tạo; không coi script placeholder là môi trường chạy được.
+Workspace có contract/tooling, tài liệu, Fetch-compatible API handlers (host/session adapter chưa mount) và lane MySQL (migrations + persistence services, `src/infrastructure/db`, `src/infrastructure/persistence`, `src/application`, tests). Có scripts `typecheck`, `db:preflight`, `db:status`, `db:migrate`, `db:reconcile`, `test`, `test:mysql:required`. `npm test` mặc định có thể skip suite MySQL; dùng `test:mysql:required` làm DB evidence. `dev`, `build`, `lint` chưa tồn tại vì chưa có app runtime/UI scaffold.
 
 ## 2. Cấu trúc project dự kiến
 
@@ -82,8 +82,8 @@ Workspace có contract/tooling, tài liệu và lane MySQL (migrations + persist
 ├── artifacts/                        # Generated; không sửa tay
 │   ├── openapi.json
 │   └── api.d.ts
-├── src/                              # Application source sẽ được tạo sau
-│   ├── app/ hoặc routes/             # HTTP routes/pages/entrypoints
+├── src/                              # Domain, services, persistence và API handlers
+│   ├── api/                          # Fetch-compatible HTTP handlers; host auth adapter chưa mount
 │   ├── features/ hoặc modules/       # Feature/domain slices
 │   ├── domain/                       # Entity, value object, invariant, use case
 │   ├── application/                 # Orchestration và ports
@@ -96,7 +96,7 @@ Workspace có contract/tooling, tài liệu và lane MySQL (migrations + persist
 └── SRS_End-to-End Web Solutions/     # SRS nguồn; không sửa tùy tiện
 ```
 
-`db/` và `src/`/`tests/` đã có phần persistence MySQL (migrations, pool, repositories, services money) và unit tests; app runtime (routes/UI) chưa được scaffold. Cấu trúc trên là target architecture — xem [`db/README.md`](db/README.md) cho lane DB.
+`db/` và `src/`/`test/` có persistence MySQL, application services, API handlers và unit/gated tests; Google OAuth/session adapter, concrete deployment mount và UI chưa được scaffold. Cấu trúc trên vẫn là target architecture — xem [`db/README.md`](db/README.md) cho lane DB.
 
 ## 3. Tài liệu cần đọc theo task
 
@@ -226,8 +226,10 @@ npm run api:types
 npm run verify:docs
 npm run typecheck
 npm test
+npm run test:mysql:required # bắt buộc test MySQL, chỉ trên disposable DB
 npm run db:preflight   # cần CAMPUS_COIN_DB_* (xem db/README.md)
 npm run db:migrate
+npm run db:reconcile
 git diff --check
 ```
 

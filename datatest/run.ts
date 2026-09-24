@@ -1,5 +1,5 @@
 // datatest runner — chạy test SQL trực tiếp trên MySQL (cần CAMPUS_COIN_DB_*).
-// Tạo database tạm, migrate 0001+0002, chạy từng file trong datatest/sql/:
+// Tạo database tạm, migrate mọi version local, chạy từng file trong datatest/sql/:
 //  - file thường: phải chạy không lỗi (assert idiom: DO 1 / (điều_kiện)).
 //  - file có header `-- expect-error[: <chuỗi>]`: đúng 1 statement, PHẢI lỗi
 //    và message phải chứa chuỗi (nếu khai báo). Ngược lại là FAIL.
@@ -8,7 +8,7 @@
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import mysql, { type Connection } from "mysql2/promise";
-import { DbEnvError, migrationCreds, readDbEnv, sslOption } from "../src/infrastructure/db/env.ts";
+import { DbEnvError, readDbEnv, sslOption } from "../src/infrastructure/db/env.ts";
 import { applyMigration, scanMigrationDir, type MigrationConnection } from "../src/infrastructure/db/migration-engine.ts";
 
 const SQL_DIR =
@@ -68,7 +68,12 @@ async function main(): Promise<number> {
     throw error;
   }
 
-  const creds = migrationCreds(dbEnv);
+  const adminUser = process.env["CAMPUS_COIN_TEST_DB_ADMIN_USER"];
+  const adminPassword = process.env["CAMPUS_COIN_TEST_DB_ADMIN_PASSWORD"];
+  if (adminUser === undefined || adminUser.length === 0 || adminPassword === undefined || adminPassword.length === 0) {
+    console.log("FAIL  CAMPUS_COIN_TEST_DB_ADMIN_USER and CAMPUS_COIN_TEST_DB_ADMIN_PASSWORD are required");
+    return 1;
+  }
   const ssl = sslOption(dbEnv);
 
   let admin: Connection | null = null;
@@ -81,8 +86,8 @@ async function main(): Promise<number> {
     admin = await mysql.createConnection({
       host: dbEnv.host,
       port: dbEnv.port,
-      user: creds.user,
-      password: creds.password,
+      user: adminUser,
+      password: adminPassword,
       ...(ssl === undefined ? {} : { ssl }),
     });
     await admin.query(
@@ -93,8 +98,8 @@ async function main(): Promise<number> {
       host: dbEnv.host,
       port: dbEnv.port,
       database: dbName,
-      user: creds.user,
-      password: creds.password,
+      user: adminUser,
+      password: adminPassword,
       ...(ssl === undefined ? {} : { ssl }),
       multipleStatements: true,
     });
@@ -108,8 +113,8 @@ async function main(): Promise<number> {
       host: dbEnv.host,
       port: dbEnv.port,
       database: dbName,
-      user: creds.user,
-      password: creds.password,
+      user: adminUser,
+      password: adminPassword,
       ...(ssl === undefined ? {} : { ssl }),
       multipleStatements: true,
     });

@@ -12,6 +12,27 @@ export const CORRECTION_ROLES = ["reversal", "adjustment", "replacement"] as con
 export const TRANSFER_DIRECTIONS = ["deposit", "withdraw"] as const;
 export const CATEGORY_STATUSES = ["active", "disabled", "retired"] as const;
 
+/** Arithmetic for VND and database aggregates must remain exactly representable. */
+export function addSafeIntegers(left: number, right: number): number {
+  assertSafeInteger(left);
+  assertSafeInteger(right);
+  const result = left + right;
+  if (!Number.isSafeInteger(result)) throw new RangeError("unsafe integer addition");
+  return result;
+}
+
+export function subtractSafeIntegers(left: number, right: number): number {
+  assertSafeInteger(left);
+  assertSafeInteger(right);
+  const result = left - right;
+  if (!Number.isSafeInteger(result)) throw new RangeError("unsafe integer subtraction");
+  return result;
+}
+
+function assertSafeInteger(value: number): void {
+  if (!Number.isSafeInteger(value)) throw new RangeError("value is not a safe integer");
+}
+
 /** Wallet effect sign của một row gốc: income làm tăng wallet, payment làm giảm. */
 export function typeSign(type: TransactionType): 1 | -1 {
   return type === "income" ? 1 : -1;
@@ -19,6 +40,7 @@ export function typeSign(type: TransactionType): 1 | -1 {
 
 /** Effect lên wallet của row original: income +amount, payment -amount. */
 export function walletDeltaForOriginal(type: TransactionType, amountVnd: number): number {
+  assertSafeInteger(amountVnd);
   return typeSign(type) * amountVnd;
 }
 
@@ -35,9 +57,11 @@ export function walletDeltaForCorrection(
   newAmountVnd: number,
   targetAmountVnd: number,
 ): number {
+  assertSafeInteger(newAmountVnd);
+  assertSafeInteger(targetAmountVnd);
   const sign = typeSign(targetType);
   if (role === "reversal") return -sign * targetAmountVnd;
-  return sign * (newAmountVnd - targetAmountVnd);
+  return sign * subtractSafeIntegers(newAmountVnd, targetAmountVnd);
 }
 
 /** Kiểm tra amount là số nguyên dương VND an toàn (a < 2^53). */

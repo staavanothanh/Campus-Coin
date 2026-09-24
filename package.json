@@ -12,9 +12,12 @@
     "typecheck": "tsc -p tsconfig.json",
     "db:status": "cross-env node --env-file=.env src/infrastructure/db/migrate.ts status",
     "db:preflight": "cross-env node --env-file=.env src/infrastructure/db/migrate.ts preflight",
+    "db:reconcile": "cross-env node --env-file=.env src/infrastructure/db/reconcile.ts",
     "db:datatest": "cross-env node --env-file=.env datatest/run.ts",
     "db:migrate": "cross-env node --env-file=.env src/infrastructure/db/migrate.ts up",
-    "test": "node --test"
+    "benchmark": "cross-env node --env-file=.env benchmark/run.ts",
+    "test": "node --test",
+    "test:mysql:required": "cross-env CAMPUS_COIN_TEST_DB=1 node --test"
   },
   "devDependencies": {
     "@redocly/cli": "^2.54.2",

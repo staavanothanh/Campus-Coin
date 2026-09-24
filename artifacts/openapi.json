@@ -217,6 +217,9 @@
           },
           "401": {
             "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
           }
         }
       }
@@ -473,6 +476,9 @@
           },
           "401": {
             "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
           }
         }
       }
@@ -975,11 +981,11 @@
         ],
         "responses": {
           "200": {
-            "description": "Issue detail",
+            "description": "Issue detail and timeline",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/IssueResponse"
+                  "$ref": "#/components/schemas/AdminIssueDetailResponse"
                 }
               }
             }
@@ -1064,7 +1070,14 @@
         },
         "responses": {
           "201": {
-            "description": "Note đã tạo"
+            "description": "Note đã tạo",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IssueEventResponse"
+                }
+              }
+            }
           },
           "401": {
             "$ref": "#/components/responses/Unauthorized"
@@ -2291,21 +2304,35 @@
       "IssueResponse": {
         "type": "object",
         "required": [
-          "data"
+          "success",
+          "data",
+          "meta"
         ],
         "properties": {
+          "success": {
+            "type": "boolean",
+            "const": true
+          },
           "data": {
             "$ref": "#/components/schemas/Issue"
+          },
+          "meta": {
+            "type": "null"
           }
         }
       },
       "IssuePageResponse": {
         "type": "object",
         "required": [
+          "success",
           "data",
           "meta"
         ],
         "properties": {
+          "success": {
+            "type": "boolean",
+            "const": true
+          },
           "data": {
             "type": "array",
             "items": {
@@ -2314,6 +2341,110 @@
           },
           "meta": {
             "$ref": "#/components/schemas/PageMeta"
+          }
+        }
+      },
+      "IssueEvent": {
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "createdAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "created",
+              "reporter_update",
+              "status_change",
+              "priority_change",
+              "note"
+            ]
+          },
+          "note": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "AdminIssueDetailResponse": {
+        "type": "object",
+        "required": [
+          "success",
+          "data",
+          "meta"
+        ],
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "const": true
+          },
+          "data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Issue"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "events"
+                ],
+                "properties": {
+                  "events": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/IssueEvent"
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          "meta": {
+            "type": "null"
+          }
+        }
+      },
+      "IssueEventResponse": {
+        "type": "object",
+        "required": [
+          "success",
+          "data",
+          "meta"
+        ],
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "const": true
+          },
+          "data": {
+            "type": "object",
+            "required": [
+              "id",
+              "createdAt"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "createdAt": {
+                "type": "string",
+                "format": "date-time"
+              }
+            }
+          },
+          "meta": {
+            "type": "null"
           }
         }
       },
@@ -2599,11 +2730,24 @@
       "ErrorResponse": {
         "type": "object",
         "required": [
-          "error"
+          "success",
+          "data",
+          "error",
+          "meta"
         ],
         "properties": {
+          "success": {
+            "type": "boolean",
+            "const": false
+          },
+          "data": {
+            "type": "null"
+          },
           "error": {
             "$ref": "#/components/schemas/ApiError"
+          },
+          "meta": {
+            "type": "null"
           }
         }
       }

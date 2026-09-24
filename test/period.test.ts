@@ -1,6 +1,16 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { currentMonthKey, decodeCursor, encodeCursor, monthKeyOf, monthRangeUtc } from "../src/domain/period.ts";
+import {
+  currentMonthKey,
+  decodeCursor,
+  encodeCursor,
+  isPageLimit,
+  MAX_CURSOR_LENGTH,
+  monthKeyOf,
+  monthRangeUtc,
+} from "../src/domain/period.ts";
+
+const CURSOR_TEST_KEY = "cursor-test-key-for-hmac-signature-32-bytes";
 
 test("monthRangeUtc: nửa-khoảng UTC của tháng HCMC (UTC+7, không DST)", () => {
   const { startUtcMs, endExclusiveUtcMs } = monthRangeUtc("2026-09");
@@ -34,19 +44,37 @@ test("currentMonthKey theo một mốc cố định", () => {
   assert.equal(currentMonthKey(fixed), "2026-09");
 });
 
-test("cursor: roundtrip và logic không đổi", () => {
-  const cursor = encodeCursor(12345);
-  assert.equal(decodeCursor(cursor), 12345);
+test("monthKeyOf rejects timestamps outside valid safe Date range", () => {
+  assert.throws(() => monthKeyOf(Number.MAX_SAFE_INTEGER), /invalid UTC timestamp/);
+  assert.throws(() => monthKeyOf(Number.MAX_SAFE_INTEGER + 1), /invalid UTC timestamp/);
 });
 
-test("cursor: input bị sửa hoặc sai schema bị từ chối", () => {
-  const valid = encodeCursor(42);
-  assert.throws(() => decodeCursor("not-base64url!"), /invalid cursor/);
-  assert.throws(() => decodeCursor(valid.slice(0, -2)), /invalid cursor/); // cắt mất dữ liệu
-  assert.throws(() => decodeCursor(encodeCursor(0)), /invalid cursor/);
-  assert.throws(() => decodeCursor(encodeCursor(-5)), /invalid cursor/);
-  const wrongVersion = Buffer.from(JSON.stringify({ v: 99, id: 7 }), "utf8").toString("base64url");
-  assert.throws(() => decodeCursor(wrongVersion), /invalid cursor/);
-  const floatId = Buffer.from(JSON.stringify({ v: 1, id: 1.5 }), "utf8").toString("base64url");
-  assert.throws(() => decodeCursor(floatId), /invalid cursor/);
+test("cursor: versioned HMAC roundtrip and max safe id", () => {
+  const cursor = encodeCursor(Number.MAX_SAFE_INTEGER, CURSOR_TEST_KEY);
+  assert.match(cursor, /^v1\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/);
+  assert.equal(decodeCursor(cursor, CURSOR_TEST_KEY), Number.MAX_SAFE_INTEGER);
+});
+
+test("cursor rejects tampering, malformed data, oversized input, and invalid keys", () => {
+  const valid = encodeCursor(42, CURSOR_TEST_KEY);
+  const [version, payload, signature] = valid.split(".");
+  assert.ok(version && payload && signature);
+  const changedPayload = Buffer.from(JSON.stringify({ v: 1, id: 43 }), "utf8").toString("base64url");
+  assert.throws(() => decodeCursor(`${version}.${changedPayload}.${signature}`, CURSOR_TEST_KEY), /invalid cursor/);
+  assert.throws(() => decodeCursor(`v2.${payload}.${signature}`, CURSOR_TEST_KEY), /invalid cursor/);
+  assert.throws(() => decodeCursor("not-base64url!", CURSOR_TEST_KEY), /invalid cursor/);
+  assert.throws(() => decodeCursor(valid.slice(0, -2), CURSOR_TEST_KEY), /invalid cursor/);
+  assert.throws(() => decodeCursor("x".repeat(MAX_CURSOR_LENGTH + 1), CURSOR_TEST_KEY), /invalid cursor/);
+  assert.throws(() => decodeCursor(valid, `${CURSOR_TEST_KEY}-different`), /invalid cursor/);
+  assert.throws(() => decodeCursor(valid, "short"), /signing key/);
+  assert.throws(() => encodeCursor(0, CURSOR_TEST_KEY), /invalid cursor/);
+  assert.throws(() => encodeCursor(-5, CURSOR_TEST_KEY), /invalid cursor/);
+  assert.throws(() => encodeCursor(Number.MAX_SAFE_INTEGER + 1, CURSOR_TEST_KEY), /invalid cursor/);
+  assert.throws(() => decodeCursor(valid, ""), /signing key/);
+});
+
+test("page limits follow OpenAPI bounds", () => {
+  assert.equal(isPageLimit(1), true);
+  assert.equal(isPageLimit(100), true);
+  for (const invalid of [0, 101, 1.5, Number.NaN, "20"]) assert.equal(isPageLimit(invalid), false);
 });

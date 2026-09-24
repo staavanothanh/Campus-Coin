@@ -4,7 +4,6 @@ import type { Db } from "../infrastructure/db/pool.ts";
 import { withIdempotentMutation } from "./idempotency.ts";
 import { amountFromDb } from "../infrastructure/persistence/rows.ts";
 import { findWalletByUserId, insertWallet } from "../infrastructure/persistence/wallet.repository.ts";
-import { insertSavingsAccount } from "../infrastructure/persistence/savings.repository.ts";
 import { insertAuditEvent } from "../infrastructure/persistence/audit.repository.ts";
 import { isNonNegativeVnd } from "../domain/money.ts";
 import { invalidInput, walletAlreadyInitialized } from "../domain/errors.ts";
@@ -30,15 +29,15 @@ export async function initializeWallet(
     throw invalidInput("initialBalanceVnd must be a non-negative integer VND");
   }
   return withIdempotentMutation({
+    db,
     userId: input.userId,
     scope: "wallet.baseline",
     idempotencyKey: input.idempotencyKey,
     requestHash: input.requestHash,
-    mutate: async (conn, _idempotencyId) => {
+    mutate: async (conn, idempotencyId) => {
       const existing = await findWalletByUserId(conn, input.userId);
       if (existing !== null) throw walletAlreadyInitialized();
-      await insertWallet(conn, input.userId, input.initialBalanceVnd);
-      await insertSavingsAccount(conn, input.userId);
+      await insertWallet(conn, input.userId, input.initialBalanceVnd, idempotencyId);
       await insertAuditEvent(conn, {
         userId: input.userId,
         actorType: "user",

@@ -2,19 +2,25 @@
 
 import type { Db } from "../infrastructure/db/pool.ts";
 import { withIdempotentMutation } from "./idempotency.ts";
-import { lockWalletForUpdate, updateWalletBalance } from "../infrastructure/persistence/wallet.repository.ts";
+import { lockWalletForUpdate } from "../infrastructure/persistence/wallet.repository.ts";
 import {
   findSavingsByUserId,
   findTransferById,
   insertSavingsTransfer,
   listSavingsTransfersPage,
   lockSavingsForUpdate,
-  updateSavingsBalance,
   type SavingsTransferRow,
 } from "../infrastructure/persistence/savings.repository.ts";
 import { insertAuditEvent } from "../infrastructure/persistence/audit.repository.ts";
-import { decodeCursor, encodeCursor } from "../domain/period.ts";
-import { isPositiveVnd, isTransferDirection, type TransferDirection } from "../domain/money.ts";
+import { decodeCursor, encodeCursor, isPageLimit } from "../domain/period.ts";
+import {
+  addSafeIntegers,
+  isPositiveVnd,
+  isTransferDirection,
+  subtractSafeIntegers,
+  type TransferDirection,
+} from "../domain/money.ts";
+import { readCursorSigningKey } from "../infrastructure/db/env.ts";
 import {
   insufficientSavingsBalance,
   insufficientWalletBalance,
@@ -60,6 +66,7 @@ export async function createTransfer(db: Db, input: CreateTransferInput): Promis
   if (!isPositiveVnd(input.amountVnd)) throw invalidInput("amountVnd must be a positive integer VND");
   if (input.note !== null && input.note.length > 500) throw invalidInput("note too long (max 500)");
   return withIdempotentMutation({
+    db,
     userId: input.userId,
     scope: "savings.transfer",
     idempotencyKey: input.idempotencyKey,
@@ -74,15 +81,13 @@ export async function createTransfer(db: Db, input: CreateTransferInput): Promis
       let savingsBalance = savings.balanceVnd;
       if (input.direction === "deposit") {
         if (walletBalance < input.amountVnd) throw insufficientWalletBalance();
-        walletBalance -= input.amountVnd;
-        savingsBalance += input.amountVnd;
+        walletBalance = subtractSafeIntegers(walletBalance, input.amountVnd);
+        savingsBalance = addSafeIntegers(savingsBalance, input.amountVnd);
       } else {
         if (savingsBalance < input.amountVnd) throw insufficientSavingsBalance();
-        walletBalance += input.amountVnd;
-        savingsBalance -= input.amountVnd;
+        walletBalance = addSafeIntegers(walletBalance, input.amountVnd);
+        savingsBalance = subtractSafeIntegers(savingsBalance, input.amountVnd);
       }
-      await updateWalletBalance(conn, input.userId, walletBalance);
-      await updateSavingsBalance(conn, input.userId, savingsBalance);
       const transferId = await insertSavingsTransfer(conn, {
         userId: input.userId,
         direction: input.direction,
@@ -90,6 +95,11 @@ export async function createTransfer(db: Db, input: CreateTransferInput): Promis
         note: input.note,
         idempotencyId,
       });
+      const projectedWallet = await lockWalletForUpdate(conn, input.userId);
+      const projectedSavings = await lockSavingsForUpdate(conn, input.userId);
+      if (projectedWallet?.availableBalanceVnd !== walletBalance || projectedSavings?.balanceVnd !== savingsBalance) {
+        throw new Error("savings projection trigger did not apply the transfer delta");
+      }
       await insertAuditEvent(conn, {
         userId: input.userId,
         actorType: "user",
@@ -112,10 +122,12 @@ export async function listTransfers(
   cursor: string | undefined,
   limit: number,
 ): Promise<{ data: SavingsTransferView[]; meta: { cursor: string | null; hasNext: boolean } }> {
+  if (!isPageLimit(limit)) throw invalidInput("limit must be an integer from 1 to 100");
   let cursorId: number | null = null;
   if (cursor !== undefined) {
+    const signingKey = readCursorSigningKey();
     try {
-      cursorId = decodeCursor(cursor);
+      cursorId = decodeCursor(cursor, signingKey);
     } catch {
       throw invalidInput("invalid cursor");
     }
@@ -124,6 +136,9 @@ export async function listTransfers(
   const last = page.rows[page.rows.length - 1];
   return {
     data: page.rows.map(toTransferView),
-    meta: { cursor: page.hasNext && last !== undefined ? encodeCursor(last.id) : null, hasNext: page.hasNext },
+    meta: {
+      cursor: page.hasNext && last !== undefined ? encodeCursor(last.id, readCursorSigningKey()) : null,
+      hasNext: page.hasNext,
+    },
   };
 }

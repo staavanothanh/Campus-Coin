@@ -3,9 +3,12 @@ import assert from "node:assert/strict";
 import {
   isPositiveVnd,
   isNonNegativeVnd,
+  addSafeIntegers,
+  subtractSafeIntegers,
   walletDeltaForCorrection,
   walletDeltaForOriginal,
 } from "../src/domain/money.ts";
+import { amountFromDb, deltaFromDb } from "../src/infrastructure/persistence/rows.ts";
 
 test("walletDeltaForOriginal: income tăng wallet, payment giảm wallet", () => {
   assert.equal(walletDeltaForOriginal("income", 100_000), 100_000);
@@ -40,4 +43,21 @@ test("amount validation: positive vs non-negative VND", () => {
   assert.equal(isNonNegativeVnd(0), true);
   assert.equal(isNonNegativeVnd(1), true);
   assert.equal(isNonNegativeVnd(-1), false);
+});
+
+test("safe arithmetic: accepts max-safe boundaries and rejects overflow", () => {
+  const max = Number.MAX_SAFE_INTEGER;
+  const min = Number.MIN_SAFE_INTEGER;
+  assert.equal(addSafeIntegers(max - 1, 1), max);
+  assert.equal(subtractSafeIntegers(min + 1, 1), min);
+  assert.throws(() => addSafeIntegers(max, 1), RangeError);
+  assert.throws(() => subtractSafeIntegers(min, 1), RangeError);
+  assert.throws(() => addSafeIntegers(max + 1, 0), RangeError);
+});
+
+test("database integer parsing preserves exact max-safe limits", () => {
+  assert.equal(amountFromDb("9007199254740991"), Number.MAX_SAFE_INTEGER);
+  assert.equal(deltaFromDb("-9007199254740991"), Number.MIN_SAFE_INTEGER);
+  assert.throws(() => amountFromDb("9007199254740992"), /safe integer range/);
+  assert.throws(() => deltaFromDb("9007199254740991.1"), /safe integer range/);
 });

@@ -12,6 +12,7 @@ import { insertAuditEvent } from "../infrastructure/persistence/audit.repository
 import { isCategoryStatus, isTransactionType, type CategoryStatus, type TransactionType } from "../domain/money.ts";
 import { invalidInput, notFound } from "../domain/errors.ts";
 import { toCategory, type CategoryView } from "./map.ts";
+import { withIdempotentMutation } from "./idempotency.ts";
 
 export interface ListCategoriesOptions {
   appliesTo?: TransactionType;
@@ -34,6 +35,8 @@ export interface CreateCategoryInput {
   nameEn: string;
   nameVi: string;
   appliesTo: TransactionType;
+  idempotencyKey: string;
+  requestHash: string;
 }
 
 /** Trả null khi trùng tên (409 Conflict ở API layer). */
@@ -41,13 +44,24 @@ export async function createCustomCategory(db: Db, input: CreateCategoryInput): 
   if (!isTransactionType(input.appliesTo)) throw invalidInput("appliesTo must be income|payment");
   if (input.nameEn.length === 0 || input.nameEn.length > 80) throw invalidInput("nameEn required (max 80)");
   if (input.nameVi.length > 80) throw invalidInput("nameVi too long (max 80)");
-  return withConnection(async (conn) => {
-    try {
-      const id = await insertCustomCategory(conn, input.userId, {
-        nameEn: input.nameEn,
-        nameVi: input.nameVi,
-        appliesTo: input.appliesTo,
-      });
+  return withIdempotentMutation({
+    db,
+    userId: input.userId,
+    scope: "category.create",
+    idempotencyKey: input.idempotencyKey,
+    requestHash: input.requestHash,
+    mutate: async (conn, idempotencyId) => {
+      let id: number;
+      try {
+        id = await insertCustomCategory(conn, input.userId, {
+          nameEn: input.nameEn,
+          nameVi: input.nameVi,
+          appliesTo: input.appliesTo,
+        }, idempotencyId);
+      } catch (error) {
+        if (isDuplicateEntry(error)) return null;
+        throw error;
+      }
       await insertAuditEvent(conn, {
         userId: input.userId,
         actorType: "user",
@@ -60,10 +74,7 @@ export async function createCustomCategory(db: Db, input: CreateCategoryInput): 
       const row = await findCategoryById(conn, input.userId, id);
       if (row === null) throw new Error("category row missing after insert");
       return toCategory(row);
-    } catch (error) {
-      if (isDuplicateEntry(error)) return null;
-      throw error;
-    }
+    },
   });
 }
 

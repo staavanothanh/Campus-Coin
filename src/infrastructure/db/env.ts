@@ -26,6 +26,23 @@ export class DbEnvError extends Error {
   }
 }
 
+export class ServerEnvError extends Error {
+  readonly code = "SERVER_ENV_INVALID";
+  constructor(message: string) {
+    super(message);
+    this.name = "ServerEnvError";
+  }
+}
+
+/** Signing key is read only by cursor operations and is never included in errors. */
+export function readCursorSigningKey(env: NodeJS.ProcessEnv = process.env): string {
+  const key = env["CAMPUS_COIN_CURSOR_SIGNING_KEY"];
+  if (typeof key !== "string" || Buffer.byteLength(key, "utf8") < 32 || key.trim() !== key) {
+    throw new ServerEnvError("CAMPUS_COIN_CURSOR_SIGNING_KEY must contain at least 32 non-padded bytes");
+  }
+  return key;
+}
+
 function requireValue(name: string, env: NodeJS.ProcessEnv): string {
   const value = env[name];
   if (value === undefined || value === null || value === "") {
@@ -58,7 +75,11 @@ export function readDbEnv(env: NodeJS.ProcessEnv = process.env): DbEnv {
   const host = requireValue("CAMPUS_COIN_DB_HOST", env);
   const database = requireValue("CAMPUS_COIN_DB_NAME", env);
   const user = requireValue("CAMPUS_COIN_DB_USER", env);
-  const password = requireValue("CAMPUS_COIN_DB_PASSWORD", env);
+  const password = env["CAMPUS_COIN_DB_PASSWORD"] ?? "";
+  const isLocalDisposableTest = env["CAMPUS_COIN_TEST_DB"] === "1" && isLoopbackHost(host);
+  if (password.length === 0 && !isLocalDisposableTest) {
+    throw new DbEnvError("missing required environment variable: CAMPUS_COIN_DB_PASSWORD");
+  }
   const sslMode = parseSslMode(env["CAMPUS_COIN_DB_SSL"]);
   const caPath = optionalValue("CAMPUS_COIN_DB_CA_PATH", env);
   if (sslMode === "verify-ca" && caPath === undefined) {
@@ -84,6 +105,10 @@ export function readDbEnv(env: NodeJS.ProcessEnv = process.env): DbEnv {
     migrateUser: optionalValue("CAMPUS_COIN_DB_MIGRATE_USER", env),
     migratePassword: optionalValue("CAMPUS_COIN_DB_MIGRATE_PASSWORD", env),
   };
+}
+
+function isLoopbackHost(host: string): boolean {
+  return host === "localhost" || host === "127.0.0.1" || host === "::1";
 }
 
 /** Migration role: dùng CAMPUS_COIN_DB_MIGRATE_* nếu có, else runtime role (local dev). */

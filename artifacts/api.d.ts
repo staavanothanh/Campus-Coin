@@ -223,6 +223,7 @@ export interface paths {
                     };
                 };
                 401: components["responses"]["Unauthorized"];
+                404: components["responses"]["NotFound"];
             };
         };
         put?: never;
@@ -464,6 +465,7 @@ export interface paths {
                     };
                 };
                 401: components["responses"]["Unauthorized"];
+                404: components["responses"]["NotFound"];
             };
         };
         put?: never;
@@ -1006,13 +1008,13 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
-                /** @description Issue detail */
+                /** @description Issue detail and timeline */
                 200: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["IssueResponse"];
+                        "application/json": components["schemas"]["AdminIssueDetailResponse"];
                     };
                 };
                 401: components["responses"]["Unauthorized"];
@@ -1087,7 +1089,9 @@ export interface paths {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content?: never;
+                    content: {
+                        "application/json": components["schemas"]["IssueEventResponse"];
+                    };
                 };
                 401: components["responses"]["Unauthorized"];
                 403: components["responses"]["Forbidden"];
@@ -1486,11 +1490,42 @@ export interface components {
             createdAt: string;
         };
         IssueResponse: {
+            /** @constant */
+            success: true;
             data: components["schemas"]["Issue"];
+            meta: null;
         };
         IssuePageResponse: {
+            /** @constant */
+            success: true;
             data: components["schemas"]["Issue"][];
             meta: components["schemas"]["PageMeta"];
+        };
+        IssueEvent: {
+            id: string;
+            /** @enum {string} */
+            kind: "created" | "reporter_update" | "status_change" | "priority_change" | "note";
+            note?: string | null;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        AdminIssueDetailResponse: {
+            /** @constant */
+            success: true;
+            data: components["schemas"]["Issue"] & {
+                events: components["schemas"]["IssueEvent"][];
+            };
+            meta: null;
+        };
+        IssueEventResponse: {
+            /** @constant */
+            success: true;
+            data: {
+                id: string;
+                /** Format: date-time */
+                createdAt: string;
+            };
+            meta: null;
         };
         CreateIssueRequest: {
             title: string;
@@ -1563,7 +1598,11 @@ export interface components {
             details?: components["schemas"]["ErrorDetail"][];
         };
         ErrorResponse: {
+            /** @constant */
+            success: false;
+            data: null;
             error: components["schemas"]["ApiError"];
+            meta: null;
         };
     };
     responses: {

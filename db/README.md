@@ -8,7 +8,10 @@ Nguồn: ADR-0003 (cloud MySQL validation gate), ADR-0005 (money immutable), `do
 db/
 ├── migrations/            # SQL versioned, forward-only, non-destructive
 │   ├── 0001_initial_schema.sql
-│   └── 0002_seed_default_categories.sql
+│   ├── 0002_seed_default_categories.sql
+│   ├── 0003_ledger_owner_reference_index.sql
+│   ├── 0004–0015 owner/idempotency/FK/check migrations
+│   └── 0016–0027 owner/projection triggers
 ├── grants.example.sql     # Least-privilege template (chạy tay bởi DBA/provider)
 └── README.md
 src/
@@ -24,19 +27,23 @@ test/
 
 ```bash
 npm run typecheck     # tsc strict (erasable syntax, Node chạy TS native)
-npm test              # unit + integration gated + e2e contract smoke gated
+npm test                       # unit + gated suites may skip without test DB
+npm run test:mysql:required    # all unit + MySQL integration/e2e must execute
 npm run db:preflight  # kiểm tra read-only: env, TLS, version, charset, migration state
 npm run db:status     # so khớp file migration vs schema_migrations
 npm run db:migrate    # apply migration chưa chạy (GET_LOCK chống chạy song song)
 npm run db:datatest   # test SQL trên database tạm (xem datatest/README.md)
+npm run db:reconcile  # so projection wallet/savings với ledger/transfer append-only
+npm run benchmark     # local-only, tạo và drop schema benchmark cô lập
 ```
 
-Test gated cần MySQL thật (Day-1 gate): `CAMPUS_COIN_TEST_DB=1` + `CAMPUS_COIN_DB_*`, chạy `npm test`. Gồm:
+Test gated cần MySQL thật (Day-1 gate): `CAMPUS_COIN_TEST_DB=1`, `CAMPUS_COIN_DB_*` và test-admin credentials. `npm run test:mysql:required` ép gate bật, vì vậy thiếu DB/admin credentials sẽ làm command fail thay vì skip. CI dùng MySQL 8.0.41 service riêng cho mỗi job.
 
 - `test/mysql.integration.test.ts` — invariant nghiệp vụ qua services trên DB tạm (wallet, insufficient, concurrent payment, idempotency, correction, savings, budget, report, pagination, owner isolation, append-only).
-- `test/e2e.contract.smoke.test.ts` — critical flow + validate từng response theo `artifacts/openapi.json` (schema frontend tiêu thụ). Khi HTTP lane A và UI lane C được thêm, smoke này thành true e2e qua HTTP.
+- `test/e2e.contract.smoke.test.ts` — critical flow + validate service responses theo `artifacts/openapi.json`; đây vẫn là contract smoke qua service, không phải browser E2E.
+- `test/runtime-grants.integration.test.ts` — chạy application services và raw SQL bằng runtime principal bị giới hạn, xác nhận DDL/cross-owner bypass bị chặn.
 
-Không có `migrate down`. Rollback/sửa lỗi = migration mới hoặc restore (xem bên dưới). Không sửa file migration đã chạy — checksum mismatch làm `status`/`migrate` fail hard.
+Không có `migrate down`. Mỗi migration mới được giữ thành một DDL statement/version nhỏ để MySQL atomic DDL có thể resume ở version kế tiếp sau lỗi statement. Nếu DDL đã commit nhưng insert `schema_migrations` thất bại do mất kết nối/quyền, engine fail với cảnh báo không retry mù; DBA phải so sánh schema thực với migration rồi reconcile thủ công trước deploy. Rollback/sửa lỗi = migration mới hoặc restore. Không sửa file migration đã chạy — checksum mismatch làm `status`/`migrate` fail hard.
 
 ## Environment (identifier bắt buộc)
 
@@ -51,8 +58,10 @@ Xem `.env.example`; giá trị thật chỉ ở secret manager/Vercel environmen
 | `CAMPUS_COIN_DB_CONNECTION_LIMIT` | bounded pool | mặc định 5, max 50; chỉnh theo quota provider |
 | `CAMPUS_COIN_DB_MIGRATE_USER` / `_PASSWORD` | migration role | tùy chọn; fallback runtime role cho dev |
 | `CAMPUS_COIN_MIGRATIONS_DIR` | thư mục migration | tùy chọn; mặc định `db/migrations` |
+| `CAMPUS_COIN_CURSOR_SIGNING_KEY` | signed keyset cursor | bắt buộc khi encode/decode cursor; ít nhất 32 bytes, secret manager only |
+| `CAMPUS_COIN_TEST_DB_ADMIN_USER` / `_PASSWORD` | test/benchmark admin | chỉ cho local disposable MySQL; quyền CREATE/DROP DATABASE, CREATE USER và GRANT |
 
-Runtime role chỉ DML (xem `db/grants.example.sql`); migration role có DDL. Pool runtime `waitForConnections`, `queueLimit=0`, timezone `Z` (UTC); kỳ HCMC tính ở application.
+Runtime role dùng table/column-level grants, không có DELETE/DDL/schema_migrations access và không được UPDATE wallet/savings projection; DB triggers cập nhật projection từ immutable ledger/transfer insert. Migration role DDL/trigger-definer tách biệt. Test harness tạo runtime account tạm với grants giới hạn, còn test-admin chỉ provisioning schema/user. Pool runtime `waitForConnections`, `queueLimit=0`, timezone `Z` (UTC); kỳ HCMC tính ở application.
 
 ### MySQL local dev (không phải production — ADR-0003)
 
@@ -61,28 +70,31 @@ Production vẫn là cloud MySQL managed qua TLS. Local MySQL chỉ để chạy
 Thiết lập đã kiểm chứng trên Windows (MySQL Community 8.0.41 ZIP portable, `.tmp/mysql/`, gitignored):
 
 1. `mysqld --initialize-insecure` → `--defaults-file=.tmp/mysql/my.ini` (datadir riêng, `bind-address=127.0.0.1`, `utf8mb4/utf8mb4_0900_ai_ci`, `console`).
-2. **`log-bin-trust-function-creators=1` trong `my.ini`** — bắt buộc để migration 0001 tạo trigger append-only; thiếu nó MySQL trả `ERROR 1419` (thiếu SUPER privilege khi binary logging bật).
+2. **`log-bin-trust-function-creators=1` trong `my.ini`** — cần xác minh theo quyền/setting server khi tạo trigger; thiếu quyền trigger phù hợp sẽ làm migration fail và version không được ghi.
 3. Tạo DB + role theo `db/grants.example.sql` với password dev. Tài khoản `'%'` đủ dùng cho `127.0.0.1` qua TCP (`skip_name_resolve=0` vẫn resolve `127.0.0.1` → host khớp `%`); không cần thêm tài khoản `@localhost`.
-4. `.env` local: `CAMPUS_COIN_DB_SSL=disabled`, `_MIGRATE_USER`/`_MIGRATE_PASSWORD` trỏ role migration.
+4. `.env` local: `CAMPUS_COIN_DB_SSL=disabled`, `_MIGRATE_USER`/`_MIGRATE_PASSWORD` trỏ role migration. Với test/benchmark, cấu hình test-admin riêng trên local disposable MySQL.
 
-Chạy: `npm run db:preflight` → `db:migrate` → `npm test` với `CAMPUS_COIN_TEST_DB=1` → `npm run db:datatest`.
+Chạy: `npm run db:preflight` → `npm run db:migrate` → `npm run test:mysql:required` → `npm run db:datatest` → `npm run db:reconcile`.
 
 ## Invariant đã mã hóa
 
-- Tiền: `BIGINT UNSIGNED` integer VND; CHECK `amount > 0`; wallet/savings CHECK `>= 0`; không floating point.
-- Append-only: trigger chặn UPDATE/DELETE trên `ledger_transactions`, `savings_transfers`, `audit_events`, `issue_events`.
-- Ledger correction: row mới có `reference_id` + `reason`; CHECK chặn original có reference; service chặn chain (target phải original, một correction duy nhất).
-- Owner scope: mọi query có `user_id` predicate; category custom scope theo owner; system category `user_id NULL`. Antijoin correction trong report/budget phải kèm `c.user_id = t.user_id` (index `idx_ledger_user_reference`) — thiếu predicate đó khiến MySQL dò `DISTINCT reference_id` toàn bảng, chi phí theo tổng tenant thay vì theo owner, và dữ liệu tenant khác lọt vào đường tính tiền.
+- Tiền: `BIGINT UNSIGNED` integer VND; CHECK `amount > 0`; wallet/savings CHECK `>= 0`; không floating point. Ledger/savings trigger cập nhật projections trong transaction; runtime không được UPDATE projection trực tiếp.
+- Append-only: trigger chặn UPDATE/DELETE trên `ledger_transactions`, `savings_transfers`, `audit_events`, `issue_events`; financial inserts tạo idempotency claim đúng owner/scope.
+- Ledger correction: row mới có `reference_id` + `reason`; composite FK buộc cùng `user_id` và target `original`; unique owner/reference giới hạn một correction/target.
+- Owner scope: composite FK issue→ledger và idempotency→financial row; insert trigger chặn ledger/budget category cross-owner hoặc sai type; query antijoin correction dùng unique `uq_ledger_user_reference`.
+- Projection authority: runtime chỉ insert baseline/ledger/savings transfer; triggers tạo savings account và cập nhật wallet/savings projection atomic. Runtime principal không có UPDATE projection privilege; `db:reconcile` đối chiếu projection với immutable rows.
 - Idempotency: `mutation_idempotency` claim trước (placeholder) + response sau trong cùng transaction; retry cùng key+body → replay, khác body → `IDEMPOTENCY_CONFLICT`.
-- Lock order: payment/income lock wallet `FOR UPDATE`; savings lock wallet rồi savings (cố định); correction lock target rồi wallet.
+- Lock order: payment/income lock wallet `FOR UPDATE`; savings lock wallet rồi savings (cố định); correction lock wallet rồi target/category để tránh chu trình lock.
 - Migration: `GET_LOCK('campus_coin.migrations')`, ghi `schema_migrations` (version, checksum), forward-only.
+- SQL datatest chạy trên schema/user tạm; runtime integration harness kiểm tra bằng principal runtime và không cần cấp CREATE/DROP DATABASE cho role ứng dụng.
 
 ## Policy report/budget (chú giải quyết định)
 
 - **Effective row** = `role <> 'reversal'` và không bị correction nào tham chiếu. Reversal tự bằng 0 và loại target; replacement/adjustment đóng góp theo amount mới. Đây chính là "tổng payment gốc còn hiệu lực" ở `docs/DOMAIN-MODEL.md` §3.
 - **Correction timestamp**: row correction lấy `occurred_at = occurred_at của target` (đảo ngược trong cùng kỳ). API-REVIEW ghi rõ correction timestamp/report semantics chưa chốt — đây là default hiện tại, chờ Team Leader; thay đổi chỉ ảnh hưởng query report, không làm hỏng dữ liệu.
 - **Monthly report**: `closing = opening + income − payment` (không gồm savings); `opening = initial_balance + effect trước kỳ`. Savings không vào income/payment/budget.
-- **Cursor**: opaque base64url JSON `{v,id}`. Chưa ký HMAC; mọi query vẫn scope owner nên sửa cursor chỉ ảnh hưởng list của chính user. API-REVIEW đề xuất signed cursor — gắn với secrets lane A khi chốt.
+- **Cursor**: base64url payload có version và HMAC-SHA256; `CAMPUS_COIN_CURSOR_SIGNING_KEY` phải là secret riêng, tối thiểu 32 bytes. Input cursor tối đa 512 ký tự, mọi list vẫn owner-scoped.
+- **Reconcile**: `npm run db:reconcile` đối chiếu wallet với baseline + effective ledger delta + savings transfer delta, và savings balance với tổng deposit−withdraw. Mismatch trả exit code fail, chỉ in số lượng mismatch, không in amount/PII; chạy lại sau restore trước khi mở write path.
 
 ## Day-1 verification (cổng ADR-0003)
 

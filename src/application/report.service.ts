@@ -12,6 +12,7 @@ import {
   walletDeltaBefore,
 } from "../infrastructure/persistence/report.repository.ts";
 import { monthRangeUtc, currentMonthKey, isMonthKey } from "../domain/period.ts";
+import { addSafeIntegers, subtractSafeIntegers } from "../domain/money.ts";
 import { invalidInput, walletNotInitialized } from "../domain/errors.ts";
 import { toSavings, toTransaction, toWallet, type SavingsView, type TransactionView, type WalletView } from "./map.ts";
 
@@ -36,9 +37,9 @@ export async function monthlyReport(db: Db, userId: number, month: string): Prom
     const wallet = await findWalletByUserId(conn, userId);
     if (wallet === null) throw walletNotInitialized();
     const deltaBefore = await walletDeltaBefore(conn, userId, startUtcMs);
-    const opening = wallet.initialBalanceVnd + deltaBefore;
+    const opening = addSafeIntegers(wallet.initialBalanceVnd, deltaBefore);
     const totals = await monthTotals(conn, userId, startUtcMs, endExclusiveUtcMs);
-    const closing = opening + totals.incomeTotalVnd - totals.paymentTotalVnd;
+    const closing = subtractSafeIntegers(addSafeIntegers(opening, totals.incomeTotalVnd), totals.paymentTotalVnd);
     const breakdown = await paymentTotalsByCategory(conn, userId, startUtcMs, endExclusiveUtcMs);
     return {
       month,

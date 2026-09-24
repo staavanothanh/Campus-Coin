@@ -66,9 +66,10 @@ export async function findCategoryById(
   db: CategoryScalar,
   userId: number,
   categoryId: number,
+  lock = false,
 ): Promise<CategoryRow | null> {
   const [rows] = (await db.query(
-    `SELECT ${CATEGORY_COLUMNS} FROM categories WHERE id = ? AND (user_id IS NULL OR user_id = ?)`,
+    `SELECT ${CATEGORY_COLUMNS} FROM categories WHERE id = ? AND (user_id IS NULL OR user_id = ?)${lock ? " FOR UPDATE" : ""}`,
     [categoryId, userId],
   )) as [CategoryDbRow[], unknown];
   const row = rows[0];
@@ -79,10 +80,11 @@ export async function insertCustomCategory(
   db: CategoryScalar,
   userId: number,
   input: { nameEn: string; nameVi: string; appliesTo: TransactionType },
+  idempotencyId: number,
 ): Promise<number> {
   const [result] = (await db.query(
-    "INSERT INTO categories (user_id, name_en, name_vi, applies_to, status, is_default) VALUES (?, ?, ?, ?, 'active', 0)",
-    [userId, input.nameEn, input.nameVi, input.appliesTo],
+    "INSERT INTO categories (user_id, name_en, name_vi, applies_to, status, is_default, idempotency_id) VALUES (?, ?, ?, ?, 'active', 0, ?)",
+    [userId, input.nameEn, input.nameVi, input.appliesTo, idempotencyId],
   )) as [{ insertId: number | string }, unknown];
   return Number(result.insertId);
 }

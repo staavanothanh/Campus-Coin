@@ -1,6 +1,7 @@
 // Budget: limit theo (user, payment category, month HCMC); overrun = warning, không authorize.
 
 import { amountFromDb } from "./rows.ts";
+import { isNonNegativeVnd } from "../../domain/money.ts";
 
 export interface BudgetRow {
   id: number;
@@ -52,12 +53,17 @@ export async function upsertBudget(
   categoryId: number,
   month: string,
   limitVnd: number,
+  idempotencyId: number,
 ): Promise<void> {
+  if (!isNonNegativeVnd(limitVnd)) throw new Error("invalid budget limit");
   await db.query(
-    `INSERT INTO budgets (user_id, category_id, month, limit_vnd)
-     VALUES (?, ?, ?, ?) AS new
-     ON DUPLICATE KEY UPDATE limit_vnd = new.limit_vnd, updated_at = CURRENT_TIMESTAMP(3)`,
-    [userId, categoryId, month, limitVnd],
+    `INSERT INTO budgets (user_id, category_id, month, limit_vnd, idempotency_id)
+     VALUES (?, ?, ?, ?, ?) AS new
+     ON DUPLICATE KEY UPDATE
+       limit_vnd = new.limit_vnd,
+       idempotency_id = new.idempotency_id,
+       updated_at = CURRENT_TIMESTAMP(3)`,
+    [userId, categoryId, month, limitVnd, idempotencyId],
   );
 }
 

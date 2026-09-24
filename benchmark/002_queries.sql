@@ -1,5 +1,3 @@
-USE campus_coin;
-
 SET @test_user_id = 999001;
 
 SET @start = NOW(6);
@@ -15,9 +13,9 @@ SET @start = NOW(6);
 SELECT id, type, amount_vnd, category_id, occurred_at, description
 FROM ledger_transactions
 WHERE user_id = @test_user_id
-  AND occurred_at >= '2026-09-01'
-  AND occurred_at < '2026-10-01'
-ORDER BY occurred_at DESC
+  AND occurred_at >= '2026-08-31 17:00:00'
+  AND occurred_at < '2026-09-30 17:00:00'
+ORDER BY id DESC
 LIMIT 50;
 SET @t_ledger_monthly = TIMESTAMPDIFF(MICROSECOND, @start, NOW(6)) / 1000;
 
@@ -30,8 +28,8 @@ SELECT
 FROM ledger_transactions t
 JOIN categories c ON c.id = t.category_id
 WHERE t.user_id = @test_user_id
-  AND t.occurred_at >= '2026-09-01'
-  AND t.occurred_at < '2026-10-01'
+  AND t.occurred_at >= '2026-08-31 17:00:00'
+  AND t.occurred_at < '2026-09-30 17:00:00'
 GROUP BY c.name_en, t.type
 ORDER BY total_vnd DESC;
 SET @t_report_agg = TIMESTAMPDIFF(MICROSECOND, @start, NOW(6)) / 1000;
@@ -52,8 +50,8 @@ LEFT JOIN ledger_transactions t
   ON t.category_id = b.category_id
   AND t.user_id = b.user_id
   AND t.type = 'payment'
-  AND t.occurred_at >= '2026-09-01'
-  AND t.occurred_at < '2026-10-01'
+   AND t.occurred_at >= '2026-08-31 17:00:00'
+   AND t.occurred_at < '2026-09-30 17:00:00'
 WHERE b.user_id = @test_user_id
 GROUP BY b.month, c.name_en, b.limit_vnd;
 SET @t_budget_check = TIMESTAMPDIFF(MICROSECOND, @start, NOW(6)) / 1000;
@@ -64,8 +62,8 @@ SELECT
   SUM(CASE WHEN t.type = 'income' THEN t.amount_vnd ELSE -t.amount_vnd END) AS net_vnd
 FROM ledger_transactions t
 WHERE t.user_id = @test_user_id
-  AND t.occurred_at >= '2026-09-01'
-  AND t.occurred_at < '2026-10-01'
+   AND t.occurred_at >= '2026-08-31 17:00:00'
+   AND t.occurred_at < '2026-09-30 17:00:00'
 GROUP BY occurred_day
 ORDER BY occurred_day;
 SET @t_daily_hcmc = TIMESTAMPDIFF(MICROSECOND, @start, NOW(6)) / 1000;
@@ -100,9 +98,9 @@ EXPLAIN ANALYZE
 SELECT id, type, amount_vnd, category_id, occurred_at
 FROM ledger_transactions
 WHERE user_id = @test_user_id
-  AND occurred_at >= '2026-09-01'
-  AND occurred_at < '2026-10-01'
-ORDER BY occurred_at DESC
+  AND occurred_at >= '2026-08-31 17:00:00'
+  AND occurred_at < '2026-09-30 17:00:00'
+ORDER BY id DESC
 LIMIT 50;
 
 EXPLAIN ANALYZE
@@ -114,8 +112,8 @@ SELECT
 FROM ledger_transactions t
 JOIN categories c ON c.id = t.category_id
 WHERE t.user_id = @test_user_id
-  AND t.occurred_at >= '2026-09-01'
-  AND t.occurred_at < '2026-10-01'
+  AND t.occurred_at >= '2026-08-31 17:00:00'
+  AND t.occurred_at < '2026-09-30 17:00:00'
 GROUP BY c.name_en, t.type
 ORDER BY total_vnd DESC;
 
@@ -125,7 +123,7 @@ SELECT
   SUM(CASE WHEN t.type = 'income' THEN t.amount_vnd ELSE -t.amount_vnd END) AS net_vnd
 FROM ledger_transactions t
 WHERE t.user_id = @test_user_id
-  AND t.occurred_at >= '2026-09-01'
-  AND t.occurred_at < '2026-10-01'
+  AND t.occurred_at >= '2026-08-31 17:00:00'
+  AND t.occurred_at < '2026-09-30 17:00:00'
 GROUP BY occurred_day
 ORDER BY occurred_day;

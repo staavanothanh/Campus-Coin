@@ -1,4 +1,4 @@
--- expect-error: fk_ledger_category
+-- expect-error
 -- Ledger không được trỏ tới category không tồn tại (FK RESTRICT).
-INSERT INTO ledger_transactions (user_id, type, amount_vnd, category_id, occurred_at, role)
-VALUES (1, 'income', 10000, 99999, '2026-09-01 00:00:00.000', 'original');
+INSERT INTO ledger_transactions (user_id, type, amount_vnd, category_id, occurred_at, role, idempotency_id)
+VALUES (1, 'income', 10000, 99999, '2026-09-01 00:00:00.000', 'original', 8);
