@@ -55,7 +55,7 @@ DELETE FROM ledger_transactions WHERE id = 1;
 | `024_issue_events_update_blocked.sql` | expect-error | trigger chặn UPDATE issue_events |
 | `030_zero_amount_ledger.sql` | expect-error | CHECK amount > 0 |
 | `031_correction_missing_reference.sql` | expect-error | CHECK correction phải có reference + reason |
-| `032_wallet_balance_negative.sql` | expect-error | CHECK wallet không âm |
+| `032_wallet_balance_negative.sql` | expect-error | giá trị âm bị chặn ở cột UNSIGNED (CHECK `>= 0` là defense-in-depth) |
 | `033_dup_custom_category.sql` | expect-error | UNIQUE (owner, applies_to, name_en) |
 | `034_budget_invalid_month.sql` | expect-error | CHECK month YYYY-MM |
 | `035_foreign_key_missing_category.sql` | expect-error | FK category tồn tại |

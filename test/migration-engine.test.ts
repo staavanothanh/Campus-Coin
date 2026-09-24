@@ -9,6 +9,7 @@ import {
   loadAppliedMigrations,
   planMigrations,
   scanMigrationDir,
+  supportsCheckConstraints,
   type MigrationFile,
 } from "../src/infrastructure/db/migration-engine.ts";
 
@@ -84,6 +85,16 @@ test("planMigrations: pending/applied/checksum mismatch", async () => {
   assert.deepEqual(plan.pending.map((f) => f.version), ["0003"]);
   assert.deepEqual(plan.appliedClean, ["0001"]);
   assert.deepEqual(plan.appliedMismatch, [{ version: "0002", expected: "bbb", actual: "CHANGED" }]);
+});
+
+test("supportsCheckConstraints: phiên bản >= 8.0.16 kể cả khi VERSION() có suffix", () => {
+  // Server thật trả suffix; parse sai sẽ khiến gate fail-closed nhầm trên cloud.
+  for (const version of ["8.0.16", "8.0.41", "8.0.41-log", "8.0.41-0ubuntu0.22.04.1", "8.1.0", "8.4.2-log", "9.1.0"]) {
+    assert.equal(supportsCheckConstraints(version), true, `${version} phải được hỗ trợ`);
+  }
+  for (const version of ["8.0.15", "8.0.0", "5.7.44-log", "10.4.28-MariaDB", "garbage", "8", ""]) {
+    assert.equal(supportsCheckConstraints(version), false, `${version} không được coi là hỗ trợ`);
+  }
 });
 
 test("applyMigration: chạy SQL rồi ghi schema_migrations", async () => {

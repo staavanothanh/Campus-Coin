@@ -8,7 +8,7 @@ import { migrationCreds, readDbEnv } from "../../src/infrastructure/db/env.ts";
 import { applyMigration, scanMigrationDir, type MigrationConnection } from "../../src/infrastructure/db/migration-engine.ts";
 import { resetPool } from "../../src/infrastructure/db/pool.ts";
 
-export const MIGRATIONS_DIR = path.resolve(import.meta.dirname, "..", "..", "..", "db", "migrations");
+export const MIGRATIONS_DIR = path.resolve(import.meta.dirname, "..", "..", "db", "migrations");
 
 export interface MysqlHarness {
   dbName: string;

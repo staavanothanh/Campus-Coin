@@ -1654,6 +1654,15 @@
           "replacement"
         ]
       },
+      "TransactionRole": {
+        "type": "string",
+        "enum": [
+          "original",
+          "reversal",
+          "adjustment",
+          "replacement"
+        ]
+      },
       "CreateCorrectionRequest": {
         "type": "object",
         "required": [
@@ -1712,7 +1721,7 @@
             ]
           },
           "role": {
-            "$ref": "#/components/schemas/CorrectionRole"
+            "$ref": "#/components/schemas/TransactionRole"
           },
           "referenceId": {
             "type": [

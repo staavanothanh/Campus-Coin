@@ -448,6 +448,7 @@ components:
         description: {type: string, maxLength: 500}
         confirmedCategorySuggestion: {type: boolean, default: false}
     CorrectionRole: {type: string, enum: [reversal, adjustment, replacement]}
+    TransactionRole: {type: string, enum: [original, reversal, adjustment, replacement]}
     CreateCorrectionRequest:
       type: object
       required: [correctionRole, reason]
@@ -466,7 +467,7 @@ components:
         categoryId: {type: string}
         occurredAt: {type: string, format: date-time}
         description: {type: [string, 'null']}
-        role: {$ref: '#/components/schemas/CorrectionRole'}
+        role: {$ref: '#/components/schemas/TransactionRole'}
         referenceId: {type: [string, 'null']}
         createdAt: {type: string, format: date-time}
     BudgetWarning:

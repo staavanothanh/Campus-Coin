@@ -122,6 +122,32 @@ export async function releaseMigrationLock(conn: MigrationConnection): Promise<v
 }
 
 /**
+ * Parse major/minor/patch từ VERSION() của MySQL. Server thật trả suffix
+ * (`8.0.41-log`, `8.0.41-0ubuntu0.22.04.1`) nên phải cắt phần sau dấu `-`.
+ * MariaDB trả null: không phải MySQL và schema/ collation không được kiểm chứng trên đó.
+ * Trả null khi không parse được — caller phải fail closed.
+ */
+export function parseMysqlVersion(version: string): { major: number; minor: number; patch: number } | null {
+  if (/mariadb/i.test(version)) return null;
+  const numeric = version.split("-")[0]!.trim();
+  const parts = numeric.split(".");
+  if (parts.length < 2) return null;
+  const values = parts.slice(0, 3).map((p) => (/^\d+$/.test(p) ? Number(p) : NaN));
+  const [major, minor, patch = 0] = values;
+  if (Number.isNaN(major!) || Number.isNaN(minor!) || Number.isNaN(patch)) return null;
+  return { major: major!, minor: minor!, patch };
+}
+
+/** true khi server là MySQL >= 8.0.16 (CHECK constraints enforced); null/không parse/MariaDB → false. */
+export function supportsCheckConstraints(version: string): boolean {
+  const parsed = parseMysqlVersion(version);
+  if (parsed === null) return false;
+  const { major, minor, patch } = parsed;
+  // Série 8.0 so patch; 8.1+ (innovation) và 9+ đều mới hơn.
+  return major > 8 || (major === 8 && (minor >= 1 || (minor === 0 && patch >= 16)));
+}
+
+/**
  * Apply một migration trên connection dùng multi-statement.
  * Ghi schema_migrations sau khi DDL chạy; DDL MySQL auto-commit nên file phải
  * forward-only — lỗi giữa file = dừng ngay, báo rõ, không tự ghi version.

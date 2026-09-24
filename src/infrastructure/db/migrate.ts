@@ -12,6 +12,7 @@ import {
   planMigrations,
   releaseMigrationLock,
   scanMigrationDir,
+  supportsCheckConstraints,
   type MigrationConnection,
 } from "./migration-engine.ts";
 import { DbEnvError, migrationCreds, readDbEnv, type DbEnv } from "./env.ts";
@@ -117,9 +118,8 @@ async function cmdPreflight(): Promise<number> {
 
     const [versionRows] = (await conn.query("SELECT VERSION() AS version")) as [{ version: string }[], unknown];
     const version = versionRows[0]!.version;
-    const [major, minor] = version.split(".").map((p) => Number(p));
     results.push({
-      ok: major! > 8 || (major === 8 && minor! >= 16),
+      ok: supportsCheckConstraints(version),
       warn: false,
       label: "MySQL version >= 8.0.16 (CHECK constraints)",
       detail: version,
