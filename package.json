@@ -15,10 +15,10 @@
     "build": "tsc --noEmit && vite build",
     "typecheck": "tsc --noEmit",
     "test": "node --import tsx --test",
-    "db:status": "cross-env node --env-file=.env src/infrastructure/db/migrate.ts status",
-    "db:preflight": "cross-env node --env-file=.env src/infrastructure/db/migrate.ts preflight",
-    "db:datatest": "cross-env node --env-file=.env datatest/run.ts",
-    "db:migrate": "cross-env node --env-file=.env src/infrastructure/db/migrate.ts up"
+    "db:status": "cross-env node --env-file-if-exists=.env src/infrastructure/db/migrate.ts status",
+    "db:preflight": "cross-env node --env-file-if-exists=.env src/infrastructure/db/migrate.ts preflight",
+    "db:datatest": "cross-env node --env-file-if-exists=.env datatest/run.ts",
+    "db:migrate": "cross-env node --env-file-if-exists=.env src/infrastructure/db/migrate.ts up"
   },
   "devDependencies": {
     "@redocly/cli": "^2.54.2",
@@ -34,6 +34,7 @@
     "vite": "^8.3.0"
   },
   "dependencies": {
+    "google-auth-library": "11.1.0",
     "mysql2": "^3.24.4",
     "nodemailer": "^10.0.10",
     "react": "^19.3.0",

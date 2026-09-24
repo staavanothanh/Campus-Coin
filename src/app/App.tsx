@@ -1,8 +1,9 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { api, ApiError, type User } from '../features/auth/auth.api';
 import { errorText, text, type Language } from './text';
 
 type Page = 'login' | 'register' | 'verify' | 'forgot' | 'reset';
+type MessageKind = 'error' | 'status';
 
 export function App() {
   const [language, setLanguage] = useState<Language>('vi');
@@ -15,8 +16,14 @@ export function App() {
   const [otp, setOtp] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [user, setUser] = useState<User | null>(null);
+  const [googleEnabled, setGoogleEnabled] = useState(false);
+  const [googleLinked, setGoogleLinked] = useState(false);
+  const [oauthResult, setOauthResult] = useState<{ kind: 'success' | 'error'; code: string } | null>(null);
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
+  const [messageKind, setMessageKind] = useState<MessageKind>('status');
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const requestInProgress = useRef(false);
   const t = text[language];
 
   useEffect(() => {
@@ -24,8 +31,51 @@ export function App() {
   }, [language]);
 
   useEffect(() => {
-    api<{ user: User }>('/auth/session')
-      .then(result => setUser(result.user))
+    const query = new URLSearchParams(window.location.search);
+    const success = query.get('auth');
+    const failure = query.get('auth_error');
+    if (success) setOauthResult({ kind: 'success', code: success });
+    if (failure) setOauthResult({ kind: 'error', code: failure });
+    if (success || failure) window.history.replaceState({}, '', window.location.pathname);
+  }, []);
+
+  useEffect(() => {
+    if (!oauthResult) return;
+    const messages = text[language];
+    const successMessages: Record<string, string> = {
+      google_login: messages.googleLoginSuccess,
+      google_linked: messages.googleLinkSuccess,
+    };
+    const errorMessages: Record<string, string> = {
+      cancelled: messages.googleCancelled,
+      invalid_flow: messages.googleFailed,
+      provider_error: messages.googleFailed,
+      provider_unavailable: messages.googleUnavailable,
+      link_required: messages.googleLinkRequired,
+      account_conflict: messages.googleConflict,
+      login_required: messages.googleLoginRequired,
+      rate_limited: messages.rateLimited,
+      failed: messages.googleFailed,
+    };
+    setMessageKind(oauthResult.kind === 'error' ? 'error' : 'status');
+    setMessage(oauthResult.kind === 'error'
+      ? errorMessages[oauthResult.code] || messages.googleFailed
+      : successMessages[oauthResult.code] || '');
+  }, [oauthResult, language]);
+
+  useEffect(() => {
+    headingRef.current?.focus();
+  }, [page, user]);
+
+  useEffect(() => {
+    api<{ google: boolean }>('/auth/providers')
+      .then(result => setGoogleEnabled(result.google))
+      .catch(() => setGoogleEnabled(false));
+    api<{ user: User; googleLinked: boolean }>('/auth/session')
+      .then(result => {
+        setUser(result.user);
+        setGoogleLinked(result.googleLinked);
+      })
       .catch(error => {
         if (!(error instanceof ApiError) || error.status !== 401) setMessage(text.vi.error);
       });
@@ -34,6 +84,7 @@ export function App() {
   function openPage(nextPage: Page) {
     setPage(nextPage);
     setMessage('');
+    setMessageKind('status');
     setPassword('');
     setConfirm('');
     setOtp('');
@@ -41,7 +92,13 @@ export function App() {
   }
 
   function showError(error: unknown) {
+    setMessageKind('error');
     if (error instanceof ApiError) {
+      if (error.code === 'RATE_LIMITED') {
+        const retryAfter = error.retryAfterSeconds;
+        setMessage(retryAfter ? `${t.rateLimited} ${retryAfter} ${t.seconds}.` : t.rateLimited);
+        return;
+      }
       setMessage(errorText[language][error.code] || t.error);
     } else {
       setMessage(t.error);
@@ -50,17 +107,21 @@ export function App() {
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (requestInProgress.current) return;
     setMessage('');
+    setMessageKind('status');
     if ((page === 'verify' || page === 'reset') && password !== confirm) {
       setMessage(t.mismatch);
       return;
     }
 
+    requestInProgress.current = true;
     setBusy(true);
     try {
       if (page === 'login') {
-        const result = await api<{ user: User }>('/auth/login', { email, password });
+        const result = await api<{ user: User; googleLinked: boolean }>('/auth/login', { email, password });
         setUser(result.user);
+        setGoogleLinked(result.googleLinked);
         setPassword('');
         if (remember) localStorage.setItem('campus_email', email);
         else localStorage.removeItem('campus_email');
@@ -88,13 +149,17 @@ export function App() {
     } catch (error) {
       showError(error);
     } finally {
+      requestInProgress.current = false;
       setBusy(false);
     }
   }
 
   async function resend() {
+    if (requestInProgress.current) return;
+    requestInProgress.current = true;
     setBusy(true);
     setMessage('');
+    setMessageKind('status');
     try {
       const purpose = page === 'verify' ? 'registration' : 'password_reset';
       await api('/auth/resend-otp', { email, purpose });
@@ -102,19 +167,40 @@ export function App() {
     } catch (error) {
       showError(error);
     } finally {
+      requestInProgress.current = false;
       setBusy(false);
     }
   }
 
   async function signOut() {
+    if (requestInProgress.current) return;
+    requestInProgress.current = true;
     setBusy(true);
+    setMessage('');
     try {
       await api('/auth/logout', {});
       setUser(null);
+      setGoogleLinked(false);
       openPage('login');
     } catch (error) {
       showError(error);
     } finally {
+      requestInProgress.current = false;
+      setBusy(false);
+    }
+  }
+
+  async function connectGoogle() {
+    if (requestInProgress.current) return;
+    requestInProgress.current = true;
+    setBusy(true);
+    setMessage('');
+    try {
+      const result = await api<{ url: string }>('/auth/google/link', undefined, 'POST');
+      window.location.assign(result.url);
+    } catch (error) {
+      showError(error);
+      requestInProgress.current = false;
       setBusy(false);
     }
   }
@@ -136,11 +222,14 @@ export function App() {
 
     <section className="authCard">
       {user ? <>
-        <h1>{t.hello} {user.displayName}</h1>
+        <h1 ref={headingRef} tabIndex={-1}>{t.hello} {user.displayName}</h1>
         <p>{user.email}</p>
+        {googleLinked
+          ? <p role="status">{t.googleConnected}</p>
+          : <button className="textButton" disabled={busy} onClick={connectGoogle}>{t.googleConnect}</button>}
         <button className="primaryButton" disabled={busy} onClick={signOut}>{t.logout}</button>
       </> : <>
-        <h1>{title}</h1>
+        <h1 ref={headingRef} tabIndex={-1}>{title}</h1>
         {page === 'verify' && <p className="emailHint">{t.email}: {email}</p>}
         <form onSubmit={submit}>
           {(page === 'login' || page === 'register' || page === 'forgot') && <label>
@@ -181,12 +270,13 @@ export function App() {
 
         {(page === 'verify' || page === 'reset') && <button className="textButton" disabled={busy} onClick={resend}>{t.resend}</button>}
         {page === 'login' && <>
+          {googleEnabled && <a className="textButton" href="/api/v1/auth/google/start">{t.googleSignIn}</a>}
           <button className="textButton" onClick={() => openPage('forgot')}>{t.forgotLink}</button>
           <button className="textButton" onClick={() => openPage('register')}>{t.signUp}</button>
         </>}
         {page !== 'login' && <button className="textButton" onClick={() => openPage('login')}>{t.back}</button>}
       </>}
-      {message && <p className="message" role="status">{message}</p>}
+      {message && <p className="message" role={messageKind === 'error' ? 'alert' : 'status'} aria-live={messageKind === 'error' ? 'assertive' : 'polite'}>{message}</p>}
     </section>
     <p className="subtitle">{t.subtitle}</p>
   </main>;

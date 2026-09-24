@@ -4,7 +4,7 @@
 
 Campus Coin không phải ngân hàng, không giữ tiền thật, không xử lý payment thật, không cho vay, không BNPL và không cung cấp tư vấn tài chính được chứng nhận.
 
-> Nhánh `hiep` hiện có API/React thử nghiệm cho đăng nhập email và OTP, cùng lane MySQL của Developer B. Phần tài chính chưa được nối vào giao diện. Email/OTP là đề xuất của Dev A, chưa thay thế quyết định Google OAuth-only của nhóm.
+> Quyết định của Team Leader ngày 2026-09-24: giữ email/password/OTP và thêm Google Sign-In như lựa chọn tùy chọn theo [ADR-0009](docs/adr/0009-optional-google-sign-in.md). Không dùng Gmail credential cá nhân, inbox hoặc Gmail API; không tự động merge account theo email. Provider/live callback và production gates vẫn cần evidence.
 
 ## 1. Bắt đầu nhanh
 
@@ -54,7 +54,7 @@ Không sửa tay hai file này. Nguồn duy nhất là [`docs/contracts/openapi.
 
 ### Chạy bản thử Dev A trên nhánh `hiep`
 
-Sao chép `.env.example` thành `.env` và điền các biến MySQL, SMTP, `OTP_SECRET`, `SESSION_SECRET` bằng giá trị của môi trường thử riêng. Không commit `.env`.
+Sao chép `.env.example` thành `.env` và điền các biến MySQL, SMTP, `OTP_SECRET`, `SESSION_SECRET`, `AUTH_RATE_LIMIT_SECRET` bằng giá trị của môi trường thử riêng. Không commit `.env`.
 
 Nếu dùng MySQL với `CAMPUS_COIN_DB_SSL=verify-ca`, tải CA certificate từ chính nhà cung cấp MySQL. Với `CAMPUS_COIN_DB_CA_PATH=ca.pem`, đặt file `ca.pem` tại thư mục gốc repository, cùng cấp với `package.json`. Tên file trong `.env` không tự tạo ra chứng chỉ; `ca.pem` được Git bỏ qua. Không tắt TLS để chữa lỗi thiếu file CA trên cloud.
 
@@ -63,14 +63,14 @@ Các biến còn lại cho bản thử đăng nhập email:
 | Biến | Cần điền gì |
 |---|---|
 | `CLIENT_ORIGIN` | Địa chỉ giao diện local, mặc định `http://127.0.0.1:5173`; phải đúng địa chỉ đang mở. |
-| `OTP_SECRET` và `SESSION_SECRET` | Hai chuỗi ngẫu nhiên **khác nhau**, mỗi chuỗi ít nhất 32 byte; chỉ lưu trong `.env`. Dùng `node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"` hai lần để tạo. |
-| `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE` | Máy chủ gửi mail. Với Gmail: `smtp.gmail.com`, `587`, `false` (STARTTLS). |
-| `SMTP_USER` | Địa chỉ Gmail dùng để gửi OTP. |
-| `SMTP_PASS` | App Password của Gmail, không phải mật khẩu đăng nhập Gmail. Tài khoản cần bật xác minh hai bước trước khi tạo App Password. |
-| `EMAIL_FROM` | Địa chỉ gửi, nên dùng cùng Gmail trong `SMTP_USER`. |
+| `OTP_SECRET`, `SESSION_SECRET`, `AUTH_RATE_LIMIT_SECRET` | Ba chuỗi ngẫu nhiên **khác nhau**, mỗi chuỗi ít nhất 32 byte; chỉ lưu trong `.env`. Dùng `node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"` ba lần để tạo. |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_TIMEOUT_MS` | Máy chủ SMTP của email provider được nhóm chọn; TLS bắt buộc, timeout mặc định 10 giây. |
+| `SMTP_USER`, `SMTP_PASS` | Credential riêng do email provider cấp cho ứng dụng; không dùng credential Gmail cá nhân. |
+| `EMAIL_FROM` | Địa chỉ gửi đã được provider xác minh/cho phép. |
+| `TRUST_PROXY` | Chỉ đặt `true` khi server nhận request từ proxy tin cậy đã cấu hình (ví dụ Vercel); nếu không, giữ `false`. |
 | `CAMPUS_COIN_DB_MIGRATE_USER` và `CAMPUS_COIN_DB_MIGRATE_PASSWORD` | Tài khoản MySQL có quyền chạy migration, nếu nhóm đã tạo riêng. Để trống thì công cụ dùng tài khoản DB thường; không chạy migration trên database dùng chung khi chưa được nhóm đồng ý. |
 
-Sau khi điền, chạy `npm run db:preflight` để kiểm tra kết nối MySQL (chỉ đọc). Nếu có `FAIL`, xử lý lỗi đó trước khi chạy API. `npm run db:migrate` ghi vào database, chỉ chạy sau khi nhóm xác nhận database đích, backup và quyền migration. OTP thật chỉ kiểm tra được khi SMTP đã cấu hình và bạn dùng email do mình sở hữu. Sau khi migration được nhóm duyệt và áp dụng trên database thử, chạy API và giao diện ở hai terminal:
+Không gửi OTP vào log/dev fallback. SMTP verification không chứng minh gửi và nhận OTP end-to-end. Sau khi điền, chạy `npm run db:preflight` để kiểm tra kết nối MySQL (chỉ đọc). Nếu có `FAIL`, xử lý trước khi chạy API. `npm run db:migrate` ghi vào database, chỉ chạy sau khi xác nhận database đích, backup và quyền migration. Chỉ kiểm thử gửi OTP bằng email do người kiểm thử sở hữu trên DB cô lập.
 
 ```bash
 npm run dev:api
@@ -79,7 +79,7 @@ npm run dev
 
 API ở `http://127.0.0.1:3000/api/v1/health`; giao diện Vite ở `http://127.0.0.1:5173`. Chưa có cấu hình deploy Vercel cho runtime này.
 
-Lane MySQL của Developer B gồm migrations, repository, service tiền và test; xem [`db/README.md`](db/README.md). API/giao diện auth của Dev A vẫn là bản thử chưa nối với toàn bộ chức năng tài chính.
+Lane MySQL của Developer B gồm migrations, repository, service tiền và test; xem [`db/README.md`](db/README.md). Auth và API domain hiện đã được nối qua application services; MySQL E2E, browser accessibility và môi trường thật vẫn là gate đang chờ xác minh.
 
 ## 2. Cấu trúc project dự kiến
 
@@ -94,7 +94,7 @@ Lane MySQL của Developer B gồm migrations, repository, service tiền và te
 │   ├── PRD.md                        # Phạm vi và acceptance sản phẩm
 │   ├── ARCHITECTURE.md               # Boundary kiến trúc
 │   ├── DOMAIN-MODEL.md               # Entity, formula, invariant tiền
-│   ├── AUTHENTICATION.md             # OAuth, session, CSRF, owner scope
+│   ├── AUTHENTICATION.md             # Email/OTP, session, CSRF, owner scope
 │   ├── AI-JEV.md                     # JEV/OpenRouter boundary
 │   ├── DELIVERY-PLAN.md              # Gate và trạng thái giao hàng
 │   ├── adr/                          # Quyết định khó đảo ngược
@@ -107,12 +107,12 @@ Lane MySQL của Developer B gồm migrations, repository, service tiền và te
 ├── artifacts/                        # Generated; không sửa tay
 │   ├── openapi.json
 │   └── api.d.ts
-├── src/                              # Application source sẽ được tạo sau
+├── src/                              # Application source
 │   ├── app/ hoặc routes/             # HTTP routes/pages/entrypoints
 │   ├── features/ hoặc modules/       # Feature/domain slices
 │   ├── domain/                       # Entity, value object, invariant, use case
 │   ├── application/                 # Orchestration và ports
-│   ├── infrastructure/              # DB, OAuth, OpenRouter, external adapters
+│   ├── infrastructure/              # DB, email, OpenRouter và external adapters
 │   ├── components/                   # UI components dùng chung
 │   ├── hooks/                        # React hooks dùng chung
 │   ├── lib/                          # Utility không chứa money authority
@@ -128,7 +128,7 @@ Lane MySQL của Developer B gồm migrations, repository, service tiền và te
 | Công việc | Đọc trước | Nguồn kiểm chứng |
 |---|---|---|
 | API/HTTP contract | `docs/contracts/openapi.yaml`, `docs/contracts/README.md` | `npm run api:validate` |
-| Auth/session | `docs/AUTHENTICATION.md`, ADR-0001/0002 | Auth/IDOR/CSRF tests |
+| Auth/session | `docs/AUTHENTICATION.md`, ADR-0008/0002 | Email/OTP/session/IDOR/CSRF tests |
 | Money/domain | `docs/DOMAIN-MODEL.md`, ADR-0005 | Transaction/reconciliation tests |
 | Kiến trúc | `docs/ARCHITECTURE.md` | Source boundary và integration tests |
 | Scope/gate | `docs/PRD.md`, `docs/DELIVERY-PLAN.md` | Acceptance/smoke evidence |
@@ -180,7 +180,7 @@ Thứ tự ưu tiên khi có mâu thuẫn:
 
 Không được phá các bất biến sau:
 
-- Quyết định chung hiện tại là Google OAuth-only. Nhánh `hiep` đang thử email/mật khẩu/OTP theo đề xuất riêng; không nhập `main` khi chưa được Team Leader duyệt.
+- Quyết định hiện tại theo ADR-0008/0009 là email/password/OTP cùng Google Sign-In tùy chọn; không dùng Gmail credential cá nhân, inbox hoặc API.
 - Session opaque server-side, expiry/revocation, CSRF/Origin và owner isolation.
 - Payment lock wallet, kiểm tra đủ tiền atomic; wallet không bao giờ âm.
 - Savings lock theo thứ tự wallet rồi savings.

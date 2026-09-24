@@ -78,16 +78,41 @@ test('health liveness không phụ thuộc cơ sở dữ liệu', async () => {
   assert.equal(response.status, 200);
 });
 
+test('provider discovery báo Google đang tắt khi chưa cấu hình', async () => {
+  const response = await fetch(`${baseUrl}/api/v1/auth/providers`);
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), { data: { google: false } });
+});
+
 test('API không cho đọc OTP qua đường dẫn kiểm thử cũ', async () => {
   const response = await fetch(`${baseUrl}/api/v1/test/latest-otp?email=student@example.com`);
   assert.equal(response.status, 404);
 });
 
-test('đăng xuất thiếu phiên và CSRF bị chặn', async () => {
+test('đăng xuất lặp không phiên chỉ xóa cookie phiên', async () => {
   const response = await fetch(`${baseUrl}/api/v1/auth/logout`, {
     method: 'POST',
     headers: { origin: 'http://127.0.0.1:5173', 'content-type': 'application/json' },
     body: '{}'
   });
-  assert.equal(response.status, 403);
+  assert.equal(response.status, 200);
+  assert.match(response.headers.get('set-cookie') || '', /Max-Age=0/);
+});
+
+test('đọc wallet cần session hợp lệ', async () => {
+  const response = await fetch(`${baseUrl}/api/v1/wallet`);
+  assert.equal(response.status, 401);
+  const result = await response.json();
+  assert.equal(result.error.code, 'UNAUTHORIZED');
+});
+
+test('mutation domain thiếu session trả 401 trước khi đọc body hoặc truy cập database', async () => {
+  const response = await fetch(`${baseUrl}/api/v1/wallet/baseline`, {
+    method: 'POST',
+    headers: { origin: 'http://127.0.0.1:5173', 'content-type': 'application/json' },
+    body: JSON.stringify({ initialBalanceVnd: 10_000 }),
+  });
+  assert.equal(response.status, 401);
+  const result = await response.json();
+  assert.equal(result.error.code, 'UNAUTHORIZED');
 });

@@ -9,6 +9,9 @@ db/
 ├── migrations/            # SQL versioned, forward-only, non-destructive
 │   ├── 0001_initial_schema.sql
 │   └── 0002_seed_default_categories.sql
+│   ├── 0003_ledger_owner_reference_index.sql
+│   ├── 0004_email_auth.sql
+│   └── 0005_auth_rate_limits.sql
 ├── grants.example.sql     # Least-privilege template (chạy tay bởi DBA/provider)
 └── README.md
 src/
@@ -39,6 +42,8 @@ Test gated cần MySQL thật (Day-1 gate): `CAMPUS_COIN_TEST_DB=1` + `CAMPUS_CO
 Không có `migrate down`. Rollback/sửa lỗi = migration mới hoặc restore (xem bên dưới). Không sửa file migration đã chạy — checksum mismatch làm `status`/`migrate` fail hard.
 
 ## Environment (identifier bắt buộc)
+
+`auth_identities` trong migration `0001` được dùng cho Google identity `(provider, subject)` theo [ADR-0009](../docs/adr/0009-optional-google-sign-in.md). Không lưu Google token và không tự động liên kết theo email. Luồng email/password/OTP tiếp tục theo [ADR-0008](../docs/adr/0008-email-password-otp-auth.md). Không sửa migration đã commit; thay đổi schema tương lai cần migration mới.
 
 Xem `.env.example`; giá trị thật chỉ ở secret manager/Vercel environment.
 
@@ -100,9 +105,9 @@ Nguồn: Aiven docs — free tier (1 node, 1 CPU, 1 GB RAM, 1 GB disk, `max_conn
 ### Bước 1 — Provision (thủ công, cần tài khoản Aiven của Team Leader)
 
 1. Tạo project → service **Aiven for MySQL**, free plan. Chọn cloud/region gần Việt Nam (Singapore `ap-southeast-1` là candidate; không chốt khi chưa đo latency).
-2. Ghi lại `host`, `port`, `user` (`avnadmin`), `password`, `database` (mặc định `defaultdb`) từ **Overview → Connection information**.
+2. Lấy thông tin kết nối từ **Overview → Connection information**; mặc định `defaultdb` không chứng minh đó là database Campus Coin.
 3. **Tải CA certificate** (Overview → CA Certificate). Bắt buộc: Aiven MySQL dùng project CA riêng, không phải CA hệ điều hành.
-4. Tạo database `campus_coin` (`CREATE DATABASE campus_coin CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci`) và 2 role theo `db/grants.example.sql`: `cc_migrate` (DDL + DML), `cc_runtime` (chỉ DML). Không dùng `avnadmin` cho runtime.
+4. Chỉ tạo/chọn database `campus_coin` và role theo `db/grants.example.sql` sau khi owner xác nhận service/database đúng môi trường. Tách `cc_migrate` và `cc_runtime`; không dùng tài khoản quản trị Aiven làm runtime.
 5. IP filter: free tier **không có static IP**, còn Vercel serverless không có egress IP cố định. Hai lựa chọn — chọn có ý thức, không im lặng:
    - Mở `0.0.0.0/0` (đơn giản, mặc định Aiven) và dựa vào TLS + credential mạnh; hoặc
    - Vercel Secure Compute / static egress (paid) rồi allowlist CIDR — ghi rõ đây là scope cut nếu bỏ.

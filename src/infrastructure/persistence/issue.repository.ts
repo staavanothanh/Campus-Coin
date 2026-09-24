@@ -66,8 +66,8 @@ export async function insertIssue(
   return Number(result.insertId);
 }
 
-export async function findIssueById(db: IssueScalar, issueId: number): Promise<IssueRow | null> {
-  const [rows] = (await db.query(`SELECT ${ISSUE_COLUMNS} FROM issues WHERE id = ?`, [issueId])) as [
+export async function findIssueById(db: IssueScalar, issueId: number, lock = false): Promise<IssueRow | null> {
+  const [rows] = (await db.query(`SELECT ${ISSUE_COLUMNS} FROM issues WHERE id = ?${lock ? " FOR UPDATE" : ""}`, [issueId])) as [
     IssueDbRow[],
     unknown,
   ];

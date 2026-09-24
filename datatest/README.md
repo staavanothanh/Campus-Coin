@@ -12,7 +12,7 @@ npm run db:datatest
 Runner (Node + mysql2):
 
 1. Tạo database tạm `campus_coin_datatest_<pid>_<ts>`.
-2. Apply migrations `db/migrations/` (0001 schema + 0002 seed).
+2. Apply toàn bộ migration có version trong `db/migrations/` (hiện `0001`–`0005`, gồm schema, seed, index owner-reference, email auth và rate-limit state).
 3. Chạy từng file trong `datatest/sql/` theo thứ tự tên.
 4. Drop database tạm; exit code = 0 khi toàn bộ PASS.
 

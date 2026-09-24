@@ -14,7 +14,7 @@
 ## Phân loại
 
 - `CC-*.md`: handoff chuyên môn của các lane phân tích ban đầu.
-- [`CC-005-dev-a-auth-ui-proposal.md`](CC-005-dev-a-auth-ui-proposal.md): nhánh thử email/mật khẩu/OTP của Dev A; chưa được nhóm duyệt thay ADR-0001.
+- [`CC-005-dev-a-auth-ui-proposal.md`](CC-005-dev-a-auth-ui-proposal.md): handoff email/password/OTP theo ADR-0008, được bổ sung bởi Google Sign-In tùy chọn theo ADR-0009.
 - `INTEGRATION-HANDOFF.md`: bản tích hợp các handoff.
 - `FINAL-REVIEW.md`: kết quả rà soát tài liệu.
 - `TEAM-BOARD.md`: bảng điều phối working pass.
@@ -26,4 +26,5 @@
 - Không sửa source code hoặc SRS trong docs-only pass.
 - Không đưa assumption provider/model thành fact nếu chưa có evidence.
 - Khi working doc mâu thuẫn canonical/ADR, ghi rõ là advisory/superseded; không tự mở lại quyết định.
+- Handoff/replan/review cũ ghi Google OAuth-only hoặc email-only là lịch sử từng thời điểm; trạng thái hiện tại do ADR-0008 và ADR-0009 sở hữu.
 - Khi replan hoàn tất, giữ lại review và blocker để truy vết; không dùng working docs làm bảng trạng thái production thay cho `DELIVERY-PLAN.md`.

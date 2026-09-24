@@ -1,6 +1,6 @@
-# CC-005 — Đề xuất đăng nhập email của Dev A
+# CC-005 — Handoff đăng nhập email của Dev A
 
-Trạng thái: đang làm trên nhánh `hiep`. Team Leader chưa duyệt thay Google OAuth-only trong ADR-0001, nên không coi đây là quyết định của cả nhóm.
+Trạng thái: email/password/OTP giữ theo ADR-0008; Team Leader — Hiệp bổ sung Google Sign-In tùy chọn theo [ADR-0009](../adr/0009-optional-google-sign-in.md) ngày 2026-09-24. Tài liệu này là handoff triển khai, không phải nguồn quyết định.
 
 ## Phần giữ theo nhóm
 
@@ -9,12 +9,12 @@ Trạng thái: đang làm trên nhánh `hiep`. Team Leader chưa duyệt thay Go
 - API `/api/v1`, session cookie `HttpOnly`, kiểm tra Origin và CSRF.
 - Giao diện tiếng Việt và tiếng Anh; một file CSS chung cho bản thử Dev A.
 
-## Phần Hiệp đề xuất thay đổi
+## Luồng đã chốt
 
 - Đăng ký bằng email, nhận OTP, rồi nhập mã, họ tên và mật khẩu để tạo tài khoản.
 - Đăng nhập bằng email và mật khẩu. Không yêu cầu OTP mỗi lần đăng nhập.
 - Quên mật khẩu: email → OTP → mật khẩu mới.
-- Không dùng Google OAuth trong bản thử này.
+- Google Sign-In tùy chọn; user hiện hữu chủ động kết nối sau khi đăng nhập. Không dùng Gmail credential/inbox/API, không auto-link theo email.
 
 ## Luồng theo thư mục
 
@@ -23,6 +23,7 @@ src/app/App.tsx
   → src/features/auth/auth.api.ts
   → src/routes/api.ts
   → src/features/auth/auth.service.ts
+  → src/infrastructure/google-oauth.ts → Google OIDC (chỉ khi bật cấu hình)
   → src/infrastructure/db.ts → src/infrastructure/db/pool.ts → MySQL
   → src/infrastructure/mail.ts → SMTP (chỉ lúc gửi OTP)
 ```
@@ -53,15 +54,20 @@ Cách này tránh phải xóa `users` khi SMTP lỗi, nên không vướng khóa
 |---|---|---|
 | `users` | migration `0001` của Developer B | Tài khoản, vai trò, trạng thái |
 | `sessions` | migration `0001` của Developer B | Phiên đăng nhập |
-| `auth_credentials` | migration `0004` của Dev A | Hash và salt mật khẩu |
-| `email_otps` | migration `0004` của Dev A | Hash OTP, mục đích, hạn dùng, số lần sai |
+| `auth_identities` | migration `0001` của Developer B | Google `sub` gắn với user theo ADR-0009 |
+| `auth_credentials` | migration `0004` | Hash và salt mật khẩu |
+| `email_otps` | migration `0004` | Hash OTP, mục đích, hạn dùng, số lần sai |
+| `auth_rate_limits` | migration `0005` | Bucket HMAC theo account/IP, số lần thử và thời hạn chặn |
 
-`0004` mới là đề xuất trên nhánh, chưa chạy trên MySQL dùng chung. Không chạy `db:migrate` trước khi Team Leader và Developer B đồng ý. `.env.example` chỉ liệt kê tên biến; không chứa mật khẩu hoặc secret.
+File `0004` tồn tại trong repository; việc apply trên DB hiện tại chưa được xác minh. Không chạy `db:migrate` cho đến khi target Campus Coin, owner, backup/restore và migration status được xác nhận theo `LUNA_HANDOFF_PROMPT.md`. `.env.example` chỉ liệt kê tên biến; không chứa mật khẩu hoặc secret.
 
 ## Kiểm chứng và giới hạn
 
-- `npm run build`: kiểm tra TypeScript và build giao diện.
-- `npm test`: test logic và HTTP không cần MySQL; các test MySQL thật chỉ chạy khi có cấu hình thử nghiệm riêng.
-- Chưa xác nhận đăng ký/OTP/đăng nhập đầu-cuối với MySQL và SMTP thật.
-- Chưa tích hợp phần auth này vào toàn bộ ứng dụng tài chính hoặc Vercel runtime.
-- Tài liệu kiến trúc/ADR của nhóm còn Google OAuth-only; cần quyết định chung trước khi nhập `main`.
+- Local `npm run typecheck`, `npm run build`, API validation và 14 unit/readiness tests đã pass trong worktree; bằng chứng đầy đủ nằm ở [`DELIVERY-PLAN.md`](../DELIVERY-PLAN.md).
+- Auth MySQL E2E và các suite MySQL đã được thêm, nhưng chưa chạy với database cô lập trong phiên này. `0004`/`0005` chưa được xác nhận apply trên DB đích.
+- Account/IP rate-limit, OTP expiry/attempts/cooldown/single-use, SMTP adapter timeout/retry, session/CSRF/IDOR và response handling đã có code. Hành vi DB phải được xác minh bằng job MySQL CI.
+- Google OIDC start/callback/link, state cookie, PKCE, nonce, verified email và provider discovery đã có code; cần test hẹp và live callback sau khi owner cấu hình OAuth client.
+- SMTP provider thật chưa được chọn/kiểm chứng; integration test dùng email adapter giả lập, không chứng minh gửi/nhận OTP thật.
+- Auth UI đã có các màn register/verify/resend/login/forgot/reset và trạng thái request; chưa có browser/keyboard/screen-reader E2E evidence.
+- Các route domain wallet, ledger, savings, categories, budgets, reports, issues và admin đã được nối với application services theo OpenAPI; MySQL owner-isolation E2E và review tích hợp Developer B còn chờ CI/evidence.
+- CI disposable MySQL workflow đã thêm nhưng chưa chạy từ xa. Backup/restore rehearsal, DB role/CA và production evidence chưa có.

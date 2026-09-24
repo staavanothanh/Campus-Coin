@@ -4,7 +4,7 @@
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 import mysql, { type Connection } from "mysql2/promise";
-import { migrationCreds, readDbEnv } from "../../src/infrastructure/db/env.ts";
+import { migrationCreds, readDbEnv, sslOption } from "../../src/infrastructure/db/env.ts";
 import { applyMigration, scanMigrationDir, type MigrationConnection } from "../../src/infrastructure/db/migration-engine.ts";
 import { resetPool } from "../../src/infrastructure/db/pool.ts";
 
@@ -21,16 +21,6 @@ export interface MysqlHarness {
 export function createMysqlHarness(): MysqlHarness {
   let admin: Connection | null = null;
   let dbName = "";
-
-  function sslOption(env: ReturnType<typeof readDbEnv>): mysql.ConnectionOptions["ssl"] {
-    if (env.sslMode === "verify-ca") {
-      const ca = env.caPath;
-      if (ca === undefined) throw new Error("CA path missing for verify-ca");
-      return { rejectUnauthorized: true, ca };
-    }
-    if (env.sslMode === "disabled") return undefined;
-    return { rejectUnauthorized: true };
-  }
 
   return {
     dbName: "",

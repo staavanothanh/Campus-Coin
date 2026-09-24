@@ -1,69 +1,89 @@
 # Xác thực — Campus Coin
 
-## 1. Quyết định
+## 1. Quyết định hiện hành
 
-MVP chỉ dùng Google OAuth. Gmail chỉ cung cấp identity/email claim qua Google; ứng dụng không đọc Gmail inbox, không dùng credential Gmail cá nhân và không xây security-email reset. Sau callback, mọi đăng nhập kết thúc bằng opaque server-side session.
+Campus Coin giữ email/password/OTP theo [ADR-0008](./adr/0008-email-password-otp-auth.md) và bổ sung Google Sign-In tùy chọn theo [ADR-0009](./adr/0009-optional-google-sign-in.md). Không dùng Gmail credential cá nhân, Gmail inbox hoặc Gmail API. Email OTP được gửi qua server-side SMTP adapter; nhà cung cấp cụ thể cần được chọn và kiểm chứng riêng.
 
-Nguồn quyết định: [ADR-0001](./adr/0001-google-oauth-only.md) và [ADR-0002](./adr/0002-opaque-browser-session.md).
+```text
+register → verify OTP → login → session
+forgot password → reset password
+Google Sign-In (tùy chọn) → xác minh OIDC → session
+đang đăng nhập → chủ động kết nối Google
+```
 
-## 2. Mô hình danh tính
+ADR-0009 là quyết định mới nhất khi tài liệu cũ mâu thuẫn về Google. ADR-0008 tiếp tục sở hữu email/password/OTP; ADR-0002 tiếp tục sở hữu contract session opaque. Google Sign-In chỉ hiện khi OAuth client đã cấu hình đủ.
 
-- `User` có ID bất biến, display name, verified email claim, status, locale và timezone `Asia/Ho_Chi_Minh`.
-- `AuthIdentity` duy nhất trong MVP là `(provider=google, subject=sub)`.
-- Không dùng email matching để merge hoặc takeover.
-- Không có `PasswordCredential`, local registration/login, account linking, OTP challenge hoặc password reset route.
+## 2. Danh tính và credential
 
-## 3. Google OAuth
+- `User` có ID bất biến, display name, email đã xác minh, status, locale và timezone `Asia/Ho_Chi_Minh`.
+- Email được chuẩn hóa trước khi truy vấn; tính duy nhất do database bảo đảm.
+- Mật khẩu chỉ lưu dưới dạng hash/salt phía server; không trả credential cho client.
+- OTP gắn email và purpose (`registration` hoặc `password_reset`), lưu hash, có expiry, giới hạn attempts, resend cooldown và single-use.
+- Google identity được nhận diện bằng `provider='google'` và Google `sub` trong `auth_identities`; không lưu access token hoặc refresh token.
+- Không tự động merge account theo email. Muốn kết nối Google vào account hiện hữu phải đăng nhập trước rồi hoàn tất flow kết nối; callback kiểm tra session đúng owner.
+- Bảng `auth_identities` đã có trong migration `0001`, được runtime dùng cho danh tính Google; không cần migration mới.
 
-1. Browser gọi backend OAuth start route.
-2. Backend tạo random `state`, `nonce`, PKCE verifier/challenge và return URL allowlist.
-3. Challenge được lưu server-side hoặc sealed temporary cookie, TTL ngắn, one-time use, không chứa dữ liệu tiền.
-4. Callback chỉ nhận HTTPS redirect đã đăng ký và code exchange server-side.
-5. Backend kiểm tra state, PKCE, nonce, issuer, audience/client ID, subject, expiry và verified email policy.
-6. Server tạo/reuse user theo Google subject, rotate session và redirect tới allowlisted path.
+## 3. Đăng ký, đăng nhập và khôi phục
 
-Mismatch, replay, claim lỗi, provider outage hoặc redirect sai không tạo session, user mapping hoặc ledger row.
+1. `POST /auth/register` chuẩn hóa email, từ chối xung đột phù hợp và tạo OTP registration.
+2. SMTP adapter gửi mã; DB chỉ lưu OTP đã hash. Không đưa OTP vào response, log, fallback dev hoặc client storage.
+3. `POST /auth/verify-registration` xác minh mã đúng hạn/chưa dùng/chưa vượt attempts rồi tạo `users` và `auth_credentials` atomic.
+4. `POST /auth/login` kiểm tra password, trạng thái user, email verified và rate limit theo account/IP.
+5. Login hợp lệ tạo opaque server session; browser nhận cookie, không nhận session ID qua JSON.
+6. `POST /auth/forgot-password` luôn trả thông báo chung để hạn chế account enumeration; OTP chỉ được gửi khi điều kiện account hợp lệ.
+7. `POST /auth/reset-password` xác minh OTP, đổi hash và thu hồi session cũ trong cùng transaction.
 
-## 4. Session và CSRF
+Google Sign-In dùng Authorization Code phía server, PKCE S256, `state`, `nonce` và scope `openid email profile`. Server kiểm tra ID token theo client audience, nonce, `sub` và `email_verified=true`. Google account mới chỉ được tạo khi email chưa có account; email trùng cần người dùng đăng nhập phương thức hiện tại và kết nối Google rõ ràng. Kết nối chỉ được bắt đầu từ session hợp lệ và callback xác nhận cùng user.
 
-Session ID là random opaque; DB chỉ lưu hash ID, user, issued/expires, revoked, last_seen và metadata tối thiểu. Cookie không chứa balance, role hoặc provider token. Cookie phải `HttpOnly`, `Secure`, `SameSite=Lax` hoặc chặt hơn sau kiểm thử callback.
+OAuth đọc `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`, `GOOGLE_OAUTH_REDIRECT_URI` và `SESSION_SECRET` từ environment. Khi chưa đủ cấu hình, provider bị tắt, nút không hiển thị, luồng email không bị ảnh hưởng. Callback thật chưa được xác minh cho đến khi OAuth client và callback URI được cấu hình.
 
-Mutation phải kiểm tra CSRF token hoặc Origin/Referer policy, schema và idempotency. 401 là thiếu/hết session; 403 là đã xác thực nhưng không có quyền. Expired/revoked session phải yêu cầu đăng nhập lại.
+Database/provider failure phải fail closed. Email send failure trả lỗi ổn định, không để lại OTP dùng được nếu mail không được chấp nhận. SMTP có timeout và số retry hữu hạn; retry dùng cùng OTP để tránh nhiều mã khác nhau đang hiệu lực.
+
+## 4. Session, cookie và CSRF
+
+Session ID là random opaque; DB chỉ lưu hash ID, user, issued/expires, revoked, last_seen và metadata tối thiểu. Session có expiry và logout/recovery revoke. Cookie phải `HttpOnly`, `Secure` trong production, `SameSite=Lax` hoặc chặt hơn sau kiểm thử, `Path=/`, và không có `Domain` rộng. Không lưu session trong localStorage/sessionStorage.
+
+Public auth mutation bắt buộc kiểm tra Origin; mutation của session đã xác thực kiểm tra cả Origin và CSRF token, kể cả logout. Money mutation có idempotency khi có thể retry. 401 là thiếu/hết session; 403 là đã xác thực nhưng không có quyền; lỗi không trả stack hoặc nội dung nội bộ.
 
 ## 5. Phân quyền và owner scope
 
-- API lấy `user_id` từ session, không nhận owner scope đáng tin từ body/query.
-- User chỉ đọc/ghi dữ liệu của mình theo domain rules.
-- Admin chỉ được issue/report/status/note/configuration được cấp quyền.
-- Admin không sửa balance, ledger, audit hoặc bypass payment check.
+- API lấy `user_id` từ session, không tin owner ID từ body/query.
+- Mọi financial read/write phải scope theo owner tại server/repository.
+- Không có endpoint cho phép user chọn session owner khác.
+- Admin chỉ thực hiện issue/report/status/note được cấp quyền; không sửa balance, ledger hoặc audit.
 - JEV không có role, session hoặc authorization.
 
 ## 6. Kiểm soát mối đe dọa
 
-| Rủi ro | Kiểm soát |
+| Rủi ro | Kiểm soát cần có |
 |---|---|
-| OAuth state/nonce/PKCE replay | Challenge one-time, TTL ngắn, bind browser flow |
-| IDOR | Owner scope từ session và query predicate bắt buộc |
-| Session theft | Opaque hash, Secure/HttpOnly cookie, expiry, revoke, không localStorage |
-| CSRF | CSRF token và Origin/SameSite controls |
-| Provider/DB outage | Fail closed, không guest/local fallback |
-| Log/PII leak | Redact code/token/cookie/raw claim/raw JEV/financial detail |
-| Account disabled | Revoke session và chặn trước khi đọc dữ liệu |
+| Brute force password | Rate limit bền vững theo account và IP; lockout/backoff có thời hạn; trả lỗi không tiết lộ credential nào sai |
+| OTP brute force/replay | Expiry, maximum attempts, resend cooldown, single-use và rate limit; so sánh hash an toàn |
+| Email enumeration | Forgot-password trả cùng response; đăng ký chỉ lộ conflict trong contract đã duyệt |
+| Session theft | Opaque hash, cookie HttpOnly/Secure/SameSite, expiry/revoke, không browser storage |
+| CSRF/cross-origin | Origin allowlist cho public auth; Origin + CSRF token cho mutation có session, kể cả logout |
+| IDOR | Owner scope lấy từ session và predicate bắt buộc |
+| DB/SMTP outage | Fail closed; lỗi public đã sanitize; timeout và retry bounded |
+| Log/PII leak | Không log password, OTP, reset token, cookie, secret hoặc raw credential |
+| Tài khoản bị khóa | Revoke/deny session và chặn truy cập domain |
+| OAuth login CSRF/callback giả | Cookie flow có chữ ký, state, nonce, PKCE S256, TTL 10 phút và callback cố định |
+| Kết nối nhầm hoặc chiếm account | Chỉ kết nối khi đã đăng nhập; không auto-link theo email; unique Google `sub` chỉ thuộc một user |
+| Google token/claim bị lộ | Chỉ xác minh tại server; không lưu Google token; không log code, token, cookie hoặc raw claim |
 
-## 7. Tiêu chí chấp nhận
+## 7. Tiêu chí chấp nhận production
 
-1. Google login validate state, PKCE, nonce, issuer, audience, expiry và verified email.
-2. Cùng subject dùng lại đúng user; subject khác không truy cập user đó.
-3. Session opaque rotate sau callback, có expiry/revoke và cookie flags đúng.
-4. User A không đọc/mutate User B bằng cách đổi ID.
-5. OAuth/DB/provider lỗi không tạo financial row.
-6. Không có local password, linking, OTP hoặc reset path trong MVP.
-7. Không có secret/OAuth token trong repo, response hoặc log.
+1. Register/verify/login/session và forgot/reset chạy qua DB cô lập cùng email provider đã xác nhận.
+2. OTP đúng/sai/hết hạn/quá attempts/resend/single-use được kiểm tra.
+3. Login sai bị rate-limit theo account/IP; lockout/backoff có thời hạn và không phụ thuộc một API instance.
+4. Session cookie, expiry, revoke, logout và session cũ sau reset được kiểm tra.
+5. CSRF/Origin/IDOR, owner isolation, provider/DB failure và API error envelope được kiểm tra.
+6. SMTP timeout/retry có giới hạn; không có OTP trong log/dev fallback.
+7. en/vi, loading/error/success/expired/locked states, keyboard/focus và aria/live-region đạt.
+8. Không có secret/password/OTP/reset token/raw credential trong repo, response hoặc log.
+9. Google live login/link chỉ được ghi đạt sau callback thật; nếu OAuth secrets chưa cấu hình thì email login vẫn chạy và provider discovery báo Google tắt.
 
-## 8. Ngoài phạm vi
+Các tiêu chí trên là gate; ghi quyết định trong ADR-0008 không chứng minh chúng đã đạt.
 
-Local email/password, account linking, automatic merge, OTP/password reset, security-email, SMS/passkey/MFA bắt buộc, OAuth ngoài Google, Gmail inbox/contact/read/send, magic link và JWT browser session.
+## 8. Ngoài phạm vi auth
 
-## 9. Cổng kiểm chứng
-
-Developer A phải kiểm tra credential Google, exact redirect trên Vercel-provided domain, claims, callback, session revoke và IDOR ở Day 1. Thiếu evidence hoặc lỗi auth là NO-GO.
+Tự động merge account theo email, Gmail inbox/contact/read/send/API, SMS, passkey/MFA bắt buộc, magic link và JWT browser session.

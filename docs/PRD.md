@@ -8,7 +8,7 @@ Mục tiêu là giúp người dùng nhìn thấy dòng tiền của mình bằn
 
 ## 2. Người dùng và nguyên tắc
 
-- Sinh viên dùng Google OAuth và chỉ xem/sửa dữ liệu của chính mình.
+- Sinh viên có thể đăng ký/xác minh qua email OTP và đăng nhập bằng email/mật khẩu hoặc Google Sign-In tùy chọn; chỉ xem/sửa dữ liệu của chính mình.
 - Admin giới hạn chỉ xử lý report/issue, nội dung được cấp quyền và audit; không sửa ledger hay số dư.
 - Locale `en`/`vi` chỉ thay đổi copy/formatting. Currency là VND. Kỳ báo cáo dùng `Asia/Ho_Chi_Minh`.
 
@@ -16,11 +16,13 @@ Mục tiêu là giúp người dùng nhìn thấy dòng tiền của mình bằn
 
 ### 3.1 Xác thực và phiên
 
-- Chỉ đăng nhập bằng Google OAuth.
-- Tạo hoặc dùng lại user theo `(provider=google, subject=sub)`.
-- Kiểm tra state, PKCE, nonce, issuer, audience, expiry và verified email.
-- Callback tạo opaque server-side session với cookie bảo mật.
-- Không có local password, password credential, account linking, OTP/password reset, Gmail inbox hoặc Gmail cá nhân.
+- Đăng ký bằng email → OTP; chỉ tạo user/credential sau khi mã hợp lệ.
+- Đăng nhập bằng email/password; thành công tạo opaque server-side session với cookie bảo mật.
+- Quên mật khẩu bằng email OTP; reset thu hồi các session cũ.
+- Login rate-limit theo account/IP; OTP expiry, maximum attempts, resend cooldown và single-use.
+- Google Sign-In dùng OIDC server-side; user đăng nhập email có thể chủ động kết nối Google trong session.
+- Không tự động merge account theo email; không dùng Gmail credential cá nhân, Gmail inbox hoặc Gmail API.
+- Gửi email qua SMTP server adapter; provider cụ thể cần được chọn và kiểm chứng.
 
 ### 3.2 Wallet, ledger và savings
 
@@ -52,7 +54,7 @@ Mục tiêu là giúp người dùng nhìn thấy dòng tiền của mình bằn
 
 ## 4. Tiêu chí chấp nhận
 
-1. Google callback lỗi không tạo session hoặc financial row; user A không truy cập được user B.
+1. Register/verify/login/session và forgot/reset đạt auth security gates; user A không truy cập được user B.
 2. Ledger chỉ nhận `income`/`payment`, VND nguyên dương, category đúng loại.
 3. Payment thiếu wallet bị reject atomic, không tạo row, wallet không âm; retry idempotency không duplicate.
 4. Savings atomic và không vào income/payment/budget totals.
@@ -64,7 +66,7 @@ Mục tiêu là giúp người dùng nhìn thấy dòng tiền của mình bằn
 
 ## 5. Ngoài phạm vi MVP
 
-Local auth, linking, OTP/reset, Gmail inbox/Gmail cá nhân, security-email, ngân hàng, payment thật, ví thật, lending, BNPL, lãi suất, đầu tư, multi-currency, enterprise admin, CSV/PDF, recurring, prediction, chat, complex AI summary, autonomous action, custom email domain và auto-transfer chưa qua safety gate.
+Gmail inbox/Gmail credential cá nhân, tự động merge account theo email, SMS/passkey/MFA bắt buộc, ngân hàng, payment thật, ví thật, lending, BNPL, lãi suất, đầu tư, multi-currency, enterprise admin, CSV/PDF, recurring, prediction, chat, complex AI summary, autonomous action, custom email domain và auto-transfer chưa qua safety gate.
 
 ## 6. Cổng kiểm chứng
 
@@ -74,4 +76,4 @@ Local auth, linking, OTP/reset, Gmail inbox/Gmail cá nhân, security-email, ng�
 
 ## 7. Nguồn quyết định
 
-Xem [ADR-0001](./adr/0001-google-oauth-only.md), [ADR-0005](./adr/0005-immutable-money-domain.md), [ADR-0006](./adr/0006-optional-openrouter-jev.md) và [ADR-0007](./adr/0007-five-day-thin-slice.md).
+Xem [ADR-0008](./adr/0008-email-password-otp-auth.md), [ADR-0009](./adr/0009-optional-google-sign-in.md), [ADR-0005](./adr/0005-immutable-money-domain.md), [ADR-0006](./adr/0006-optional-openrouter-jev.md) và [ADR-0007](./adr/0007-five-day-thin-slice.md).

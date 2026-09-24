@@ -172,7 +172,14 @@ if (!ENABLED) {
     test("budget warning-only: overrun không chặn payment; khớp schema Budget", async () => {
       const userId = await newUserWithWallet(500_000);
       const month = currentMonthKey();
-      const budget = await upsertUserBudget(getPool(), { userId, categoryId: 5, month, limitVnd: 200_000 });
+      const budget = await upsertUserBudget(getPool(), {
+        userId,
+        categoryId: 5,
+        month,
+        limitVnd: 200_000,
+        idempotencyKey: randomUUID(),
+        requestHash: canonicalHash({ categoryId: 5, month, limitVnd: 200_000 }),
+      });
       assertContract("Budget", budget);
       const over = await createTx(userId, "payment", 250_000, 5);
       assert.equal(over.budgetWarning.isOverrun, true);

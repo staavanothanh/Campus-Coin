@@ -1,5 +1,5 @@
 // Integration MySQL — gated: chỉ chạy khi CAMPUS_COIN_TEST_DB=1 và có CAMPUS_COIN_DB_*.
-// Tạo database tạm, migrate 0001+0002, chạy services thật, drop database sau cùng.
+// Tạo database tạm, migrate mọi version hiện có (0001–0005), chạy services thật, drop database sau cùng.
 // Chạy: set CAMPUS_COIN_TEST_DB=1 && npm test -- test/mysql.integration.test.ts
 
 import { test, before, after, describe } from "node:test";
@@ -16,6 +16,10 @@ import { monthlyReport } from "../src/application/report.service.ts";
 import { createCustomCategory, updateUserCategory } from "../src/application/category.service.ts";
 import { currentMonthKey } from "../src/domain/period.ts";
 import { DomainError } from "../src/domain/errors.ts";
+import { authRateLimitRetryAfter, recordAuthFailures } from "../src/features/auth/rate-limit.ts";
+import { createUserIssue, listAdminIssues, listUserIssues, getAdminIssue, updateAdminIssue, addAdminIssueNote } from "../src/application/issue.service.ts";
+import { updateUserPreferences } from "../src/application/user.service.ts";
+import { listAdminAuditLogs } from "../src/application/admin.service.ts";
 
 const ENABLED = process.env["CAMPUS_COIN_TEST_DB"] === "1";
 
@@ -27,6 +31,7 @@ if (!ENABLED) {
   );
 } else {
   const harness = createMysqlHarness();
+  process.env["AUTH_RATE_LIMIT_SECRET"] = "local-integration-only-0123456789abcdef";
 
   function expectCode(code: string) {
     return (error: unknown): boolean =>
@@ -76,6 +81,22 @@ if (!ENABLED) {
 
   before(async () => {
     await harness.start();
+  });
+
+  test("auth rate-limit giữ bucket bền vững và khóa sau ngưỡng", async () => {
+    const policy = {
+      scope: "login-email-test",
+      value: "student@example.test",
+      maxAttempts: 2,
+      windowMs: 60_000,
+      blockMs: 30_000,
+    };
+
+    assert.equal(await authRateLimitRetryAfter([policy]), null);
+    await recordAuthFailures([policy]);
+    assert.equal(await authRateLimitRetryAfter([policy]), null);
+    await recordAuthFailures([policy]);
+    assert.ok((await authRateLimitRetryAfter([policy]) ?? 0) > 0);
   });
 
   after(async () => {
@@ -129,6 +150,63 @@ if (!ENABLED) {
     });
   });
 
+  describe("user and issue APIs", () => {
+    test("preferences update only fields supplied by owner session", async () => {
+      const userId = await newUserId();
+      const user = await updateUserPreferences(userId, { displayName: "  Student One  ", locale: "en" });
+      assert.equal(user.id, String(userId));
+      assert.equal(user.displayName, "Student One");
+      assert.equal(user.locale, "en");
+    });
+
+    test("issue create is idempotent and user listing stays owner-scoped", async () => {
+      const userId = await newUserId();
+      const otherUserId = await newUserId();
+      const key = randomUUID();
+      const body = { title: "Wrong category", description: "A test report", category: "bug" as const };
+      const input = {
+        userId,
+        relatedTransactionId: null,
+        ...body,
+        idempotencyKey: key,
+        requestHash: canonicalHash(body),
+      };
+
+      const created = await createUserIssue(getPool(), input);
+      const replay = await createUserIssue(getPool(), input);
+      assert.equal(replay.id, created.id);
+      assert.equal((await listUserIssues(getPool(), userId, undefined, 20)).data.length, 1);
+      assert.equal((await listUserIssues(getPool(), otherUserId, undefined, 20)).data.length, 0);
+
+      const differentBody = { ...input, title: "Another title", requestHash: canonicalHash({ ...body, title: "Another title" }) };
+      await assert.rejects(createUserIssue(getPool(), differentBody), expectCode("IDEMPOTENCY_CONFLICT"));
+    });
+
+    test("admin issue triage and note append events without exposing actor IDs", async () => {
+      const userId = await newUserId();
+      const adminActorId = await newUserId();
+      const body = { title: "Review", description: "Needs a review", category: "other" as const };
+      const issue = await createUserIssue(getPool(), {
+        userId,
+        relatedTransactionId: null,
+        ...body,
+        idempotencyKey: randomUUID(),
+        requestHash: canonicalHash(body),
+      });
+      const issueId = Number(issue.id);
+      await updateAdminIssue(adminActorId, issueId, { status: "in_triage", priority: "P1" });
+      const noteBody = { note: "Reviewed by support" };
+      await addAdminIssueNote(adminActorId, issueId, noteBody.note, randomUUID(), canonicalHash(noteBody));
+
+      const detail = await getAdminIssue(getPool(), issueId);
+      assert.equal(detail.status, "in_triage");
+      assert.deepEqual(detail.events.map(event => event.kind), ["created", "status_change", "priority_change", "note"]);
+      assert.equal("actorUserId" in detail.events[0]!, false);
+      assert.ok((await listAdminIssues(getPool(), { limit: 20, status: "in_triage" })).data.some(item => item.id === issue.id));
+      assert.ok((await listAdminAuditLogs(undefined, 20)).data.some(event => event.action === "issue.note"));
+    });
+  });
+
   describe("ledger income/payment", () => {
     test("income +100000, payment 200000 cập nhật wallet đúng", async () => {
       const userId = await newUserId();
@@ -170,6 +248,8 @@ if (!ENABLED) {
         nameEn: "Disable me",
         nameVi: "",
         appliesTo: "payment",
+        idempotencyKey: randomUUID(),
+        requestHash: canonicalHash({ nameEn: "Disable me", nameVi: "", appliesTo: "payment" }),
       });
       assert.notEqual(created, null);
       await updateUserCategory(getPool(), {
@@ -321,7 +401,14 @@ if (!ENABLED) {
       const userId = await newUserId();
       await initWalletFor(userId, 500_000);
       const month = currentMonthKey();
-      await upsertUserBudget(getPool(), { userId, categoryId: 5, month, limitVnd: 200_000 });
+      await upsertUserBudget(getPool(), {
+        userId,
+        categoryId: 5,
+        month,
+        limitVnd: 200_000,
+        idempotencyKey: randomUUID(),
+        requestHash: canonicalHash({ categoryId: 5, month, limitVnd: 200_000 }),
+      });
       const first = await createTx(userId, "payment", 150_000, 5);
       assert.equal(first.budgetWarning.isOverrun, false);
       assert.equal(first.budgetWarning.usedVnd, 150_000);

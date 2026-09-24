@@ -5,13 +5,24 @@
 
 SET SESSION sql_mode = CONCAT(@@session.sql_mode, ',ERROR_FOR_DIVISION_BY_ZERO');
 
--- Ba migration phải được ghi trong schema_migrations.
+-- Bốn migration phải được ghi trong schema_migrations.
 SET @n = (SELECT COUNT(*) FROM schema_migrations);
-DO 1 / (@n = 3);
+DO 1 / (@n = 5);
 
--- Tối thiểu 14 bảng nghiệp vụ + schema_migrations.
-SET @n = (SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE());
-DO 1 / (@n >= 15);
+-- Đủ 17 bảng từ 0001–0005: 13 bảng domain + schema_migrations + 3 bảng auth.
+SET @n = (SELECT COUNT(*) FROM information_schema.TABLES
+  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME IN (
+    'users', 'auth_identities', 'sessions', 'wallet_accounts', 'mutation_idempotency',
+    'categories', 'ledger_transactions', 'budgets', 'savings_accounts', 'savings_transfers',
+    'issues', 'issue_events', 'audit_events', 'schema_migrations',
+    'auth_credentials', 'email_otps', 'auth_rate_limits'
+  ));
+DO 1 / (@n = 17);
+
+-- Các bảng auth của migration 0004–0005 tồn tại.
+SET @n = (SELECT COUNT(*) FROM information_schema.TABLES
+  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME IN ('auth_credentials', 'email_otps', 'auth_rate_limits'));
+DO 1 / (@n = 3);
 
 -- Seed: income 4, payment 7, tất cả active.
 SET @n = (SELECT COUNT(*) FROM categories WHERE is_default = 1 AND applies_to = 'income');

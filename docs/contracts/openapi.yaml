@@ -4,7 +4,8 @@ info:
   version: 1.0.0-mvp
   license: {name: MIT, identifier: MIT}
   description: |
-    Hợp đồng HTTP canonical cho Campus Coin MVP.
+    Hợp đồng HTTP canonical cho Campus Coin MVP; auth email là register → verify OTP → login → session và forgot password → reset password.
+    Google Sign-In là lựa chọn bổ sung qua OIDC; không dùng Gmail credential cá nhân, inbox hoặc Gmail API.
     API không trao quyền tính số dư, authorize payment hoặc ghi tiền cho client/JEV.
 servers:
   - url: https://{host}/api/v1
@@ -17,19 +18,31 @@ security:
   - sessionCookie: []
 tags:
   - name: Auth
+    description: Đăng ký email, xác minh OTP, đăng nhập và quản lý session.
   - name: Wallet
+    description: Số dư ví authoritative và opening balance.
   - name: Ledger
+    description: Ghi nhận income/payment và correction append-only.
   - name: Savings
+    description: Aggregate và transfer savings riêng biệt với ledger.
   - name: Categories
+    description: Category hệ thống và category do user tạo.
   - name: Budgets
+    description: Budget theo tháng HCMC; overrun chỉ là cảnh báo.
   - name: Reports
+    description: Báo cáo deterministic do server tính.
   - name: Issues
+    description: Issue hỗ trợ và timeline append-only.
   - name: Admin
+    description: Triage issue và đọc audit đã redact.
   - name: JEV
+    description: JEV optional; endpoint chưa mở trong API runtime.
   - name: Health
+    description: Liveness và readiness của API.
 paths:
   /auth/register:
     post:
+      operationId: postAuthRegister
       tags: [Auth]
       security: []
       summary: Gửi OTP để bắt đầu đăng ký bằng email
@@ -46,10 +59,17 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/MessageResponse'
-        '400': {$ref: '#/components/responses/ValidationError'}
+        '422': {$ref: '#/components/responses/ValidationError'}
         '409': {$ref: '#/components/responses/Conflict'}
+        '429': {$ref: '#/components/responses/RateLimited'}
+        '503': {$ref: '#/components/responses/ServiceUnavailable'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        default: {$ref: '#/components/responses/InternalError'}
   /auth/verify-registration:
     post:
+      operationId: postAuthVerifyRegistration
       tags: [Auth]
       security: []
       summary: Xác minh OTP và tạo tài khoản bằng email, họ tên, mật khẩu
@@ -66,10 +86,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/MessageResponse'
-        '400': {$ref: '#/components/responses/ValidationError'}
-        '422': {$ref: '#/components/responses/DomainValidationError'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '429': {$ref: '#/components/responses/RateLimited'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        default: {$ref: '#/components/responses/InternalError'}
   /auth/resend-otp:
     post:
+      operationId: postAuthResendOtp
       tags: [Auth]
       security: []
       summary: Gửi lại mã OTP
@@ -86,9 +112,17 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/MessageResponse'
+        '422': {$ref: '#/components/responses/ValidationError'}
+        '409': {$ref: '#/components/responses/Conflict'}
         '429': {$ref: '#/components/responses/RateLimited'}
+        '503': {$ref: '#/components/responses/ServiceUnavailable'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        default: {$ref: '#/components/responses/InternalError'}
   /auth/login:
     post:
+      operationId: postAuthLogin
       tags: [Auth]
       security: []
       summary: Đăng nhập email và mật khẩu
@@ -107,8 +141,61 @@ paths:
                 $ref: '#/components/schemas/SessionResponse'
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/AccountDisabled'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+        '429': {$ref: '#/components/responses/RateLimited'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        default: {$ref: '#/components/responses/InternalError'}
+  /auth/providers:
+    get:
+      operationId: getAuthProviders
+      tags: [Auth]
+      security: []
+      summary: Lấy các phương thức đăng nhập đang được cấu hình
+      responses:
+        '200': {description: Phương thức hiện có, content: {application/json: {schema: {$ref: '#/components/schemas/AuthProvidersResponse'}}}}
+        '500': {$ref: '#/components/responses/InternalError'}
+        default: {$ref: '#/components/responses/InternalError'}
+  /auth/google/start:
+    get:
+      operationId: getAuthGoogleStart
+      tags: [Auth]
+      security: []
+      summary: Bắt đầu Google Sign-In bằng OAuth Authorization Code và PKCE
+      responses:
+        '302': {description: Chuyển trình duyệt đến Google; cookie flow ngắn hạn được thiết lập, headers: {Location: {schema: {type: string, format: uri}}, Set-Cookie: {schema: {type: string}}}}
+        default: {description: Lỗi chuyển hướng đã được xử lý an toàn}
+  /auth/google/link:
+    post:
+      operationId: postAuthGoogleLink
+      tags: [Auth]
+      summary: Bắt đầu kết nối Google từ tài khoản đã đăng nhập
+      x-csrf-required: true
+      responses:
+        '200': {description: URL xác thực Google và cookie flow, headers: {Set-Cookie: {schema: {type: string}}}, content: {application/json: {schema: {$ref: '#/components/schemas/GoogleLinkStartResponse'}}}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/CsrfInvalid'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '503': {$ref: '#/components/responses/ServiceUnavailable'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        default: {$ref: '#/components/responses/InternalError'}
+  /auth/google/callback:
+    get:
+      operationId: getAuthGoogleCallback
+      tags: [Auth]
+      security: []
+      summary: Hoàn tất callback OIDC Google và chuyển về ứng dụng
+      parameters:
+        - {name: state, in: query, required: true, schema: {type: string}}
+        - {name: code, in: query, schema: {type: string}}
+        - {name: error, in: query, schema: {type: string}}
+      responses:
+        '302': {description: Chuyển về ứng dụng; thiết lập session khi đăng nhập thành công, headers: {Location: {schema: {type: string, format: uri}}, Set-Cookie: {schema: {type: string}}}}
+        default: {description: Lỗi callback được chuyển về ứng dụng bằng mã lỗi an toàn}
   /auth/forgot-password:
     post:
+      operationId: postAuthForgotPassword
       tags: [Auth]
       security: []
       summary: Yêu cầu OTP đặt lại mật khẩu
@@ -125,8 +212,14 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/MessageResponse'
+        '422': {$ref: '#/components/responses/ValidationError'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        default: {$ref: '#/components/responses/InternalError'}
   /auth/reset-password:
     post:
+      operationId: postAuthResetPassword
       tags: [Auth]
       security: []
       summary: Đặt lại mật khẩu với OTP
@@ -143,12 +236,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/MessageResponse'
-        '400': {$ref: '#/components/responses/ValidationError'}
-        '422': {$ref: '#/components/responses/DomainValidationError'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+        '429': {$ref: '#/components/responses/RateLimited'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        default: {$ref: '#/components/responses/InternalError'}
   /auth/csrf:
     get:
+      operationId: getAuthCsrf
       tags: [Auth]
-      security: []
       summary: Lấy CSRF token
       responses:
         '200':
@@ -157,8 +254,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CsrfTokenResponse'
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        default: {$ref: '#/components/responses/InternalError'}
   /users/me:
     get:
+      operationId: getUsersMe
       tags: [Auth]
       summary: Lấy thông tin user hiện tại (owner scope)
       responses:
@@ -169,8 +270,11 @@ paths:
               schema:
                 $ref: '#/components/schemas/UserResponse'
         '401': {$ref: '#/components/responses/Unauthorized'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        default: {$ref: '#/components/responses/InternalError'}
   /users/{userId}:
     get:
+      operationId: getUsersByUserId
       tags: [Auth]
       summary: Lấy thông tin user theo ID (chống IDOR - chỉ cho phép lấy id của chính mình)
       parameters:
@@ -188,8 +292,12 @@ paths:
                 $ref: '#/components/schemas/UserResponse'
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        default: {$ref: '#/components/responses/InternalError'}
   /auth/session:
     get:
+      operationId: getAuthSession
       tags: [Auth]
       summary: Lấy người dùng và CSRF token của phiên hiện tại
       responses:
@@ -197,18 +305,24 @@ paths:
           description: Session hợp lệ
           content: {application/json: {schema: {$ref: '#/components/schemas/SessionResponse'}}}
         '401': {$ref: '#/components/responses/Unauthorized'}
-        '403': {$ref: '#/components/responses/AccountDisabled'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        default: {$ref: '#/components/responses/InternalError'}
   /auth/logout:
     post:
+      operationId: postAuthLogout
       tags: [Auth]
-      summary: Revoke session hiện tại
+      summary: Revoke session hiện tại; yêu cầu CSRF khi phiên còn hiệu lực, thao tác lặp là idempotent
       x-csrf-required: true
       responses:
         '200': {description: Session đã revoke và cookie được clear, content: {application/json: {schema: {$ref: '#/components/schemas/MessageResponse'}}}}
-        '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/CsrfInvalid'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        default: {$ref: '#/components/responses/InternalError'}
   /users/me/preferences:
     patch:
+      operationId: patchUsersMePreferences
       tags: [Auth]
       summary: Cập nhật preference người dùng
       x-csrf-required: true
@@ -217,16 +331,26 @@ paths:
         '200': {description: Preference đã cập nhật, content: {application/json: {schema: {$ref: '#/components/schemas/UserResponse'}}}}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/CsrfInvalid'}
+        '404': {$ref: '#/components/responses/NotFound'}
         '422': {$ref: '#/components/responses/ValidationError'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        default: {$ref: '#/components/responses/InternalError'}
   /wallet:
     get:
+      operationId: getWallet
       tags: [Wallet]
       summary: Lấy wallet authoritative của user hiện tại
       responses:
         '200': {description: Wallet, content: {application/json: {schema: {$ref: '#/components/schemas/WalletResponse'}}}}
         '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        default: {$ref: '#/components/responses/InternalError'}
   /wallet/baseline:
     post:
+      operationId: postWalletBaseline
       tags: [Wallet]
       summary: Khởi tạo opening wallet balance một lần
       x-csrf-required: true
@@ -238,8 +362,13 @@ paths:
         '403': {$ref: '#/components/responses/CsrfInvalid'}
         '409': {$ref: '#/components/responses/WalletAlreadyInitialized'}
         '422': {$ref: '#/components/responses/ValidationError'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        default: {$ref: '#/components/responses/InternalError'}
   /ledger/transactions:
     get:
+      operationId: getLedgerTransactions
       tags: [Ledger]
       summary: Liệt kê ledger transaction của user hiện tại
       parameters:
@@ -253,7 +382,10 @@ paths:
         '200': {description: Ledger page, content: {application/json: {schema: {$ref: '#/components/schemas/TransactionPageResponse'}}}}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '422': {$ref: '#/components/responses/ValidationError'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        default: {$ref: '#/components/responses/InternalError'}
     post:
+      operationId: postLedgerTransactions
       tags: [Ledger]
       summary: Tạo income hoặc payment immutable
       x-csrf-required: true
@@ -265,8 +397,13 @@ paths:
         '403': {$ref: '#/components/responses/CsrfInvalid'}
         '409': {$ref: '#/components/responses/IdempotencyConflict'}
         '422': {$ref: '#/components/responses/DomainValidationError'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        default: {$ref: '#/components/responses/InternalError'}
   /ledger/transactions/{transactionId}:
     get:
+      operationId: getLedgerTransactionsByTransactionId
       tags: [Ledger]
       summary: Lấy một transaction
       parameters: [{$ref: '#/components/parameters/TransactionId'}]
@@ -274,8 +411,11 @@ paths:
         '200': {description: Transaction, content: {application/json: {schema: {$ref: '#/components/schemas/TransactionResponse'}}}}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '404': {$ref: '#/components/responses/NotFound'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        default: {$ref: '#/components/responses/InternalError'}
   /ledger/transactions/{transactionId}/corrections:
     post:
+      operationId: postLedgerTransactionsByTransactionIdCorrections
       tags: [Ledger]
       summary: Tạo correction append-only
       x-csrf-required: true
@@ -289,22 +429,35 @@ paths:
         '404': {$ref: '#/components/responses/NotFound'}
         '409': {$ref: '#/components/responses/Conflict'}
         '422': {$ref: '#/components/responses/DomainValidationError'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        default: {$ref: '#/components/responses/InternalError'}
   /savings:
     get:
+      operationId: getSavings
       tags: [Savings]
       summary: Lấy savings aggregate
       responses:
         '200': {description: Savings, content: {application/json: {schema: {$ref: '#/components/schemas/SavingsResponse'}}}}
         '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        default: {$ref: '#/components/responses/InternalError'}
   /savings/transfers:
     get:
+      operationId: getSavingsTransfers
       tags: [Savings]
       summary: Liệt kê savings transfer
       parameters: [{$ref: '#/components/parameters/Cursor'}, {$ref: '#/components/parameters/Limit'}]
       responses:
         '200': {description: Savings transfer page, content: {application/json: {schema: {$ref: '#/components/schemas/SavingsTransferPageResponse'}}}}
         '401': {$ref: '#/components/responses/Unauthorized'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        default: {$ref: '#/components/responses/InternalError'}
     post:
+      operationId: postSavingsTransfers
       tags: [Savings]
       summary: Gửi hoặc rút savings atomic
       x-csrf-required: true
@@ -316,8 +469,13 @@ paths:
         '403': {$ref: '#/components/responses/CsrfInvalid'}
         '409': {$ref: '#/components/responses/IdempotencyConflict'}
         '422': {$ref: '#/components/responses/DomainValidationError'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        default: {$ref: '#/components/responses/InternalError'}
   /categories:
     get:
+      operationId: getCategories
       tags: [Categories]
       summary: Liệt kê category system và user
       parameters:
@@ -326,7 +484,11 @@ paths:
       responses:
         '200': {description: Categories, content: {application/json: {schema: {$ref: '#/components/schemas/CategoryListResponse'}}}}
         '401': {$ref: '#/components/responses/Unauthorized'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        default: {$ref: '#/components/responses/InternalError'}
     post:
+      operationId: postCategories
       tags: [Categories]
       summary: Tạo custom category
       x-csrf-required: true
@@ -338,8 +500,13 @@ paths:
         '403': {$ref: '#/components/responses/CsrfInvalid'}
         '409': {$ref: '#/components/responses/Conflict'}
         '422': {$ref: '#/components/responses/ValidationError'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        default: {$ref: '#/components/responses/InternalError'}
   /categories/{categoryId}:
     patch:
+      operationId: patchCategoriesByCategoryId
       tags: [Categories]
       summary: Đổi tên hoặc disable custom category
       x-csrf-required: true
@@ -351,8 +518,13 @@ paths:
         '403': {$ref: '#/components/responses/Forbidden'}
         '404': {$ref: '#/components/responses/NotFound'}
         '422': {$ref: '#/components/responses/ValidationError'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        default: {$ref: '#/components/responses/InternalError'}
   /budgets:
     get:
+      operationId: getBudgets
       tags: [Budgets]
       summary: Lấy budget theo tháng HCMC
       parameters: [{$ref: '#/components/parameters/Month'}]
@@ -360,8 +532,11 @@ paths:
         '200': {description: Budget list, content: {application/json: {schema: {$ref: '#/components/schemas/BudgetListResponse'}}}}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '422': {$ref: '#/components/responses/ValidationError'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        default: {$ref: '#/components/responses/InternalError'}
   /budgets/{categoryId}:
     put:
+      operationId: putBudgetsByCategoryId
       tags: [Budgets]
       summary: Tạo hoặc thay thế budget payment category theo tháng
       x-csrf-required: true
@@ -373,17 +548,27 @@ paths:
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/CsrfInvalid'}
         '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/IdempotencyConflict'}
         '422': {$ref: '#/components/responses/DomainValidationError'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        default: {$ref: '#/components/responses/InternalError'}
   /budgets/summary:
     get:
+      operationId: getBudgetsSummary
       tags: [Budgets]
       summary: Lấy tổng quan budget theo tháng
       parameters: [{$ref: '#/components/parameters/Month'}]
       responses:
         '200': {description: Budget summary, content: {application/json: {schema: {$ref: '#/components/schemas/BudgetSummaryResponse'}}}}
         '401': {$ref: '#/components/responses/Unauthorized'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        default: {$ref: '#/components/responses/InternalError'}
   /reports/monthly:
     get:
+      operationId: getReportsMonthly
       tags: [Reports]
       summary: Báo cáo deterministic theo tháng HCMC
       parameters: [{$ref: '#/components/parameters/Month'}]
@@ -391,15 +576,21 @@ paths:
         '200': {description: Monthly report, content: {application/json: {schema: {$ref: '#/components/schemas/MonthlyReportResponse'}}}}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '422': {$ref: '#/components/responses/ValidationError'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        default: {$ref: '#/components/responses/InternalError'}
   /reports/dashboard:
     get:
+      operationId: getReportsDashboard
       tags: [Reports]
       summary: Snapshot dashboard authoritative
       responses:
         '200': {description: Dashboard, content: {application/json: {schema: {$ref: '#/components/schemas/DashboardResponse'}}}}
         '401': {$ref: '#/components/responses/Unauthorized'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        default: {$ref: '#/components/responses/InternalError'}
   /issues:
     post:
+      operationId: postIssues
       tags: [Issues]
       summary: Tạo issue hỗ trợ
       x-csrf-required: true
@@ -409,17 +600,28 @@ paths:
         '201': {description: Issue đã tạo, content: {application/json: {schema: {$ref: '#/components/schemas/IssueResponse'}}}}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/CsrfInvalid'}
-        '429': {$ref: '#/components/responses/RateLimited'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/IdempotencyConflict'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        default: {$ref: '#/components/responses/InternalError'}
   /issues/me:
     get:
+      operationId: getIssuesMe
       tags: [Issues]
       summary: Liệt kê issue của user hiện tại
       parameters: [{$ref: '#/components/parameters/Cursor'}, {$ref: '#/components/parameters/Limit'}]
       responses:
         '200': {description: Issue page, content: {application/json: {schema: {$ref: '#/components/schemas/IssuePageResponse'}}}}
         '401': {$ref: '#/components/responses/Unauthorized'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        default: {$ref: '#/components/responses/InternalError'}
   /admin/issues:
     get:
+      operationId: getAdminIssues
       tags: [Admin]
       summary: Triage issue toàn hệ thống
       parameters:
@@ -431,8 +633,12 @@ paths:
         '200': {description: Admin issue page, content: {application/json: {schema: {$ref: '#/components/schemas/IssuePageResponse'}}}}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        default: {$ref: '#/components/responses/InternalError'}
   /admin/issues/{issueId}:
     get:
+      operationId: getAdminIssuesByIssueId
       tags: [Admin]
       summary: Lấy issue và timeline đã mask
       parameters: [{$ref: '#/components/parameters/IssueId'}]
@@ -441,7 +647,10 @@ paths:
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
         '404': {$ref: '#/components/responses/NotFound'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        default: {$ref: '#/components/responses/InternalError'}
     patch:
+      operationId: patchAdminIssuesByIssueId
       tags: [Admin]
       summary: Cập nhật status hoặc priority issue
       x-csrf-required: true
@@ -452,8 +661,13 @@ paths:
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
         '404': {$ref: '#/components/responses/NotFound'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        default: {$ref: '#/components/responses/InternalError'}
   /admin/issues/{issueId}/notes:
     post:
+      operationId: postAdminIssuesByIssueIdNotes
       tags: [Admin]
       summary: Thêm admin note append-only
       x-csrf-required: true
@@ -461,12 +675,19 @@ paths:
       parameters: [{$ref: '#/components/parameters/IssueId'}]
       requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/CreateAdminNoteRequest'}}}}
       responses:
-        '201': {description: Note đã tạo}
+        '201': {description: Note đã tạo, content: {application/json: {schema: {$ref: '#/components/schemas/AdminNoteResponse'}}}}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
         '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/IdempotencyConflict'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        default: {$ref: '#/components/responses/InternalError'}
   /admin/audit-logs:
     get:
+      operationId: getAdminAuditLogs
       tags: [Admin]
       summary: Truy vấn audit đã redact
       parameters: [{$ref: '#/components/parameters/Cursor'}, {$ref: '#/components/parameters/Limit'}]
@@ -474,31 +695,40 @@ paths:
         '200': {description: Audit page, content: {application/json: {schema: {$ref: '#/components/schemas/AuditPageResponse'}}}}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
-  /ai/category-suggestion:
-    post:
-      tags: [JEV]
-      summary: Gợi ý category trước submit, luôn advisory
-      x-csrf-required: true
-      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/CategorySuggestionRequest'}}}}
+        '422': {$ref: '#/components/responses/ValidationError'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        default: {$ref: '#/components/responses/InternalError'}
+  /admin/stats:
+    get:
+      operationId: getAdminStats
+      tags: [Admin]
+      summary: Thống kê số lượng user đã xác minh
       responses:
-        '200': {description: JEV suggestion hoặc manual/disabled fallback, content: {application/json: {schema: {$ref: '#/components/schemas/CategorySuggestionResponse'}}}}
+        '200': {description: User statistics, content: {application/json: {schema: {$ref: '#/components/schemas/AdminStatsResponse'}}}}
         '401': {$ref: '#/components/responses/Unauthorized'}
-        '403': {$ref: '#/components/responses/CsrfInvalid'}
-        '429': {$ref: '#/components/responses/RateLimited'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        default: {$ref: '#/components/responses/InternalError'}
   /health:
     get:
+      operationId: getHealth
       tags: [Health]
       security: []
       summary: Liveness không chạm database
       responses:
         '200': {description: API đang chạy, content: {application/json: {schema: {$ref: '#/components/schemas/HealthResponse'}}}}
+        '500': {$ref: '#/components/responses/InternalError'}
+        default: {$ref: '#/components/responses/InternalError'}
   /health/ready:
     get:
+      operationId: getHealthReady
       tags: [Health]
       summary: Readiness có kiểm tra dependency
       responses:
         '200': {description: Dependency sẵn sàng, content: {application/json: {schema: {$ref: '#/components/schemas/ReadinessResponse'}}}}
         '503': {$ref: '#/components/responses/ServiceUnavailable'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        default: {$ref: '#/components/responses/InternalError'}
 components:
   securitySchemes:
     sessionCookie:
@@ -507,15 +737,15 @@ components:
       name: cc_session
       description: Opaque server-side session cookie; không phải JWT.
   parameters:
-    OAuthCode: {name: code, in: query, required: true, schema: {type: string}}
-    OAuthState: {name: state, in: query, required: true, schema: {type: string}}
     Cursor: {name: cursor, in: query, schema: {type: string, maxLength: 512}}
     Limit: {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 100, default: 20}}
-    Month: {name: month, in: query, required: true, schema: {type: string, pattern: '^\\d{4}-(0[1-9]|1[0-2])$'}, example: '2026-09'}
+    Month: {name: month, in: query, required: true, schema: {type: string, pattern: '^\d{4}-(0[1-9]|1[0-2])$'}, example: '2026-09'}
     TransactionId: {name: transactionId, in: path, required: true, schema: {type: string}}
     CategoryId: {name: categoryId, in: path, required: true, schema: {type: string}}
     IssueId: {name: issueId, in: path, required: true, schema: {type: string}}
   responses:
+    BadRequest: {description: Request body JSON không hợp lệ, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorResponse'}}}}
+    PayloadTooLarge: {description: Request vượt giới hạn kích thước, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorResponse'}}}}
     Unauthorized: {description: "Thiếu, hết hạn hoặc bị revoke session", content: {application/json: {schema: {$ref: '#/components/schemas/ErrorResponse'}}}}
     AccountDisabled: {description: Tài khoản bị disable, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorResponse'}}}}
     CsrfInvalid: {description: CSRF hoặc Origin không hợp lệ, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorResponse'}}}}
@@ -527,9 +757,6 @@ components:
     DomainValidationError: {description: Vi phạm domain hoặc invariant, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorResponse'}}}}
     RateLimited: {description: Vượt rate limit, headers: {Retry-After: {schema: {type: integer}}}, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorResponse'}}}}
     InternalError: {description: Lỗi server đã được sanitize, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorResponse'}}}}
-    InvalidOAuthState: {description: OAuth state/PKCE không hợp lệ, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorResponse'}}}}
-    UnverifiedEmail: {description: Google email chưa verified, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorResponse'}}}}
-    OAuthExchangeFailed: {description: Code exchange hoặc claim validation thất bại, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorResponse'}}}}
     WalletAlreadyInitialized: {description: Wallet đã khởi tạo, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorResponse'}}}}
     ServiceUnavailable: {description: Dependency chưa sẵn sàng, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorResponse'}}}}
   schemas:
@@ -549,11 +776,30 @@ components:
     UserResponse: {type: object, required: [data], properties: {data: {$ref: '#/components/schemas/User'}}}
     Session:
       type: object
-      required: [user, csrfToken]
+      required: [user, csrfToken, googleLinked]
       properties:
         user: {$ref: '#/components/schemas/User'}
         csrfToken: {type: string, description: Token dùng trong memory cho state-changing request}
+        googleLinked: {type: boolean, description: Cho biết tài khoản hiện tại đã kết nối Google hay chưa}
     SessionResponse: {type: object, required: [data], properties: {data: {$ref: '#/components/schemas/Session'}}}
+    AuthProvidersResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+          required: [google]
+          properties:
+            google: {type: boolean}
+    GoogleLinkStartResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+          required: [url]
+          properties:
+            url: {type: string, format: uri}
     UpdatePreferencesRequest:
       type: object
       minProperties: 1
@@ -700,7 +946,7 @@ components:
       required: [categoryId, month, limitVnd, usedVnd, isOverrun]
       properties:
         categoryId: {type: string}
-        month: {type: string, pattern: '^\\d{4}-(0[1-9]|1[0-2])$'}
+        month: {type: string, pattern: '^\d{4}-(0[1-9]|1[0-2])$'}
         limitVnd: {$ref: '#/components/schemas/MoneyVnd'}
         usedVnd: {$ref: '#/components/schemas/MoneyVnd'}
         isOverrun: {type: boolean}
@@ -710,7 +956,7 @@ components:
       type: object
       required: [month, limitVnd]
       properties:
-        month: {type: string, pattern: '^\\d{4}-(0[1-9]|1[0-2])$'}
+        month: {type: string, pattern: '^\d{4}-(0[1-9]|1[0-2])$'}
         limitVnd: {$ref: '#/components/schemas/MoneyVnd'}
     BudgetSummary:
       type: object
@@ -756,8 +1002,20 @@ components:
         id: {type: string}
         title: {type: string}
         description: {type: string}
+        category: {type: string, enum: [financial_dispute, bug, other]}
+        relatedTransactionId: {type: [string, 'null']}
         status: {$ref: '#/components/schemas/IssueStatus'}
         priority: {$ref: '#/components/schemas/IssuePriority'}
+        createdAt: {type: string, format: date-time}
+        events:
+          type: array
+          items: {$ref: '#/components/schemas/IssueEvent'}
+    IssueEvent:
+      type: object
+      required: [kind, createdAt]
+      properties:
+        kind: {type: string, enum: [created, status_change, priority_change, note]}
+        note: {type: [string, 'null'], maxLength: 4000}
         createdAt: {type: string, format: date-time}
     IssueResponse: {type: object, required: [data], properties: {data: {$ref: '#/components/schemas/Issue'}}}
     IssuePageResponse:
@@ -784,6 +1042,20 @@ components:
       type: object
       required: [note]
       properties: {note: {type: string, minLength: 1, maxLength: 4000}}
+    AdminNoteResult:
+      type: object
+      required: [issueId, created]
+      properties:
+        issueId: {type: string}
+        created: {type: boolean}
+    AdminNoteResponse: {type: object, required: [data], properties: {data: {$ref: '#/components/schemas/AdminNoteResult'}}}
+    AdminStats:
+      type: object
+      required: [totalUsers, verifiedUsers]
+      properties:
+        totalUsers: {type: integer, minimum: 0}
+        verifiedUsers: {type: integer, minimum: 0}
+    AdminStatsResponse: {type: object, required: [data], properties: {data: {$ref: '#/components/schemas/AdminStats'}}}
     AuditEvent:
       type: object
       required: [id, action, outcome, createdAt]
@@ -798,22 +1070,6 @@ components:
       properties:
         data: {type: array, items: {$ref: '#/components/schemas/AuditEvent'}}
         meta: {$ref: '#/components/schemas/PageMeta'}
-    CategorySuggestionRequest:
-      type: object
-      required: [transactionType, description, locale]
-      properties:
-        transactionType: {$ref: '#/components/schemas/TransactionType'}
-        description: {type: string, minLength: 1, maxLength: 500}
-        locale: {$ref: '#/components/schemas/Locale'}
-    CategorySuggestion:
-      type: object
-      required: [status, categoryId, confidence, reasonCode]
-      properties:
-        status: {type: string, enum: [suggested, manual, disabled, unavailable]}
-        categoryId: {type: [string, 'null']}
-        confidence: {type: [number, 'null'], minimum: 0, maximum: 1}
-        reasonCode: {type: [string, 'null'], enum: [low_confidence, timeout, quota, schema, flag_off, privacy, null]}
-    CategorySuggestionResponse: {type: object, required: [data], properties: {data: {$ref: '#/components/schemas/CategorySuggestion'}}}
     Health:
       type: object
       required: [status, timestamp]

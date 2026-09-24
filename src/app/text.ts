@@ -11,6 +11,13 @@ export const text = {
     sendCode: 'Gửi mã xác minh', create: 'Tạo tài khoản', change: 'Đổi mật khẩu',
     resend: 'Gửi lại mã', back: 'Quay lại đăng nhập',
     signUp: 'Chưa có tài khoản? Đăng ký', forgotLink: 'Quên mật khẩu?',
+    googleSignIn: 'Tiếp tục với Google', googleConnect: 'Kết nối Google', googleConnected: 'Đã kết nối Google.',
+    googleLoginSuccess: 'Đăng nhập Google thành công.', googleLinkSuccess: 'Đã kết nối tài khoản Google.',
+    googleCancelled: 'Bạn đã hủy đăng nhập Google.', googleFailed: 'Không thể xác minh tài khoản Google. Vui lòng thử lại.',
+    googleUnavailable: 'Đăng nhập Google chưa được cấu hình.',
+    googleLinkRequired: 'Email này đã có tài khoản. Hãy đăng nhập bằng phương thức hiện có rồi kết nối Google.',
+    googleConflict: 'Tài khoản Google đã được kết nối với tài khoản khác.',
+    googleLoginRequired: 'Phiên đăng nhập đã hết hạn. Hãy đăng nhập lại rồi kết nối Google.',
     registered: 'Mã xác minh đã được gửi đến email của bạn.',
     resent: 'Đã gửi lại mã xác minh.',
     created: 'Tạo tài khoản thành công. Hãy đăng nhập.',
@@ -20,6 +27,7 @@ export const text = {
     codeHint: 'Nhập 6 chữ số', passwordHint: 'Ít nhất 8 ký tự',
     wait: 'Đang xử lý...', hello: 'Xin chào!', logout: 'Đăng xuất',
     subtitle: 'Ghi thu chi và đặt ngân sách dành cho sinh viên',
+    rateLimited: 'Bạn đã thử quá nhiều lần. Vui lòng chờ', seconds: 'giây rồi thử lại',
     error: 'Không thể thực hiện yêu cầu. Vui lòng thử lại.'
   },
   en: {
@@ -32,6 +40,13 @@ export const text = {
     sendCode: 'Send verification code', create: 'Create account', change: 'Change password',
     resend: 'Resend code', back: 'Back to sign in',
     signUp: 'New here? Create an account', forgotLink: 'Forgot password?',
+    googleSignIn: 'Continue with Google', googleConnect: 'Connect Google', googleConnected: 'Google is connected.',
+    googleLoginSuccess: 'Signed in with Google.', googleLinkSuccess: 'Google account connected.',
+    googleCancelled: 'You cancelled Google sign in.', googleFailed: 'Could not verify the Google account. Please try again.',
+    googleUnavailable: 'Google sign in is not configured.',
+    googleLinkRequired: 'This email already has an account. Sign in with that method, then connect Google.',
+    googleConflict: 'This Google account is connected to another account.',
+    googleLoginRequired: 'Your session expired. Sign in again before connecting Google.',
     registered: 'A verification code has been sent to your email.',
     resent: 'A new verification code has been sent.',
     created: 'Account created. Please sign in.',
@@ -41,6 +56,7 @@ export const text = {
     codeHint: 'Enter 6 digits', passwordHint: 'At least 8 characters',
     wait: 'Please wait...', hello: 'Hello!', logout: 'Sign out',
     subtitle: 'Track spending and plan a student budget',
+    rateLimited: 'Too many attempts. Please wait', seconds: 'seconds and try again',
     error: 'The request could not be completed. Please try again.'
   }
 };
@@ -55,6 +71,9 @@ export const errorText: Record<Language, Record<string, string>> = {
     OTP_INVALID: 'Mã xác minh không đúng hoặc đã hết hạn.',
     RATE_LIMITED: 'Vui lòng chờ một phút trước khi yêu cầu mã mới.',
     EMAIL_UNAVAILABLE: 'Chưa gửi được email. Vui lòng thử lại sau.',
+    GOOGLE_UNAVAILABLE: 'Đăng nhập Google chưa được cấu hình.',
+    GOOGLE_ACCOUNT_LINK_REQUIRED: 'Hãy đăng nhập bằng phương thức hiện có rồi kết nối Google trong tài khoản.',
+    GOOGLE_ACCOUNT_CONFLICT: 'Tài khoản Google đã được kết nối với một tài khoản khác.',
     VALIDATION_ERROR: 'Thông tin nhập chưa hợp lệ.',
     INTERNAL_ERROR: 'Hệ thống đang bận. Vui lòng thử lại sau.'
   },
@@ -67,6 +86,9 @@ export const errorText: Record<Language, Record<string, string>> = {
     OTP_INVALID: 'The code is incorrect or has expired.',
     RATE_LIMITED: 'Please wait one minute before requesting another code.',
     EMAIL_UNAVAILABLE: 'Email could not be sent. Please try again later.',
+    GOOGLE_UNAVAILABLE: 'Google sign in is not configured.',
+    GOOGLE_ACCOUNT_LINK_REQUIRED: 'Sign in with your existing method, then connect Google in your account.',
+    GOOGLE_ACCOUNT_CONFLICT: 'This Google account is connected to another account.',
     VALIDATION_ERROR: 'Please check the information entered.',
     INTERNAL_ERROR: 'The service is busy. Please try again later.'
   }

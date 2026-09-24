@@ -2,6 +2,8 @@
 
 > JEV là tính năng tùy chọn trong MVP, dùng TypeSafe JEV qua OpenRouter nếu qua cổng kiểm chứng. Không tự host. Feature flag mặc định tắt.
 
+**Trạng thái runtime:** hiện chưa có JEV adapter hoặc API endpoint được expose. OpenAPI cố ý không khai báo route gợi ý danh mục cho tới khi typed provider contract và fallback được kiểm chứng. Thiết kế bên dưới là boundary/acceptance cho phần triển khai sau, không phải bằng chứng tính năng đang chạy. Xem [API contract](./contracts/README.md) và [Delivery Plan](./DELIVERY-PLAN.md).
+
 ## 1. Bằng chứng cần dùng
 
 - [TypeSafe System One](https://docs.typesafe.ai/concepts/system-one.md): quyết định có kiểu, không phải chat prose.

@@ -2,6 +2,7 @@
 
 import type { Db } from "../infrastructure/db/pool.ts";
 import { withConnection } from "../infrastructure/db/pool.ts";
+import { withIdempotentMutation } from "./idempotency.ts";
 import {
   findCategoryById,
   insertCustomCategory,
@@ -34,15 +35,22 @@ export interface CreateCategoryInput {
   nameEn: string;
   nameVi: string;
   appliesTo: TransactionType;
+  idempotencyKey: string;
+  requestHash: string;
 }
 
 /** Trả null khi trùng tên (409 Conflict ở API layer). */
-export async function createCustomCategory(db: Db, input: CreateCategoryInput): Promise<CategoryView | null> {
+export async function createCustomCategory(_db: Db, input: CreateCategoryInput): Promise<CategoryView | null> {
   if (!isTransactionType(input.appliesTo)) throw invalidInput("appliesTo must be income|payment");
   if (input.nameEn.length === 0 || input.nameEn.length > 80) throw invalidInput("nameEn required (max 80)");
   if (input.nameVi.length > 80) throw invalidInput("nameVi too long (max 80)");
-  return withConnection(async (conn) => {
-    try {
+  return withIdempotentMutation({
+    userId: input.userId,
+    scope: "category.create",
+    idempotencyKey: input.idempotencyKey,
+    requestHash: input.requestHash,
+    mutate: async (conn) => {
+      try {
       const id = await insertCustomCategory(conn, input.userId, {
         nameEn: input.nameEn,
         nameVi: input.nameVi,
@@ -59,11 +67,12 @@ export async function createCustomCategory(db: Db, input: CreateCategoryInput): 
       });
       const row = await findCategoryById(conn, input.userId, id);
       if (row === null) throw new Error("category row missing after insert");
-      return toCategory(row);
-    } catch (error) {
-      if (isDuplicateEntry(error)) return null;
-      throw error;
-    }
+        return toCategory(row);
+      } catch (error) {
+        if (isDuplicateEntry(error)) return null;
+        throw error;
+      }
+    },
   });
 }
 

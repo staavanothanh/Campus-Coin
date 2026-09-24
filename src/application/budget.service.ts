@@ -3,6 +3,7 @@
 import type { PoolConnection } from "mysql2/promise";
 import type { Db } from "../infrastructure/db/pool.ts";
 import { withConnection } from "../infrastructure/db/pool.ts";
+import { withIdempotentMutation } from "./idempotency.ts";
 import { findCategoryById } from "../infrastructure/persistence/category.repository.ts";
 import { findBudget, listBudgetsByMonth, upsertBudget, type BudgetRow } from "../infrastructure/persistence/budget.repository.ts";
 import { paymentTotalForCategory, paymentTotalsByCategory } from "../infrastructure/persistence/report.repository.ts";
@@ -17,12 +18,19 @@ export interface UpsertBudgetInput {
   categoryId: number;
   month: string;
   limitVnd: number;
+  idempotencyKey: string;
+  requestHash: string;
 }
 
-export async function upsertUserBudget(db: Db, input: UpsertBudgetInput): Promise<BudgetView> {
+export async function upsertUserBudget(_db: Db, input: UpsertBudgetInput): Promise<BudgetView> {
   if (!isMonthKey(input.month)) throw invalidInput("month must be YYYY-MM");
   if (!isNonNegativeVnd(input.limitVnd)) throw invalidInput("limitVnd must be a non-negative integer VND");
-  return withConnection(async (conn) => {
+  return withIdempotentMutation({
+    userId: input.userId,
+    scope: "budget.upsert",
+    idempotencyKey: input.idempotencyKey,
+    requestHash: input.requestHash,
+    mutate: async (conn) => {
     const category = await findCategoryById(conn, input.userId, input.categoryId);
     if (category === null) throw categoryNotFound();
     if (category.appliesTo !== "payment") throw categoryTypeMismatch();
@@ -37,6 +45,7 @@ export async function upsertUserBudget(db: Db, input: UpsertBudgetInput): Promis
       outcome: "success",
     });
     return readBudgetView(conn, input.userId, input.categoryId, input.month);
+    },
   });
 }
 
