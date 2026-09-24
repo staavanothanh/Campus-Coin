@@ -51,11 +51,22 @@ export async function expectErrorCode(promise, code) {
 }
 
 export function assertNoSensitiveMarkers(value, markers) {
-  const rendered = JSON.stringify({
-    ...value,
-    message: value instanceof Error ? value.message : undefined,
-    stack: value instanceof Error ? value.stack : undefined,
-  })
+  const visited = new WeakSet()
+  const inspect = (candidate) => {
+    if (candidate === null || (typeof candidate !== 'object' && typeof candidate !== 'function')) {
+      return typeof candidate === 'string' ? candidate : ''
+    }
+    if (visited.has(candidate)) return ''
+    visited.add(candidate)
+
+    const ownValues = Object.values(candidate)
+    if (candidate instanceof Error) {
+      ownValues.push(candidate.message, candidate.stack, candidate.cause)
+    }
+    return ownValues.map(inspect).join('\n')
+  }
+
+  const rendered = inspect(value)
   for (const marker of markers) {
     assert.equal(rendered.includes(marker), false, `Sensitive marker leaked: ${marker}`)
   }
