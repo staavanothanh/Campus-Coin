@@ -352,6 +352,29 @@ if (!ENABLED) {
       assert.equal(report.totalPaymentVnd, 200_000);
       assert.equal(report.closingWalletBalanceVnd, 400_000);
     });
+
+    test("report tháng sau kỳ chi vượt thu: opening âm hợp lệ, không throw", async () => {
+      // Regression: delta trước kỳ là số CÓ DẤU; amountFromDb chặn số âm từng làm
+      // monthlyReport throw "db amount out of safe integer range" cho mọi kỳ sau.
+      const userId = await newUserId();
+      await initWalletFor(userId, 1_000_000);
+      const occurredAt = "2026-03-15T03:00:00.000Z";
+      const body = { type: "payment" as const, amountVnd: 300_000, categoryId: 5, occurredAt };
+      await createTransaction(getPool(), {
+        userId,
+        type: "payment",
+        amountVnd: 300_000,
+        categoryId: 5,
+        occurredAt,
+        description: null,
+        idempotencyKey: randomUUID(),
+        requestHash: canonicalHash(body),
+      });
+      const report = await monthlyReport(getPool(), userId, "2026-04");
+      assert.equal(report.openingWalletBalanceVnd, 700_000);
+      assert.equal(report.totalPaymentVnd, 0);
+      assert.equal(report.closingWalletBalanceVnd, 700_000);
+    });
   });
 
   describe("owner isolation + keyset", () => {
@@ -366,6 +389,30 @@ if (!ENABLED) {
       assert.equal(pageA.data.length, 1);
       const pageB = await listTransactions(getPool(), userB, { limit: 100 });
       assert.equal(pageB.data.length, 0);
+    });
+
+    test("report owner-scope: correction của owner khác không loại row của owner này", async () => {
+      // Regression cho antijoin owner-scoped (index idx_ledger_user_reference).
+      // Service chặn correction chéo owner, nên dựng trạng thái này ở tầng DB:
+      // một correction của B trỏ tới đúng id của row thuộc A. Semantics đúng:
+      // report A vẫn tính row đó (correction thuộc owner khác).
+      const userA = await newUserId();
+      const userB = await newUserId();
+      await initWalletFor(userA, 1_000_000);
+      await initWalletFor(userB, 1_000_000);
+      const txA = await createTx(userA, "income", 100_000, 1);
+      const txB = await createTx(userB, "income", 50_000, 1);
+      const targetId = Number(txA.transaction.id);
+      await getPool().query(
+        `INSERT INTO ledger_transactions (user_id, type, amount_vnd, category_id, occurred_at, role, reference_id, reason)
+         VALUES (?, 'income', 100000, 1, UTC_TIMESTAMP(3), 'reversal', ?, 'cross-owner probe')`,
+        [userB, targetId],
+      );
+      const month = currentMonthKey();
+      const reportA = await monthlyReport(getPool(), userA, month);
+      assert.equal(reportA.totalIncomeVnd, 100_000, "correction của B không được loại row của A");
+      const reportB = await monthlyReport(getPool(), userB, month);
+      assert.equal(reportB.totalIncomeVnd, 50_000, "B vẫn giữ income của chính mình");
     });
 
     test("keyset pagination: limit 2 → 2 trang, không trùng, có hasNext", async () => {

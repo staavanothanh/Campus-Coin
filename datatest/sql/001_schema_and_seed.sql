@@ -5,9 +5,9 @@
 
 SET SESSION sql_mode = CONCAT(@@session.sql_mode, ',ERROR_FOR_DIVISION_BY_ZERO');
 
--- Hai migration phải được ghi trong schema_migrations.
+-- Ba migration phải được ghi trong schema_migrations.
 SET @n = (SELECT COUNT(*) FROM schema_migrations);
-DO 1 / (@n = 2);
+DO 1 / (@n = 3);
 
 -- Tối thiểu 14 bảng nghiệp vụ + schema_migrations.
 SET @n = (SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE());
@@ -33,6 +33,14 @@ DO 1 / (@n = 2);
 -- CHECK amount > 0 tồn tại.
 SET @n = (SELECT COUNT(*) FROM information_schema.TABLE_CONSTRAINTS WHERE CONSTRAINT_SCHEMA = DATABASE() AND CONSTRAINT_NAME = 'chk_ledger_amount_positive');
 DO 1 / (@n = 1);
+
+-- Index owner-scoped cho antijoin correction: thiếu index này thì query report/budget
+-- dò DISTINCT reference_id toàn bảng, chi phí theo tổng tenant thay vì theo owner.
+SET @n = (SELECT COUNT(*) FROM information_schema.STATISTICS
+  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'ledger_transactions'
+    AND INDEX_NAME = 'idx_ledger_user_reference'
+    AND (SEQ_IN_INDEX = 1 AND COLUMN_NAME = 'user_id' OR SEQ_IN_INDEX = 2 AND COLUMN_NAME = 'reference_id'));
+DO 1 / (@n = 2);
 
 -- Wallet của user 1 chỉ một hàng (UNIQUE user_id).
 SET @n = (SELECT COUNT(*) FROM wallet_accounts WHERE user_id = 1);

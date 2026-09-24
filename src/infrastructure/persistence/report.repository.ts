@@ -2,9 +2,21 @@
 // Policy "effective": row đóng góp nếu role <> 'reversal' và không bị correction nào
 // tham chiếu (reversal/replacement/adjustment). Reversal row tự nó = 0 và loại target.
 // → budget_used = tổng payment effective cùng owner/category/tháng (DOMAIN-MODEL §3).
+//
+// Antijoin correction LUÔN kèm `c.user_id = t.user_id`: invariant owner-scope bắt buộc
+// correction cùng owner với target. Bỏ predicate này khiến MySQL materialize
+// DISTINCT reference_id của TOÀN BẢNG (mọi tenant) rồi dò từng row → chi phí cố định
+// ~30ms bất kể owner có 1 hay 200.000 row, và dữ liệu tenant khác lọt vào đường tính
+// tiền của owner hiện tại. Đo trên 200k row: user 200 row 31.6ms → 0.75ms sau khi scope.
 
-import { amountFromDb } from "./rows.ts";
+import { amountFromDb, deltaFromDb } from "./rows.ts";
 import { mapLedgerRow, type LedgerDbRow, type LedgerRow } from "./ledger.repository.ts";
+
+/** Predicate "row chưa bị correction nào thay thế", scope theo owner của chính row. */
+const NOT_CORRECTED = `NOT EXISTS (
+      SELECT 1 FROM ledger_transactions c
+      WHERE c.user_id = t.user_id AND c.reference_id = t.id
+    )`;
 
 export interface ReportScalar {
   query(sql: string, params?: unknown[]): Promise<unknown>;
@@ -21,10 +33,10 @@ export async function walletDeltaBefore(db: ReportScalar, userId: number, startU
      WHERE t.user_id = ?
        AND t.occurred_at < ?
        AND t.role <> 'reversal'
-       AND NOT EXISTS (SELECT 1 FROM ledger_transactions c WHERE c.reference_id = t.id)`,
+       AND ${NOT_CORRECTED}`,
     [userId, new Date(startUtcMs)],
   )) as [{ delta: number | string }[], unknown];
-  return amountFromDb(rows[0]!.delta);
+  return deltaFromDb(rows[0]!.delta);
 }
 
 export interface MonthTotals {
@@ -46,7 +58,7 @@ export async function monthTotals(
      WHERE t.user_id = ?
        AND t.occurred_at >= ? AND t.occurred_at < ?
        AND t.role <> 'reversal'
-       AND NOT EXISTS (SELECT 1 FROM ledger_transactions c WHERE c.reference_id = t.id)`,
+       AND ${NOT_CORRECTED}`,
     [userId, new Date(startUtcMs), new Date(endExclusiveUtcMs)],
   )) as [{ income_total: number | string; payment_total: number | string }[], unknown];
   return {
@@ -69,7 +81,7 @@ export async function paymentTotalsByCategory(
        AND t.type = 'payment'
        AND t.occurred_at >= ? AND t.occurred_at < ?
        AND t.role <> 'reversal'
-       AND NOT EXISTS (SELECT 1 FROM ledger_transactions c WHERE c.reference_id = t.id)
+       AND ${NOT_CORRECTED}
      GROUP BY t.category_id`,
     [userId, new Date(startUtcMs), new Date(endExclusiveUtcMs)],
   )) as [{ category_id: number | string; total: number | string }[], unknown];
@@ -95,7 +107,7 @@ export async function paymentTotalForCategory(
        AND t.category_id = ?
        AND t.occurred_at >= ? AND t.occurred_at < ?
        AND t.role <> 'reversal'
-       AND NOT EXISTS (SELECT 1 FROM ledger_transactions c WHERE c.reference_id = t.id)`,
+       AND ${NOT_CORRECTED}`,
     [userId, categoryId, new Date(startUtcMs), new Date(endExclusiveUtcMs)],
   )) as [{ total: number | string }[], unknown];
   return amountFromDb(rows[0]!.total);
