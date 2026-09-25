@@ -16,11 +16,26 @@
 
 ## Thứ tự ưu tiên
 
-1. **Chức năng (35 điểm):** hoàn thiện luồng từ đăng nhập tới domain và các tình huống lỗi quan trọng.
+1. **Chức năng (35 điểm):** lập ma trận SRS → tính năng → test; làm lát cắt giao diện wallet/dashboard, income/payment/history, rồi các domain còn lại; kiểm tra auth/email và tình huống lỗi quan trọng.
 2. **UI/accessibility (15 điểm):** sửa luồng khó dùng, lỗi form và keyboard/focus trước khi thêm trang mới.
 3. **Source code + Database (20 điểm):** giữ code đơn giản, kiểm tra migration và dữ liệu trên MySQL độc lập.
 4. **Documentation + Plagiarism (20 điểm):** hoàn thiện báo cáo, sơ đồ, phân công và nguồn tham khảo.
 5. **Compatibility + On-time (10 điểm):** thử trình duyệt và đóng gói trước hạn.
+
+## Trạng thái hiện tại theo rubric
+
+| Hạng mục | Trạng thái hiện tại | Việc còn thiếu để có bằng chứng nộp bài |
+|---|---|---|
+| Functionality Testing — 35 | Auth và API domain có unit/integration coverage; owner isolation đã pass trên MySQL CI cô lập. | Giao diện domain sau đăng nhập còn thiếu. Checkout chưa có bản SRS nên cần ma trận yêu cầu SRS → tính năng/API → test/evidence; chạy staging SMTP/reset/session và demo luồng hoàn chỉnh. |
+| UI & Accessibility Testing — 15 | Auth UI có validation, hai ngôn ngữ và keyboard semantics cơ bản. | Làm màn hình domain; kiểm tra responsive, keyboard/focus/screen reader và trạng thái lỗi/loading trên toàn app. |
+| Source Code — 10 | Typecheck/build và cấu trúc phân lớp đã được chạy trong CI. | Nhóm rà soát code, giải thích module/boundary và giữ thay đổi đơn giản, đúng convention. |
+| Database Testing — 10 | CI disposable MySQL đã chạy migration, seed/test-data và integration suites. | DevB xác nhận chain của từng DB, least-privilege grants, TLS/CA và backup/restore trên môi trường tách biệt. |
+| Compatibility Testing — 5 | Chưa có ma trận kiểm tra trình duyệt được lưu. | Ghi kết quả Chrome, Firefox, Edge, Opera cùng phiên bản, viewport và ngày. |
+| Documentation — 10 | Canonical product/auth/architecture/DB/scoring docs đã có. | Hoàn thiện Project Report với vấn đề, sơ đồ, module/logic, phân công và hướng dẫn chạy/kiểm tra. |
+| Plagiarism Testing — 10 | Chưa có kết quả kiểm tra originality được ghi nhận. | Ghi nguồn tham khảo; nhóm tự review và giải thích được source, thuật toán, schema và quyết định. |
+| Ontime Submission — 5 | Chưa có evidence gói nộp/demo cuối. | Khóa phạm vi, build sạch, kiểm tra demo, lưu commit/tag và chuẩn bị gói nộp trước hạn. |
+
+Các trạng thái “chưa có evidence” nghĩa là chưa được kiểm chứng hoặc ghi lại; không kết luận thay kết quả kiểm tra thực tế.
 
 ## Bằng chứng cần giữ
 

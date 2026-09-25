@@ -1,6 +1,6 @@
 # Bảng triển khai — Campus Coin
 
-> Ngày: 2026-09-24 · Team Leader — Hiệp là integrator và người duyệt release.
+> Ngày: 2026-09-25 · Team Leader — Hiệp là integrator và người duyệt release.
 > Quyết định auth: email theo [ADR-0008](./adr/0008-email-password-otp-auth.md), Google bổ sung theo [ADR-0009](./adr/0009-optional-google-sign-in.md).
 
 ## Quy tắc
@@ -22,10 +22,10 @@ Specialist chỉ cung cấp phân tích; không thay thế bốn developer và k
 | ID | Owner | Trạng thái | Acceptance/gate |
 |---|---|---|---|
 | HUMAN-A | Developer A | Auth implementation và HTTP tests đã push | OTP/login/reset, rate-limit/session/CSRF/IDOR, auth UI và API contract; Team Leader báo register qua email đã thành công; SMTP reset/timeout/retry và staging flow còn chờ evidence |
-| HUMAN-B | Developer B | CI MySQL disposable đã pass; chờ DevB/DB owner xác nhận target staging | Xác nhận DB/schema test riêng, quyền create/drop cho test role, migration `0004`/`0005`, backup/restore, CA và least-privilege runtime grants; review domain routes |
-| HUMAN-C | Developer C | Sẵn sàng Day 1 | UI two-locale, VND/HCMC, accessible, JEV-off |
-| HUMAN-D | Developer D | Sẵn sàng Day 1 | Typed JEV probe/fallback, smoke, redacted logs, rollback |
-| LEADER-INT | Team Leader | Commit `5ee8858` đã push; run #6 pass toàn bộ CI và ba MySQL suites | Email auth theo ADR-0008, Google tùy chọn theo ADR-0009; owner integration pass trên MySQL CI cô lập; staging SMTP reset/session và production gates vẫn chờ evidence; register email đã được Team Leader xác nhận |
+| HUMAN-B | Developer B | CI MySQL disposable đã pass; chờ xác nhận DB target và migration chain trước khi port chọn lọc | Xác nhận DB/schema test riêng, quyền create/drop cho test role, migration đã apply trên từng target, backup/restore, CA và least-privilege runtime grants; review domain routes |
+| HUMAN-C | Developer C | Auth UI đã có; domain UI còn thiếu | Wallet/dashboard, income/payment/history, savings, category/budget, report/issue; hai ngôn ngữ, responsive và accessible |
+| HUMAN-D | Developer D | JEV giữ default-off; smoke/release QA còn chờ evidence | Chỉ làm typed JEV probe/fallback nếu feature được bật; phối hợp redacted logs, smoke và rollback theo release scope |
+| LEADER-INT | Team Leader | Commit `3bf6c0c` đã push; run #7 pass toàn workflow; run #6 pass code và ba MySQL suites | Email auth theo ADR-0008, Google tùy chọn theo ADR-0009; owner integration pass trên MySQL CI cô lập; staging SMTP reset/session và production gates vẫn chờ evidence; register email đã được Team Leader xác nhận |
 | LEADER-REV | Team Leader | Chờ evidence | GO/NO-GO sau auth/DB/email/API/UI/CI/restore gates |
 
 ## Đường găng

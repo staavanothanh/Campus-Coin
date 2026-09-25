@@ -165,6 +165,13 @@ Phần này chỉ là boundary thiết kế cho JEV tùy chọn. JEV hiện defa
 125. **Cost/latency là boundary:** đặt timeout, hạn mức, concurrency và fallback trước khi bật provider; provider/model/quota thực tế phải được xác minh, không suy đoán.
 126. **Test vượt happy path:** nếu triển khai JEV, test output sai schema, provider timeout/4xx/5xx, prompt input độc hại, dữ liệu thiếu, quota, log redaction và fallback trước khi bật.
 
+## Trạng thái chuyển câu hỏi thành thay đổi dự án
+
+- Câu 1–100 đã được trả lời và chuyển thành nguyên tắc cho web, JavaScript/React, Node/API và MySQL. Một số nguyên tắc đã có trong auth/API/domain code và CI; chúng chưa thể được xem là áp dụng đầy đủ trên giao diện sản phẩm khi các màn domain sau đăng nhập còn thiếu.
+- Câu 101–110 tập trung vào form và review patch. Auth form đã dùng semantic HTML, native validation, một submit handler, lỗi gắn với input và keyboard focus cơ bản. Accessibility của toàn ứng dụng vẫn cần kiểm tra sau khi có UI domain.
+- Câu 111–126 chỉ áp dụng khi JEV được bật. JEV hiện optional và default-off, nên các câu này đang là guardrail thiết kế; không phải bằng chứng JEV đã được triển khai hoặc kiểm thử.
+- Vì vậy, câu trả lời cho từng nguyên lý đã có trong tài liệu, nhưng trạng thái triển khai khác nhau: có phần đã sửa code, có phần là quyết định/acceptance, có phần chờ sản phẩm hoặc provider được bật. Chỉ ghi “đã áp dụng” khi có code hoặc test evidence tương ứng.
+
 ## Thay đổi áp dụng trong code lần này
 
 - Auth form dùng `fieldset`/`legend` để nhóm controls, `label` tiếp tục gắn từng input; form có accessible name từ heading.

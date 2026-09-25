@@ -16,10 +16,14 @@ Tài liệu này giúp thành viên mới nắm quyết định hiện hành, ph
 
 ## Đã push lên `hiep`
 
+- `3bf6c0c` — ghi nhận kết quả Auth MySQL integration và CI run #7.
+- `5ee8858` — sửa hai lỗi CI về owner budget trả `404 NOT_FOUND` và kiểm tra Google redirect mà không gọi hostname giả.
+- `e9a40d4` — áp dụng semantic HTML/native validation và cập nhật evidence cho auth form.
 - `586a7ce` — chỉnh cooldown/quota OTP, chỉ tin IP proxy đã cấu hình, bổ sung test, cập nhật OpenAPI/artifacts và trạng thái tài liệu.
-- `36ed519` — thêm chốt để MySQL destructive tests yêu cầu bật cờ và tên DB có prefix `campus_coin_test_`; thêm test kiểm tra owner-scope qua HTTP cho hai tài khoản.
-- Bổ sung hiện tại — form dùng `fieldset`/`legend`, giữ native validation và một `submit` handler; sửa email test owner để luôn hợp lệ; câu hỏi nguyên lý và cách áp dụng được ghi ở [ENGINEERING-PRINCIPLES-APPLICATION.md](./ENGINEERING-PRINCIPLES-APPLICATION.md).
+- `36ed519` — thêm guard cho MySQL destructive tests và test owner-scope qua HTTP với hai tài khoản.
+- `be7aac6` — tách MySQL suites để CI cô lập lỗi.
 - Chốt DB test không chạy trên `defaultdb`. CI tạo MySQL riêng cho job; test harness tạo schema tạm có tên rõ ràng rồi xóa schema đó sau khi chạy.
+- Câu hỏi nguyên lý và cách áp dụng được ghi tại [ENGINEERING-PRINCIPLES-APPLICATION.md](./ENGINEERING-PRINCIPLES-APPLICATION.md); nội dung không khẳng định các gate staging hoặc sản phẩm còn thiếu đã pass.
 - SMTP register đã được Team Leader báo gửi/nhận thành công. Đây là evidence cho đăng ký; reset-password và tình huống provider lỗi chưa được xác nhận bằng SMTP thật.
 
 ## Evidence kiểm tra gần nhất
@@ -27,16 +31,41 @@ Tài liệu này giúp thành viên mới nắm quyết định hiện hành, ph
 - `npm run typecheck`: pass.
 - `npm run build`: pass.
 - `node --import tsx --test tests/db-test-guard.test.ts`: 3/3 pass.
-- `node --import tsx --test tests/auth.test.ts tests/client-ip.test.ts`: 19/19 pass.
+- `node --import tsx --test tests/auth.test.ts test/schema-readiness.test.ts tests/google-oauth.test.ts tests/client-ip.test.ts`: 27/27 pass.
 - `npm run api:validate`: pass; còn 5 lint warnings về response 4xx ở endpoint discovery, redirect/callback và health.
-- CI [workflow run #6](https://github.com/staavanothanh/Campus-Coin/actions/runs/36113454931) trên commit `5ee8858` pass toàn bộ: typecheck, build, API validation/artifacts, unit tests, `db:datatest`, MySQL domain integration, HTTP contract smoke và Auth MySQL integration.
-- Run #5 đã tìm ra budget của category ngoài owner trả `422` thay vì `404` và Google integration test tự theo redirect đến hostname giả. Đã sửa budget thành `404 NOT_FOUND`, giữ redirect ở response trong test; run #6 xác nhận auth/owner integration pass trên MySQL cô lập.
+- [Workflow run #7](https://github.com/staavanothanh/Campus-Coin/actions/runs/36113725073) trên commit `3bf6c0c` pass toàn workflow; run này là evidence của bản trước đợt cập nhật tài liệu hiện tại.
+- [Workflow run #6](https://github.com/staavanothanh/Campus-Coin/actions/runs/36113454931) trên commit code `5ee8858` pass typecheck, build, API validation/artifacts, unit tests, `db:datatest`, MySQL domain integration, HTTP contract smoke và Auth MySQL integration trên MySQL cô lập. Run #7 xác nhận lại toàn workflow sau cập nhật docs.
+- Trước đó CI tìm ra budget của category ngoài owner trả `422` thay vì `404` và Google integration test tự theo redirect đến hostname giả. Đã sửa budget thành `404 NOT_FOUND`, giữ redirect ở response trong test; run #6 xác nhận auth/owner integration pass.
+
+## Kiểm tra nhánh và quyết định hợp nhất
+
+> Snapshot refs được đối chiếu ngày 2026-09-25; số commit và ref có thể thay đổi khi nhóm push tiếp.
+
+- `hiep` là nhánh sản phẩm chính theo quyết định Team Leader; remote tip hiện là `3bf6c0c`.
+- `origin/main` ở `e4c68fc`; `origin/thien` ở `2d54823` và đi sau `main` đúng 2 commit. Commit đầu đưa source riêng lên `thien`; commit kế tiếp thêm `node_modules/` và `dist/` đã build. Không nhập nguyên `thien` vào nhánh sản phẩm.
+- `origin/thiên` (`af2beba`) còn trong remote-tracking refs cục bộ nhưng không xuất hiện trong danh sách nhánh GitHub được kiểm tra; xem đây là ref cũ, không phải nhánh sản phẩm hiện hành.
+- `origin/database-ingest-0.2` (`0d34c88`) là nhánh mới hơn và chứa lịch sử của `origin/database-ingest` (`48f8cd4`) cùng 7 commit bổ sung, tiếp tục migration tới `0030`. Nếu cần port phần DB, review `database-ingest-0.2` thay vì xử lý cả hai nhánh.
+- So với `hiep`, các nhánh remote có số commit riêng lần lượt là: `main` 21, `thien` 23, `database-ingest` 13 và `database-ingest-0.2` 20; `hiep` có 10 commit riêng trong từng phép so sánh. `main` là tổ tiên trực tiếp của `thien`; hai nhánh này không cùng tip.
+- Đã chạy kiểm tra merge mô phỏng, chưa thay đổi working tree: `hiep` với `main` có 17 xung đột; `hiep` với `database-ingest-0.2` có 22 xung đột.
+- Không merge tự động: cả hai nhánh đặt migration khác nhau dưới cùng số `0004` và `0005`. Trong `hiep`, chúng là auth credential/OTP và auth rate limit; trong nhánh DB, chúng là idempotency owner key và wallet boundary. Tên file khác nhau nên cần đối chiếu migration runner/schema, không chỉ dựa vào xung đột Git.
+- Bước cần DevB/DB owner xác nhận: branch/schema đang được dùng, migration/checksum và schema state trên từng môi trường, quyền test và backup/restore. Lập kế hoạch tương thích theo state thực tế trước khi port; không chỉ lấy số migration lớn nhất, không sửa migration đã chạy và không đưa `defaultdb` vào destructive test.
+
+## Phạm vi giao diện còn thiếu
+
+- Backend API có các route domain và owner-scope integration đã pass trên MySQL CI cô lập.
+- Frontend hiện mới có luồng auth và màn hình sau đăng nhập ở mức chào user, kết nối Google và đăng xuất. Chưa có màn hình sản phẩm cho wallet onboarding, dashboard, income/payment, history, savings, category/budget, report hoặc issue/admin. Vì vậy các API domain chưa tạo thành trải nghiệm MVP hoàn chỉnh cho sinh viên.
 
 ## Còn cần hoàn tất
 
-1. Trên staging đã cấu hình SMTP, xác minh register và reset-password gửi thư thật; thử OTP sai/hết hạn/resend, logout và session bị thu hồi. Không ghi mã OTP/token/email đầy đủ vào log hoặc tài liệu evidence.
-2. DevB/DB owner xác nhận DB thử nghiệm tách biệt, quyền create/drop schema, TLS/CA và role runtime least-privilege. Không chạy test destructive trên Aiven `defaultdb` hoặc database dùng chung.
-3. Nếu staging chưa có hostname hoặc SMTP test mailbox, ghi gate là đang chờ cấu hình staging, không gọi đó là pass.
+1. **Làm lát cắt giao diện domain đầu tiên**: wallet/dashboard, income/payment và lịch sử; sau đó savings, category/budget, report và issue/admin. Nối API hiện có, owner luôn lấy từ session. DevB có thể chuẩn bị DB song song.
+2. **Đối chiếu SRS với tính năng và test**: tạo bảng yêu cầu → màn/API → test → kết quả. Checkout hiện không có bản SRS; dùng bản có thẩm quyền của nhóm và không sửa bản gốc.
+3. **Kiểm chứng staging auth**: đăng ký/OTP, reset password, mã sai/hết hạn/resend, logout/session revoke và lỗi SMTP; cấu hình và thử Google Sign-In/link thật theo ADR-0009. Chưa có staging URL hoặc mailbox test được cung cấp trong handoff này, nên chưa thể chạy các bước live.
+4. **Chốt DB với DevB/DB owner**: xác nhận test DB riêng, migration/checksum/schema state từng target, quyền create/drop, TLS/CA, runtime role least-privilege và backup/restore. Không dùng Aiven `defaultdb` cho test destructive.
+5. **Kiểm tra UI/accessibility/compatibility**: bàn phím, focus, screen reader cơ bản, màn hình nhỏ và Chrome/Firefox/Edge/Opera; ghi phiên bản, viewport, ngày và kết quả.
+6. **Hoàn thiện Project Report và evidence originality**: problem statement, sơ đồ, module/logic, phân công, hướng dẫn cài/chạy/kiểm tra, giới hạn, test evidence và nguồn tham khảo; thành viên cần giải thích được phần mình làm.
+7. **Đóng gói cuối**: chạy CI trên commit chốt, kiểm tra demo/build, lưu commit/tag và chuẩn bị gói nộp.
+
+Checklist theo từng trọng số và thứ tự thực hiện nằm trong [QUALITY-AND-SCORING.md](./QUALITY-AND-SCORING.md). Các câu hỏi nguyên lý đã có câu trả lời và trạng thái áp dụng trong [ENGINEERING-PRINCIPLES-APPLICATION.md](./ENGINEERING-PRINCIPLES-APPLICATION.md); phần ghi trong tài liệu không đồng nghĩa mọi hạng mục đã được kiểm thử.
 
 ## Owner
 
