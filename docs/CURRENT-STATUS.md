@@ -16,6 +16,7 @@ Tài liệu này giúp thành viên mới nắm quyết định hiện hành, ph
 
 ## Đã push lên `hiep`
 
+- `4bbdb61` — cập nhật trạng thái nhánh, rubric, flashcard applicability và checklist phối hợp.
 - `3bf6c0c` — ghi nhận kết quả Auth MySQL integration và CI run #7.
 - `5ee8858` — sửa hai lỗi CI về owner budget trả `404 NOT_FOUND` và kiểm tra Google redirect mà không gọi hostname giả.
 - `e9a40d4` — áp dụng semantic HTML/native validation và cập nhật evidence cho auth form.
@@ -33,20 +34,21 @@ Tài liệu này giúp thành viên mới nắm quyết định hiện hành, ph
 - `node --import tsx --test tests/db-test-guard.test.ts`: 3/3 pass.
 - `node --import tsx --test tests/auth.test.ts test/schema-readiness.test.ts tests/google-oauth.test.ts tests/client-ip.test.ts`: 27/27 pass.
 - `npm run api:validate`: pass; còn 5 lint warnings về response 4xx ở endpoint discovery, redirect/callback và health.
-- [Workflow run #7](https://github.com/staavanothanh/Campus-Coin/actions/runs/36113725073) trên commit `3bf6c0c` pass toàn workflow; run này là evidence của bản trước đợt cập nhật tài liệu hiện tại.
+- [Workflow run #8](https://github.com/staavanothanh/Campus-Coin/actions/runs/36116299740) trên commit `4bbdb61` pass toàn workflow và xác nhận cập nhật tài liệu nhánh/rubric.
+- [Workflow run #7](https://github.com/staavanothanh/Campus-Coin/actions/runs/36113725073) trên commit `3bf6c0c` pass toàn workflow trước lần cập nhật hiện tại.
 - [Workflow run #6](https://github.com/staavanothanh/Campus-Coin/actions/runs/36113454931) trên commit code `5ee8858` pass typecheck, build, API validation/artifacts, unit tests, `db:datatest`, MySQL domain integration, HTTP contract smoke và Auth MySQL integration trên MySQL cô lập. Run #7 xác nhận lại toàn workflow sau cập nhật docs.
 - Trước đó CI tìm ra budget của category ngoài owner trả `422` thay vì `404` và Google integration test tự theo redirect đến hostname giả. Đã sửa budget thành `404 NOT_FOUND`, giữ redirect ở response trong test; run #6 xác nhận auth/owner integration pass.
 
 ## Kiểm tra nhánh và quyết định hợp nhất
 
-> Snapshot refs được đối chiếu ngày 2026-09-25; số commit và ref có thể thay đổi khi nhóm push tiếp.
+> Snapshot refs được đối chiếu ngày 2026-09-25 trên baseline `origin/hiep=4bbdb61`; đây là mốc so sánh trước thay đổi tài liệu trong lượt hiện tại.
 
-- `hiep` là nhánh sản phẩm chính theo quyết định Team Leader; remote tip hiện là `3bf6c0c`.
+- `hiep` là nhánh sản phẩm chính theo quyết định Team Leader.
 - `origin/main` ở `e4c68fc`; `origin/thien` ở `2d54823` và đi sau `main` đúng 2 commit. Commit đầu đưa source riêng lên `thien`; commit kế tiếp thêm `node_modules/` và `dist/` đã build. Không nhập nguyên `thien` vào nhánh sản phẩm.
 - `origin/thiên` (`af2beba`) còn trong remote-tracking refs cục bộ nhưng không xuất hiện trong danh sách nhánh GitHub được kiểm tra; xem đây là ref cũ, không phải nhánh sản phẩm hiện hành.
 - `origin/database-ingest-0.2` (`0d34c88`) là nhánh mới hơn và chứa lịch sử của `origin/database-ingest` (`48f8cd4`) cùng 7 commit bổ sung, tiếp tục migration tới `0030`. Nếu cần port phần DB, review `database-ingest-0.2` thay vì xử lý cả hai nhánh.
-- So với `hiep`, các nhánh remote có số commit riêng lần lượt là: `main` 21, `thien` 23, `database-ingest` 13 và `database-ingest-0.2` 20; `hiep` có 10 commit riêng trong từng phép so sánh. `main` là tổ tiên trực tiếp của `thien`; hai nhánh này không cùng tip.
-- Đã chạy kiểm tra merge mô phỏng, chưa thay đổi working tree: `hiep` với `main` có 17 xung đột; `hiep` với `database-ingest-0.2` có 22 xung đột.
+- Tại baseline `4bbdb61`, `hiep` có 11 commit riêng so với các nhánh remote; các nhánh có commit riêng lần lượt là: `main` 21, `thien` 23, `database-ingest` 13 và `database-ingest-0.2` 20. `main` là tổ tiên trực tiếp của `thien`; hai nhánh này không cùng tip.
+- Đã chạy kiểm tra merge mô phỏng tại baseline `4bbdb61`, không thay đổi working tree: `hiep` với `main` có 17 xung đột; `hiep` với `database-ingest-0.2` có 22 xung đột.
 - Không merge tự động: cả hai nhánh đặt migration khác nhau dưới cùng số `0004` và `0005`. Trong `hiep`, chúng là auth credential/OTP và auth rate limit; trong nhánh DB, chúng là idempotency owner key và wallet boundary. Tên file khác nhau nên cần đối chiếu migration runner/schema, không chỉ dựa vào xung đột Git.
 - Bước cần DevB/DB owner xác nhận: branch/schema đang được dùng, migration/checksum và schema state trên từng môi trường, quyền test và backup/restore. Lập kế hoạch tương thích theo state thực tế trước khi port; không chỉ lấy số migration lớn nhất, không sửa migration đã chạy và không đưa `defaultdb` vào destructive test.
 

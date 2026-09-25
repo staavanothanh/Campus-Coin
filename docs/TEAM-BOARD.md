@@ -25,7 +25,7 @@ Specialist chỉ cung cấp phân tích; không thay thế bốn developer và k
 | HUMAN-B | Developer B | CI MySQL disposable đã pass; chờ xác nhận DB target và migration chain trước khi port chọn lọc | Xác nhận DB/schema test riêng, quyền create/drop cho test role, migration đã apply trên từng target, backup/restore, CA và least-privilege runtime grants; review domain routes |
 | HUMAN-C | Developer C | Auth UI đã có; domain UI còn thiếu | Wallet/dashboard, income/payment/history, savings, category/budget, report/issue; hai ngôn ngữ, responsive và accessible |
 | HUMAN-D | Developer D | JEV giữ default-off; smoke/release QA còn chờ evidence | Chỉ làm typed JEV probe/fallback nếu feature được bật; phối hợp redacted logs, smoke và rollback theo release scope |
-| LEADER-INT | Team Leader | Commit `3bf6c0c` đã push; run #7 pass toàn workflow; run #6 pass code và ba MySQL suites | Email auth theo ADR-0008, Google tùy chọn theo ADR-0009; owner integration pass trên MySQL CI cô lập; staging SMTP reset/session và production gates vẫn chờ evidence; register email đã được Team Leader xác nhận |
+| LEADER-INT | Team Leader | Commit `4bbdb61` đã push; [run #8](https://github.com/staavanothanh/Campus-Coin/actions/runs/36116299740) pass toàn workflow; run #6 pass code và ba MySQL suites | Email auth theo ADR-0008, Google tùy chọn theo ADR-0009; owner integration pass trên MySQL CI cô lập; staging SMTP reset/session và production gates vẫn chờ evidence; register email đã được Team Leader xác nhận |
 | LEADER-REV | Team Leader | Chờ evidence | GO/NO-GO sau auth/DB/email/API/UI/CI/restore gates |
 
 ## Đường găng
