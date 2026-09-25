@@ -5,7 +5,12 @@ import { randomUUID } from "node:crypto";
 import path from "node:path";
 import mysql, { type Connection } from "mysql2/promise";
 import { readDbEnv, sslOption } from "../../src/infrastructure/db/env.ts";
-import { applyMigration, scanMigrationDir, type MigrationConnection } from "../../src/infrastructure/db/migration-engine.ts";
+import {
+  applyMigration,
+  scanMigrationDir,
+  type MigrationConnection,
+  type MigrationFile,
+} from "../../src/infrastructure/db/migration-engine.ts";
 import { closePool } from "../../src/infrastructure/db/pool.ts";
 
 export const MIGRATIONS_DIR = path.resolve(import.meta.dirname, "..", "..", "db", "migrations");
@@ -98,6 +103,38 @@ export function createMysqlHarness(): MysqlHarness {
     }
   }
 
+  async function applyMigrationWithDiagnostics(mig: MigrationConnection, file: MigrationFile): Promise<void> {
+    try {
+      await applyMigration(mig, file);
+    } catch (error) {
+      let detail = "InnoDB foreign-key detail unavailable";
+      if (admin !== null) {
+        try {
+          const [rows] = (await admin.query("SHOW ENGINE INNODB STATUS")) as [{ Status: string }[], unknown];
+          const status = rows[0]?.Status ?? "";
+          const start = status.indexOf("LATEST FOREIGN KEY ERROR");
+          detail = start < 0
+            ? "InnoDB status contains no latest foreign-key error"
+            : status.slice(start, start + 1800).replace(/\s+/g, " ").trim();
+        } catch (diagnosticError) {
+          const code = typeof diagnosticError === "object" && diagnosticError !== null && "code" in diagnosticError &&
+              typeof diagnosticError.code === "string"
+            ? diagnosticError.code
+            : "unknown";
+          detail = `InnoDB status query failed (${code})`;
+        }
+      }
+      const code = typeof error === "object" && error !== null && "code" in error && typeof error.code === "string"
+        ? error.code
+        : "MIGRATION_FAILED";
+      const message = typeof error === "object" && error !== null && "sqlMessage" in error &&
+          typeof error.sqlMessage === "string"
+        ? error.sqlMessage
+        : "migration SQL failed";
+      throw new Error(`migration ${file.name} failed (${code}): ${message}; ${detail}`, { cause: error });
+    }
+  }
+
   return {
     dbName: "",
     migrationUser: "",
@@ -158,10 +195,10 @@ export function createMysqlHarness(): MysqlHarness {
            ) ENGINE = InnoDB`,
         );
         await grantMigrationHistoryPrivileges(dbName, migrationUser);
-        await applyMigration(mig, initialMigration);
+        await applyMigrationWithDiagnostics(mig, initialMigration);
         await grantMigrationDataPrivileges(dbName, migrationUser);
         for (const file of migrations.slice(1)) {
-          await applyMigration(mig, file);
+          await applyMigrationWithDiagnostics(mig, file);
         }
       } finally {
         await mig.end();
