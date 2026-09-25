@@ -110,6 +110,7 @@ Local `test:mysql:required` sau repair (MySQL 8.0.41 portable): 106 pass, 0 fail
 - Team Leader chọn **hội tụ trên DB shared**; test data được dọn có kiểm soát, giữ seeds và tables chain khác.
 - **Phase 1 done 2026-09-25** (đã duyệt từng lệnh): DROP 8 append-only triggers của `0001` → DELETE `savings_transfers` 20 + `ledger_transactions` 60 + `users` 2 (scope `999001`/`999002`, verify không owner lạ) → tạo lại triggers y hệt → verify seeds 11, counts 0, guards 8, chain khác nguyên vẹn (`0/0/2/1`).
 - Còn lại: hội tụ DDL `0004`/`0005` còn thiếu, re-baseline checksum (cần ADR), provision `cc_migrate`/`cc_runtime`, apply `0006`–`0030`, review grants/trigger `DEFINER`, restore rehearsal + reconcile.
+- **Converge done 2026-09-25** (đã duyệt): DBA apply tay đúng nội dung file `0004`/`0005` (tables trống, verify objects vắng mặt trước, verify tồn tại sau: unique + cột + FK). `db:status`/`db:preflight` trên Aiven hết FAIL: `0001`/`0003` baselined, `0002` applied, `0004`/`0005` external, pending `0006`–`0030` (25 files). ADR-0009 vẫn trạng thái đề xuất, chờ Team Leader chấp nhận chính thức.
 - Hệ quả: (1) không drop/recreate DB; (2) `0011` không apply được khi chưa remediation (FK đòi wallet cho 60 ledger rows đang thiếu); (3) cần quyết định tách database riêng hay DBA hội tụ trên DB shared (re-baseline checksum cần ADR).
 
 ### Dọn trước khi merge

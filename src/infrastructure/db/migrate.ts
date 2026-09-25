@@ -198,7 +198,9 @@ async function cmdStatus(): Promise<number> {
     const plan = planMigrations(files, applied, await loadBaselines(MIGRATIONS_DIR));
     console.log(`Migrations dir: ${MIGRATIONS_DIR}`);
     const baselined = new Set([...plan.appliedHistorical, ...plan.appliedExternal]);
+    const externalSkipped = new Set(plan.appliedExternal);
     for (const file of files) {
+      if (externalSkipped.has(file.version)) continue; // in dòng external riêng bên dưới.
       const state = applied.has(file.version)
         ? (plan.appliedMismatch.some((m) => m.version === file.version)
           ? "MISMATCH "
