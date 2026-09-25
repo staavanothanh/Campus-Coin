@@ -9,10 +9,39 @@
     "api:bundle": "redocly bundle docs/contracts/openapi.yaml -o artifacts/openapi.json",
     "api:types": "openapi-typescript docs/contracts/openapi.yaml -o artifacts/api.d.ts",
     "verify:docs": "npm run api:validate && git diff --check",
-    "test": "node --test"
+    "test": "node --test",
+    "dev": "vite --host 127.0.0.1",
+    "dev:api": "tsx watch src/app/server.ts",
+    "dev:web": "vite --host 127.0.0.1",
+    "build": "tsc",
+    "build:web": "vite build",
+    "lint": "tsc --noEmit",
+    "typecheck": "tsc --noEmit",
+    "start": "node dist/app/server.js"
+  },
+  "dependencies": {
+    "cookie-parser": "^1.4",
+    "express": "^4.21",
+    "google-auth-library": "^9",
+    "mysql2": "^3",
+    "lucide-react": "^0.544.0",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "uuid": "^11",
+    "zod": "^3.24"
   },
   "devDependencies": {
     "@redocly/cli": "^2.54.2",
-    "openapi-typescript": "^7.13.0"
+    "@types/cookie-parser": "^1",
+    "@types/express": "^5",
+    "@types/react": "^19.1.13",
+    "@types/react-dom": "^19.1.9",
+    "@types/uuid": "^10",
+    "@vercel/node": "^5",
+    "@vitejs/plugin-react": "^5.0.4",
+    "openapi-typescript": "^7.13.0",
+    "tsx": "^4",
+    "typescript": "^5.8",
+    "vite": "^7.1.7"
   }
 }
