@@ -70,13 +70,23 @@ export function createMysqlHarness(): MysqlHarness {
     }
   }
 
-  async function grantMigrationPrivileges(database: string, username: string): Promise<void> {
+  async function grantMigrationDdlPrivileges(database: string, username: string): Promise<void> {
     if (admin === null) throw new Error("harness admin connection missing");
     const account = `'${username}'@'%'`;
     await admin.query(
       `GRANT CREATE, ALTER, DROP, INDEX, REFERENCES, TRIGGER ON \`${database}\`.* TO ${account}`,
     );
+  }
+
+  async function grantMigrationHistoryPrivileges(database: string, username: string): Promise<void> {
+    if (admin === null) throw new Error("harness admin connection missing");
+    const account = `'${username}'@'%'`;
     await admin.query(`GRANT SELECT, INSERT ON \`${database}\`.schema_migrations TO ${account}`);
+  }
+
+  async function grantMigrationDataPrivileges(database: string, username: string): Promise<void> {
+    if (admin === null) throw new Error("harness admin connection missing");
+    const account = `'${username}'@'%'`;
     await admin.query(`GRANT INSERT ON \`${database}\`.categories TO ${account}`);
     await admin.query(`GRANT INSERT, UPDATE ON \`${database}\`.savings_accounts TO ${account}`);
     await admin.query(`GRANT UPDATE (available_balance_vnd) ON \`${database}\`.wallet_accounts TO ${account}`);
@@ -121,7 +131,10 @@ export function createMysqlHarness(): MysqlHarness {
       );
       await closePool();
       await admin.query(`CREATE USER '${migrationUser}'@'%' IDENTIFIED BY '${migrationPassword}'`);
-      await grantMigrationPrivileges(dbName, migrationUser);
+      await grantMigrationDdlPrivileges(dbName, migrationUser);
+      const migrations = await scanMigrationDir(MIGRATIONS_DIR);
+      const initialMigration = migrations[0];
+      if (initialMigration === undefined) throw new Error("no migrations found for MySQL harness");
 
       const mig = (await mysql.createConnection({
         host: env.host,
@@ -133,7 +146,20 @@ export function createMysqlHarness(): MysqlHarness {
         multipleStatements: true,
       })) as unknown as MigrationConnection;
       try {
-        for (const file of await scanMigrationDir(MIGRATIONS_DIR)) {
+        // Bootstrap history with the migration principal before granting table-level access.
+        await mig.query(
+          `CREATE TABLE schema_migrations (
+             version VARCHAR(64) NOT NULL,
+             name VARCHAR(255) NOT NULL,
+             checksum CHAR(64) NOT NULL,
+             applied_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+             PRIMARY KEY (version)
+           ) ENGINE = InnoDB`,
+        );
+        await grantMigrationHistoryPrivileges(dbName, migrationUser);
+        await applyMigration(mig, initialMigration);
+        await grantMigrationDataPrivileges(dbName, migrationUser);
+        for (const file of migrations.slice(1)) {
           await applyMigration(mig, file);
         }
       } finally {
