@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto';
 import { createApiServer } from '../src/routes/api.js';
 import { getPool, resetPool } from '../src/infrastructure/db/pool.ts';
 import { hashSession } from '../src/features/auth/security.js';
+import { currentMonthKey } from '../src/domain/period.ts';
 import type { GoogleIdentity, GoogleOAuthMode, GoogleOAuthProvider } from '../src/infrastructure/google-oauth.ts';
 import { createMysqlHarness } from './helpers/mysql-harness.ts';
 
@@ -103,6 +104,25 @@ if (!ENABLED) {
     const value = response.headers.get('set-cookie')?.split(';', 1)[0];
     if (!value?.startsWith('cc_session=')) throw new Error('session cookie was not set');
     return value;
+  }
+
+  async function registerSession(name: string, ip: string) {
+    const email = `${name}-${randomUUID()}@example.test`;
+    assert.equal((await call('POST', '/api/v1/auth/register', { body: { email }, ip })).status, 201);
+    const otp = sentOtp(email, 'registration');
+    assert.equal((await call('POST', '/api/v1/auth/verify-registration', {
+      body: { email, fullName: name, password: 'Password12345', otp }, ip,
+    })).status, 200);
+    const login = await call('POST', '/api/v1/auth/login', {
+      body: { email, password: 'Password12345' }, ip,
+    });
+    assert.equal(login.status, 200);
+    const data = (await login.json()).data;
+    return {
+      userId: String(data.user.id),
+      cookie: sessionCookie(login),
+      csrf: data.csrfToken as string,
+    };
   }
 
   test('register → verify OTP → login/session → wallet and issue → forgot/reset → revoke/logout/expiry', async () => {
@@ -215,6 +235,102 @@ if (!ENABLED) {
       [hashSession(expiryCookie.slice('cc_session='.length))],
     );
     assert.equal((await call('GET', '/api/v1/auth/session', { cookie: expiryCookie, ip })).status, 401);
+  });
+
+  test('domain API chỉ trả dữ liệu của owner trong session', async () => {
+    const userA = await registerSession('Owner A', '198.51.100.51');
+    const userB = await registerSession('Owner B', '198.51.100.52');
+    const month = currentMonthKey();
+
+    assert.equal((await call('POST', '/api/v1/wallet/baseline', {
+      body: { initialBalanceVnd: 100_000, userId: userB.userId },
+      cookie: userA.cookie, csrf: userA.csrf, key: randomUUID(),
+    })).status, 201);
+    assert.equal((await call('POST', '/api/v1/wallet/baseline', {
+      body: { initialBalanceVnd: 80_000 },
+      cookie: userB.cookie, csrf: userB.csrf, key: randomUUID(),
+    })).status, 201);
+
+    const categoryName = `Private ${randomUUID()}`;
+    const categoryResponse = await call('POST', '/api/v1/categories', {
+      body: { nameEn: categoryName, nameVi: 'Riêng tư', appliesTo: 'payment' },
+      cookie: userA.cookie, csrf: userA.csrf, key: randomUUID(),
+    });
+    assert.equal(categoryResponse.status, 201);
+    const categoryId = String((await categoryResponse.json()).data.id);
+
+    assert.equal((await call('POST', '/api/v1/ledger/transactions', {
+      body: {
+        type: 'income', amountVnd: 50_000, categoryId: 1,
+        occurredAt: new Date().toISOString(), description: 'Income A', userId: userB.userId,
+      },
+      cookie: userA.cookie, csrf: userA.csrf, key: randomUUID(),
+    })).status, 201);
+    const payment = await call('POST', '/api/v1/ledger/transactions', {
+      body: {
+        type: 'payment', amountVnd: 10_000, categoryId: Number(categoryId),
+        occurredAt: new Date().toISOString(), description: 'Private payment A', userId: userB.userId,
+      },
+      cookie: userA.cookie, csrf: userA.csrf, key: randomUUID(),
+    });
+    assert.equal(payment.status, 201);
+    const transactionId = String((await payment.json()).data.transaction.id);
+
+    assert.equal((await call('POST', '/api/v1/savings/transfers', {
+      body: { direction: 'deposit', amountVnd: 20_000, note: 'Savings A', userId: userB.userId },
+      cookie: userA.cookie, csrf: userA.csrf, key: randomUUID(),
+    })).status, 201);
+    assert.equal((await call('POST', '/api/v1/savings/transfers', {
+      body: { direction: 'deposit', amountVnd: 5_000, note: 'Savings B' },
+      cookie: userB.cookie, csrf: userB.csrf, key: randomUUID(),
+    })).status, 201);
+
+    assert.equal((await call('PUT', `/api/v1/budgets/${categoryId}`, {
+      body: { month, limitVnd: 5_000 },
+      cookie: userA.cookie, csrf: userA.csrf, key: randomUUID(),
+    })).status, 200);
+    assert.equal((await call('PUT', `/api/v1/budgets/${categoryId}`, {
+      body: { month, limitVnd: 1_000 },
+      cookie: userB.cookie, csrf: userB.csrf, key: randomUUID(),
+    })).status, 404);
+
+    const walletA = (await (await call('GET', '/api/v1/wallet', { cookie: userA.cookie })).json()).data;
+    const walletB = (await (await call('GET', '/api/v1/wallet', { cookie: userB.cookie })).json()).data;
+    assert.equal(walletA.availableBalanceVnd, 120_000);
+    assert.equal(walletB.availableBalanceVnd, 75_000);
+
+    const transactionsA = (await (await call('GET', '/api/v1/ledger/transactions', { cookie: userA.cookie })).json()).data;
+    const transactionsB = (await (await call('GET', '/api/v1/ledger/transactions', { cookie: userB.cookie })).json()).data;
+    assert.equal(transactionsA.length, 2);
+    assert.equal(transactionsB.length, 0);
+    assert.equal((await call('GET', `/api/v1/ledger/transactions/${transactionId}`, { cookie: userB.cookie })).status, 404);
+
+    const savingsA = (await (await call('GET', '/api/v1/savings', { cookie: userA.cookie })).json()).data;
+    const savingsB = (await (await call('GET', '/api/v1/savings', { cookie: userB.cookie })).json()).data;
+    assert.equal(savingsA.balanceVnd, 20_000);
+    assert.equal(savingsB.balanceVnd, 5_000);
+    const transfersB = (await (await call('GET', '/api/v1/savings/transfers', { cookie: userB.cookie })).json()).data;
+    assert.deepEqual(transfersB.map((item: { note: string }) => item.note), ['Savings B']);
+
+    const categoriesB = (await (await call('GET', '/api/v1/categories', { cookie: userB.cookie })).json()).data;
+    assert.equal(categoriesB.some((item: { id: string }) => item.id === categoryId), false);
+    const budgetsA = (await (await call('GET', `/api/v1/budgets?month=${month}`, { cookie: userA.cookie })).json()).data;
+    const budgetsB = (await (await call('GET', `/api/v1/budgets?month=${month}`, { cookie: userB.cookie })).json()).data;
+    assert.equal(budgetsA.length, 1);
+    assert.equal(budgetsB.length, 0);
+    const summaryA = (await (await call('GET', `/api/v1/budgets/summary?month=${month}`, { cookie: userA.cookie })).json()).data;
+    const summaryB = (await (await call('GET', `/api/v1/budgets/summary?month=${month}`, { cookie: userB.cookie })).json()).data;
+    assert.equal(summaryA.totalLimitVnd, 5_000);
+    assert.equal(summaryB.totalLimitVnd, 0);
+
+    const reportA = (await (await call('GET', `/api/v1/reports/monthly?month=${month}`, { cookie: userA.cookie })).json()).data;
+    const reportB = (await (await call('GET', `/api/v1/reports/monthly?month=${month}`, { cookie: userB.cookie })).json()).data;
+    assert.equal(reportA.totalIncomeVnd, 50_000);
+    assert.equal(reportA.totalPaymentVnd, 10_000);
+    assert.equal(reportB.totalIncomeVnd, 0);
+    assert.equal(reportB.totalPaymentVnd, 0);
+    const dashboardB = (await (await call('GET', '/api/v1/reports/dashboard', { cookie: userB.cookie })).json()).data;
+    assert.equal(dashboardB.recentTransactions.length, 0);
   });
 
   test('OTP hết hạn và vượt max attempts đều bị từ chối', async () => {

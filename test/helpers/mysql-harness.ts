@@ -7,6 +7,7 @@ import mysql, { type Connection } from "mysql2/promise";
 import { migrationCreds, readDbEnv, sslOption } from "../../src/infrastructure/db/env.ts";
 import { applyMigration, scanMigrationDir, type MigrationConnection } from "../../src/infrastructure/db/migration-engine.ts";
 import { resetPool } from "../../src/infrastructure/db/pool.ts";
+import { assertIsolatedTestDatabase } from "./db-test-guard.ts";
 
 export const MIGRATIONS_DIR = path.resolve(import.meta.dirname, "..", "..", "db", "migrations");
 
@@ -26,6 +27,7 @@ export function createMysqlHarness(): MysqlHarness {
     dbName: "",
 
     async start(): Promise<void> {
+      assertIsolatedTestDatabase();
       const env = readDbEnv();
       const creds = migrationCreds(env);
       const ssl = sslOption(env);

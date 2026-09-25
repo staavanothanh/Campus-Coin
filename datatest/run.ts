@@ -10,6 +10,7 @@ import path from "node:path";
 import mysql, { type Connection } from "mysql2/promise";
 import { DbEnvError, migrationCreds, readDbEnv, sslOption } from "../src/infrastructure/db/env.ts";
 import { applyMigration, scanMigrationDir, type MigrationConnection } from "../src/infrastructure/db/migration-engine.ts";
+import { assertIsolatedTestDatabase } from "../test/helpers/db-test-guard.ts";
 
 const SQL_DIR =
   process.env["CAMPUS_COIN_DATATEST_DIR"] ?? path.resolve(import.meta.dirname, "sql");
@@ -57,6 +58,14 @@ async function collectFiles(dir: string): Promise<SqlFile[]> {
 }
 
 async function main(): Promise<number> {
+  try {
+    assertIsolatedTestDatabase();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Cấu hình DB test không hợp lệ.";
+    console.log(`FAIL  ${message}`);
+    return 1;
+  }
+
   let dbEnv;
   try {
     dbEnv = readDbEnv();
