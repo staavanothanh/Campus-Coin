@@ -81,7 +81,7 @@ Ghi kết quả theo thời điểm, staging release/commit, luồng và pass/fa
 
 CI chạy test này cùng MySQL integration trên schema tạm. Các endpoint được kiểm tra gồm wallet, ledger, savings, categories, budgets, monthly report và dashboard. Test issue/IDOR hiện có tiếp tục kiểm tra riêng.
 
-Workflow #3 của commit `36ed519` đã chạy qua `db:datatest`, nhưng command gộp MySQL integration/E2E kết thúc với exit code 1. Annotation công khai không chỉ ra test lỗi. Khi rà soát code, email trong helper owner test có dấu cách nên đăng ký test đó bị validation từ chối; helper đã được sửa dùng email ngẫu nhiên hợp lệ. Chỉ workflow sau sửa pass mới xác nhận test owner-isolation.
+Workflow #4 của commit `e9a40d4` đã chạy qua `db:datatest`, nhưng command gộp MySQL integration/E2E tiếp tục kết thúc với exit code 1. Annotation công khai không chỉ ra test lỗi. Email trong helper owner test có dấu cách đã được sửa thành email ngẫu nhiên hợp lệ; run mới vẫn fail nên còn lỗi khác cần cô lập. Workflow đã tách ba suite MySQL thành ba bước để xác định chính xác suite lỗi. Chỉ khi bước owner/auth integration pass mới xác nhận test owner-isolation.
 
 ### Bằng chứng hoàn tất
 

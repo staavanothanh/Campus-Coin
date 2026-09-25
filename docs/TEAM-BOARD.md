@@ -25,7 +25,7 @@ Specialist chỉ cung cấp phân tích; không thay thế bốn developer và k
 | HUMAN-B | Developer B | Chờ CI MySQL pass và target staging | Xác nhận DB/schema test riêng, quyền create/drop cho test role, migration `0004`/`0005`, backup/restore, CA và least-privilege runtime grants; review domain routes |
 | HUMAN-C | Developer C | Sẵn sàng Day 1 | UI two-locale, VND/HCMC, accessible, JEV-off |
 | HUMAN-D | Developer D | Sẵn sàng Day 1 | Typed JEV probe/fallback, smoke, redacted logs, rollback |
-| LEADER-INT | Team Leader | Commit `586a7ce` và `36ed519` đã push lên `hiep`; owner integration test đã thêm; lỗi email fixture đã sửa trong working tree | Email auth theo ADR-0008, Google tùy chọn theo ADR-0009; local typecheck/build/unit pass; run #3 fail ở command MySQL integration/E2E sau khi `db:datatest` pass; cần run mới; register email đã được Team Leader xác nhận |
+| LEADER-INT | Team Leader | Commit `e9a40d4` đã push lên `hiep`; owner integration test và email fixture đã sửa | Email auth theo ADR-0008, Google tùy chọn theo ADR-0009; local typecheck/build/unit pass; run #4 vẫn fail ở command gộp sau khi `db:datatest` pass; CI sắp tách ba suite để tìm lỗi; register email đã được Team Leader xác nhận |
 | LEADER-REV | Team Leader | Chờ evidence | GO/NO-GO sau auth/DB/email/API/UI/CI/restore gates |
 
 ## Đường găng

@@ -55,4 +55,9 @@ jobs:
       - run: node --import tsx --test tests/auth.test.ts test/schema-readiness.test.ts tests/google-oauth.test.ts tests/client-ip.test.ts
       - run: node --import tsx --test tests/db-test-guard.test.ts
       - run: npm run db:datatest
-      - run: node --import tsx --test test/mysql.integration.test.ts test/e2e.contract.smoke.test.ts test/auth.mysql.integration.test.ts
+      - name: MySQL domain integration
+        run: node --import tsx --test test/mysql.integration.test.ts
+      - name: HTTP contract smoke
+        run: node --import tsx --test test/e2e.contract.smoke.test.ts
+      - name: Auth MySQL integration
+        run: node --import tsx --test test/auth.mysql.integration.test.ts

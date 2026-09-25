@@ -31,8 +31,8 @@ Google không cấu hình thì email flow vẫn hoạt động và provider disc
 | SMTP/email | SMTP adapter có timeout 10 giây, tối đa hai lần gửi và lỗi fail-closed; không có fallback OTP vào log/dev | Team Leader xác nhận đã đăng ký thành công bằng email; luồng reset password và timeout/retry khi provider lỗi vẫn cần kiểm chứng riêng |
 | API domain | Auth, preferences, wallet, ledger, savings, category, budget, report, issue và admin routes đã nối application services; client hỗ trợ GET/POST/PUT/PATCH/DELETE | OpenAPI đã khai báo `403` cho Origin ở auth mutation; lint còn 5 warning không chặn validate cho discovery/redirect/health; cần integration review với Developer B |
 | UI auth | Có đủ màn auth; validation theo field khi blur/submit, OTP chỉ nhận sáu chữ số, mật khẩu mặc định ẩn và tự ẩn khi rời ô; lỗi có VI/EN và submit chống lặp | Đã kiểm tra browser thủ công; keyboard/screen reader E2E và flow OTP thật còn chờ |
-| CI | Workflow có MySQL disposable service. Local typecheck/build/OpenAPI/auth/client-IP tests pass trong evidence bên dưới | [Workflow run #3 trên commit `36ed519`](https://github.com/staavanothanh/Campus-Coin/actions/runs/36111118954) đã qua các bước đến `db:datatest`; command gộp MySQL integration/E2E trả exit 1. Annotation công khai không nêu test lỗi. Email owner test có dấu cách đã được sửa; chờ run kế tiếp xác nhận |
-| Domain owner isolation qua HTTP | Đã thêm test hai tài khoản ở `test/auth.mysql.integration.test.ts` cho wallet, ledger, savings, category, budget, report và dashboard; kiểm tra body `userId` giả không đổi owner | Test được đưa vào command MySQL đang fail ở run #3; email test invalid đã sửa, cần run mới pass trước khi xác nhận behavior |
+| CI | Workflow có MySQL disposable service. Local typecheck/build/OpenAPI/auth/client-IP tests pass trong evidence bên dưới | [Workflow run #4 trên commit `e9a40d4`](https://github.com/staavanothanh/Campus-Coin/actions/runs/36112823101) đã qua các bước đến `db:datatest`; command gộp MySQL integration/E2E vẫn trả exit 1. Workflow mới tách ba suite để xác định lỗi ở run tiếp theo |
+| Domain owner isolation qua HTTP | Đã thêm test hai tài khoản ở `test/auth.mysql.integration.test.ts` cho wallet, ledger, savings, category, budget, report và dashboard; kiểm tra body `userId` giả không đổi owner | Chưa xác nhận pass; email test sai định dạng đã sửa, nhưng run #4 vẫn fail ở command gộp nên cần suite riêng chỉ ra kết quả |
 | Production/restore | Chưa có evidence | Cần backup/restore rehearsal, CA chain/role grants, TLS/connectivity, redacted logs và rollback |
 
 Không suy ra trạng thái DB, SMTP, cloud hoặc production từ sự tồn tại của config/file/migration hay từ health `SELECT 1`.
@@ -69,7 +69,9 @@ npm run api:types
 git diff --exit-code -- artifacts/openapi.json artifacts/api.d.ts
 node --import tsx --test tests/auth.test.ts test/schema-readiness.test.ts tests/google-oauth.test.ts
 npm run db:datatest
-CAMPUS_COIN_TEST_DB=1 node --import tsx --test test/mysql.integration.test.ts test/e2e.contract.smoke.test.ts test/auth.mysql.integration.test.ts
+CAMPUS_COIN_TEST_DB=1 node --import tsx --test test/mysql.integration.test.ts
+CAMPUS_COIN_TEST_DB=1 node --import tsx --test test/e2e.contract.smoke.test.ts
+CAMPUS_COIN_TEST_DB=1 node --import tsx --test test/auth.mysql.integration.test.ts
 ```
 
 Hai lệnh DB chỉ dùng disposable MySQL do CI tạo riêng, không Aiven `defaultdb` hoặc database dùng chung. Auth MySQL E2E bao phủ luồng, cookie/session, CSRF/IDOR, OTP expiry/attempts, rate-limit và provider/database failure bằng email adapter giả lập; adapter giả không chứng minh email provider thật. Chỉ báo pass cho job thật đã chạy.
