@@ -54,6 +54,12 @@ function exactInteger(value: number | string): bigint {
     if (!Number.isSafeInteger(value)) throw new Error("database returned an unsafe numeric reconciliation value");
     return BigInt(value);
   }
-  if (!/^-?\d+$/.test(value)) throw new Error("database returned a non-integer reconciliation value");
-  return BigInt(value);
+  // Chỉ log lại wire value khi nó là string số (không PII); MySQL SUM trên UNSIGNED
+  // có thể trả DECIMAL dạng "20000.0000" tùy ngữ cảnh query.
+  if (!/^-?\d+(\.\d+)?$/.test(value)) throw new Error(`database returned a non-numeric reconciliation value: ${value}`);
+  const [whole, frac] = value.split(".");
+  if (frac !== undefined && !/^0+$/.test(frac)) {
+    throw new Error(`database returned a non-integer reconciliation value: ${value}`);
+  }
+  return BigInt(whole!);
 }

@@ -69,6 +69,14 @@ export function createMysqlHarness(): MysqlHarness {
       ["issues", "title, description, category, status, priority"],
       ["sessions", "last_seen_at, revoked_at"],
       ["users", "display_name, locale, timezone"],
+      // MySQL 8 kiểm tra quyền UPDATE cho SELECT ... FOR UPDATE (locking read).
+      // Các grant dưới chỉ để services lock row; services không UPDATE trực tiếp:
+      // - wallet/savings: chỉ updated_at (timestamp, không phải projection/money);
+      //   available_balance_vnd/balance_vnd vẫn bị từ chối (projection trigger-only).
+      // - ledger: chỉ description, và mọi UPDATE ledger vẫn bị append-only trigger chặn.
+      ["wallet_accounts", "updated_at"],
+      ["savings_accounts", "updated_at"],
+      ["ledger_transactions", "description"],
     ] as const;
     for (const [table, columns] of updateGrants) {
       await admin.query(`GRANT UPDATE (${columns}) ON \`${database}\`.\`${table}\` TO ${account}`);
@@ -97,10 +105,28 @@ export function createMysqlHarness(): MysqlHarness {
     await admin.query(`GRANT UPDATE (available_balance_vnd) ON \`${database}\`.wallet_accounts TO ${account}`);
     const readableTables = [
       "categories", "ledger_transactions", "mutation_idempotency", "budgets", "wallet_accounts", "savings_accounts",
+      "savings_transfers", "issues",
     ];
     for (const table of readableTables) {
       await admin.query(`GRANT SELECT ON \`${database}\`.\`${table}\` TO ${account}`);
     }
+  }
+
+  /**
+   * Cấp UPDATE đúng cột mà BEFORE triggers gán qua NEW.* (DEFINER = migration
+   * principal; xem 0016/0018/0020/0021/0023–0027). Thiếu là ER_COLUMNACCESS_DENIED
+   * khi runtime INSERT/UPDATE. Chạy sau full migration vì wallet_delta_vnd chỉ
+   * tồn tại từ 0011.
+   */
+  async function grantMigrationTriggerColumnPrivileges(database: string, username: string): Promise<void> {
+    if (admin === null) throw new Error("harness admin connection missing");
+    const account = `'${username}'@'%'`;
+    await admin.query(`GRANT UPDATE (user_id, available_balance_vnd) ON \`${database}\`.wallet_accounts TO ${account}`);
+    await admin.query(`GRANT UPDATE (user_id, wallet_delta_vnd) ON \`${database}\`.ledger_transactions TO ${account}`);
+    await admin.query(`GRANT UPDATE (user_id, name_en) ON \`${database}\`.categories TO ${account}`);
+    await admin.query(`GRANT UPDATE (user_id) ON \`${database}\`.savings_transfers TO ${account}`);
+    await admin.query(`GRANT UPDATE (user_id) ON \`${database}\`.budgets TO ${account}`);
+    await admin.query(`GRANT UPDATE (user_id) ON \`${database}\`.issues TO ${account}`);
   }
 
   async function applyMigrationWithDiagnostics(mig: MigrationConnection, file: MigrationFile): Promise<void> {
@@ -200,6 +226,7 @@ export function createMysqlHarness(): MysqlHarness {
         for (const file of migrations.slice(1)) {
           await applyMigrationWithDiagnostics(mig, file);
         }
+        await grantMigrationTriggerColumnPrivileges(dbName, migrationUser);
       } finally {
         await mig.end();
       }

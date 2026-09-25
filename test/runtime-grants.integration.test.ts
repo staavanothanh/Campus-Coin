@@ -89,6 +89,14 @@ if (!ENABLED) {
     assert.ok(customCategory !== null);
 
     await assert.rejects(getPool().query("CREATE TABLE privilege_probe (id INT PRIMARY KEY)"));
+    // Runtime có UPDATE(description) trên ledger chỉ để SELECT ... FOR UPDATE lock row;
+    // mọi UPDATE trực tiếp vẫn bị append-only trigger chặn.
+    await assert.rejects(
+      getPool().query("UPDATE ledger_transactions SET description = 'forged' WHERE id = ?", [
+        Number(transaction.transaction.id),
+      ]),
+      /append-only/,
+    );
     await assert.rejects(
       getPool().query(
         `INSERT INTO categories (user_id, name_en, name_vi, applies_to, status, is_default)

@@ -21,6 +21,11 @@ GRANT SELECT ON campus_coin.mutation_idempotency TO 'cc_migrate'@'%';
 GRANT SELECT ON campus_coin.budgets TO 'cc_migrate'@'%';
 GRANT SELECT ON campus_coin.wallet_accounts TO 'cc_migrate'@'%';
 GRANT SELECT ON campus_coin.savings_accounts TO 'cc_migrate'@'%';
+-- Definer của boundary/projection triggers đọc NEW.* nên cần SELECT trên base table
+-- (0021/0022 đọc savings_transfers, 0025/0026 đọc issues); thiếu là ER_COLUMNACCESS_DENIED
+-- ngay khi runtime INSERT savings transfer/issue đầu tiên.
+GRANT SELECT ON campus_coin.savings_transfers TO 'cc_migrate'@'%';
+GRANT SELECT ON campus_coin.issues TO 'cc_migrate'@'%';
 
 -- 3) Runtime role: reset the former schema-wide DML grant, then grant only
 -- table/column operations required by application repositories. No DELETE.
@@ -62,6 +67,15 @@ GRANT UPDATE (response_json) ON campus_coin.mutation_idempotency TO 'cc_runtime'
 GRANT UPDATE (name_en, name_vi, status) ON campus_coin.categories TO 'cc_runtime'@'%';
 GRANT UPDATE (limit_vnd, idempotency_id, updated_at) ON campus_coin.budgets TO 'cc_runtime'@'%';
 GRANT UPDATE (title, description, category, status, priority) ON campus_coin.issues TO 'cc_runtime'@'%';
+-- MySQL 8 yêu cầu quyền UPDATE cho SELECT ... FOR UPDATE (locking read, đã kiểm
+-- chứng trên 8.0.41). Ba grant dưới chỉ để services lock row đúng lock order;
+-- services không UPDATE trực tiếp các bảng này:
+-- - wallet/savings: chỉ updated_at (timestamp, không phải projection/money);
+--   available_balance_vnd/balance_vnd không được cấp (projection trigger-only).
+-- - ledger: chỉ description, và mọi UPDATE ledger vẫn bị append-only trigger chặn.
+GRANT UPDATE (updated_at) ON campus_coin.wallet_accounts TO 'cc_runtime'@'%';
+GRANT UPDATE (updated_at) ON campus_coin.savings_accounts TO 'cc_runtime'@'%';
+GRANT UPDATE (description) ON campus_coin.ledger_transactions TO 'cc_runtime'@'%';
 
 -- CLI-only operations register writer; not granted to the application runtime.
 -- Run this section only after migrations create db_operation_logs.
@@ -73,7 +87,9 @@ FLUSH PRIVILEGES;
 -- - Runtime has no schema_migrations, DELETE, DDL, TRIGGER, REFERENCES, PROCESS,
 --   SUPER, FILE, CREATE ROUTINE, or GRANT OPTION privileges.
 -- - Wallet/savings projection UPDATE and savings_accounts INSERT are trigger-definer
---   privileges only; runtime cannot write projections directly.
+--   privileges only; runtime cannot write projections directly. Runtime UPDATE grants
+--   trên wallet/savings/ledger chỉ gồm updated_at/description để SELECT ... FOR UPDATE
+--   chạy được; không cấp available_balance_vnd/balance_vnd và ledger vẫn append-only.
 -- - Add grants only with a reviewed DB-enforced invariant and a negative direct-SQL test;
 --   owner authorization tests belong at the service/API boundary (ADR-0008).
 -- - Use a separate disposable test-admin role for creating/dropping integration DBs;

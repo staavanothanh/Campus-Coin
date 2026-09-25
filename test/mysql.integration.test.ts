@@ -653,19 +653,21 @@ if (!ENABLED) {
       const tx = await createTx(userId, "income", 100_000, 1);
       const conn = await getPool().getConnection();
       try {
+        // Runtime không có UPDATE/DELETE trên ledger/audit nên bị chặn ở grant;
+        // nếu grant nới trong tương lai, append-only trigger vẫn chặn. Chấp nhận cả hai lớp.
         await assert.rejects(
           conn.query(`UPDATE \`${harness.dbName}\`.ledger_transactions SET amount_vnd = 1 WHERE id = ?`, [
             Number(tx.transaction.id),
           ]),
-          /append-only/,
+          /append-only|command denied/,
         );
         await assert.rejects(
           conn.query(`DELETE FROM \`${harness.dbName}\`.ledger_transactions WHERE id = ?`, [Number(tx.transaction.id)]),
-          /append-only/,
+          /append-only|command denied/,
         );
         await assert.rejects(
           conn.query(`DELETE FROM \`${harness.dbName}\`.audit_events WHERE user_id = ?`, [userId]),
-          /append-only/,
+          /append-only|command denied/,
         );
       } finally {
         conn.release();
