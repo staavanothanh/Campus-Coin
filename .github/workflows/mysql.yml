@@ -36,6 +36,11 @@ jobs:
         with:
           node-version: 24
           cache: npm
+      - name: Allow trigger creation on disposable MySQL
+        run: |
+          container_id="$(docker ps --filter ancestor=mysql:8.0.41 --format '{{.ID}}')"
+          test -n "$container_id"
+          docker exec "$container_id" mysql -uroot -e "SET GLOBAL log_bin_trust_function_creators=1"
       - name: Generate ephemeral cursor signing key
         shell: bash
         run: |
