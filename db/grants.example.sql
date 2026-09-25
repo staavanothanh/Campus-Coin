@@ -14,7 +14,15 @@ GRANT CREATE, ALTER, DROP, INDEX, REFERENCES, TRIGGER
 GRANT SELECT, INSERT ON campus_coin.schema_migrations TO 'cc_migrate'@'%';
 GRANT INSERT ON campus_coin.categories TO 'cc_migrate'@'%';
 GRANT INSERT, UPDATE ON campus_coin.savings_accounts TO 'cc_migrate'@'%';
-GRANT UPDATE (available_balance_vnd) ON campus_coin.wallet_accounts TO 'cc_migrate'@'%';
+-- BEFORE INSERT/UPDATE triggers chạy với quyền DEFINER (migration principal) và gán
+-- NEW.* để chặn cross-owner trực tiếp (0016/0018/0020/0021/0023–0027); thiếu là
+-- ER_COLUMNACCESS_DENIED ngay khi runtime INSERT/UPDATE. Chỉ đúng các cột trigger gán.
+GRANT UPDATE (user_id, available_balance_vnd) ON campus_coin.wallet_accounts TO 'cc_migrate'@'%';
+GRANT UPDATE (user_id, wallet_delta_vnd) ON campus_coin.ledger_transactions TO 'cc_migrate'@'%';
+GRANT UPDATE (user_id, name_en) ON campus_coin.categories TO 'cc_migrate'@'%';
+GRANT UPDATE (user_id) ON campus_coin.savings_transfers TO 'cc_migrate'@'%';
+GRANT UPDATE (user_id) ON campus_coin.budgets TO 'cc_migrate'@'%';
+GRANT UPDATE (user_id) ON campus_coin.issues TO 'cc_migrate'@'%';
 GRANT SELECT ON campus_coin.categories TO 'cc_migrate'@'%';
 GRANT SELECT ON campus_coin.ledger_transactions TO 'cc_migrate'@'%';
 GRANT SELECT ON campus_coin.mutation_idempotency TO 'cc_migrate'@'%';

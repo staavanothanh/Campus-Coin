@@ -101,7 +101,6 @@ Local `test:mysql:required` sau repair (MySQL 8.0.41 portable): 106 pass, 0 fail
 | `BLK-OPSLOG-01` | Migrations `0028`–`0030` tạo `db_operation_logs` append-only; CLI writer dùng `cc_ops` INSERT-only; CI records stay in GitHub | B | DDL + CLI INSERT + UPDATE/DELETE guards đã pass trong full migration chain local (`0001`–`0030` fresh + suite runtime-grants); chưa áp dụng lên Aiven (operator-gated) |
 
 ### Phát hiện Aiven 2026-09-25 (probe read-only, nhánh `database-ingest-0.2`)
-
 - Service từng auto-sleep (free tier) gây NXDOMAIN; đã wake tay và kết nối lại bình thường.
 - DB `campus_coin` là **shared**: có tables chain khác (`app_log`, `auth_credentials`, `auth_rate_limits`, `email_otps`) và `schema_migrations` ghi `0004_email_auth.sql` + `0005_auth_rate_limits.sql` (applied 2026-09-24) — **trùng version với `0004`/`0005` của chain mình** nên engine fail-closed là đúng.
 - Objects `0004`/`0005` của chain mình (unique/idempotency DDL) **không tồn tại** trên Aiven; `0001`/`0003` khớp intent hiện tại ở DDL đã kiểm tra.
@@ -111,7 +110,8 @@ Local `test:mysql:required` sau repair (MySQL 8.0.41 portable): 106 pass, 0 fail
 - **Phase 1 done 2026-09-25** (đã duyệt từng lệnh): DROP 8 append-only triggers của `0001` → DELETE `savings_transfers` 20 + `ledger_transactions` 60 + `users` 2 (scope `999001`/`999002`, verify không owner lạ) → tạo lại triggers y hệt → verify seeds 11, counts 0, guards 8, chain khác nguyên vẹn (`0/0/2/1`).
 - Còn lại: hội tụ DDL `0004`/`0005` còn thiếu, re-baseline checksum (cần ADR), provision `cc_migrate`/`cc_runtime`, apply `0006`–`0030`, review grants/trigger `DEFINER`, restore rehearsal + reconcile.
 - **Converge done 2026-09-25** (đã duyệt): DBA apply tay đúng nội dung file `0004`/`0005` (tables trống, verify objects vắng mặt trước, verify tồn tại sau: unique + cột + FK). `db:status`/`db:preflight` trên Aiven hết FAIL: `0001`/`0003` baselined, `0002` applied, `0004`/`0005` external, pending `0006`–`0030` (25 files). ADR-0009 vẫn trạng thái đề xuất, chờ Team Leader chấp nhận chính thức.
-- Hệ quả: (1) không drop/recreate DB; (2) `0011` không apply được khi chưa remediation (FK đòi wallet cho 60 ledger rows đang thiếu); (3) cần quyết định tách database riêng hay DBA hội tụ trên DB shared (re-baseline checksum cần ADR).
+- **Review fixes 2026-09-25** (nhánh `database-ingest-0.2`, đã verify local): (1) `db/grants.example.sql` bổ sung UPDATE cột trigger gán cho migration role (khớp harness; template cũ thiếu gây ER_COLUMNACCESS_DENIED khi provision đúng); (2) CI thêm 3 gates — `db:datatest:ci`, ops-log writer integration, CLI migrate fresh/idempotent (`scripts/ci-migrate-gate.mjs`); `datatest` nới guard password trống cho disposable loopback như harness và chuẩn hóa CRLF khi parse; (3) dispatcher chấp nhận prefix `/api/v1` tùy chọn đúng một lần (`src/api/handler.ts` + `test/api-handler.test.ts`), host rewrite qua mạng và distributed rate-limit vẫn chờ proof hạ tầng. Full gate local: 116 pass / 0 fail, datatest 30/30.
+- Còn mở: ADR-0009 chờ chấp nhận chính thức; provision `cc_migrate`/`cc_runtime`; apply `0006`–`0030` bằng migration role; review grants/trigger `DEFINER`; reconcile; restore rehearsal.
 
 ### Dọn trước khi merge
 

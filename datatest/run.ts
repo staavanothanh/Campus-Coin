@@ -73,7 +73,10 @@ async function main(): Promise<number> {
 
   const adminUser = process.env["CAMPUS_COIN_TEST_DB_ADMIN_USER"];
   const adminPassword = process.env["CAMPUS_COIN_TEST_DB_ADMIN_PASSWORD"];
-  if (adminUser === undefined || adminUser.length === 0 || adminPassword === undefined || adminPassword.length === 0) {
+  const isLoopback = dbEnv.host === "localhost" || dbEnv.host === "127.0.0.1" || dbEnv.host === "::1";
+  const allowEmptyAdminPassword = process.env["CAMPUS_COIN_TEST_DB"] === "1" && isLoopback;
+  if (adminUser === undefined || adminUser.length === 0 || adminPassword === undefined ||
+    (adminPassword.length === 0 && !allowEmptyAdminPassword)) {
     console.log("FAIL  CAMPUS_COIN_TEST_DB_ADMIN_USER and CAMPUS_COIN_TEST_DB_ADMIN_PASSWORD are required");
     return 1;
   }

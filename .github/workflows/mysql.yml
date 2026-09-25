@@ -65,6 +65,18 @@ jobs:
         if: always()
         run: npm run test:mysql:required -- test/e2e.contract.smoke.test.ts
         timeout-minutes: 5
+      - name: MySQL operation log writer
+        if: always()
+        run: npm run test:mysql:required -- test/operation-log.integration.test.ts
+        timeout-minutes: 5
+      - name: MySQL datatest constraints
+        if: always()
+        run: npm run db:datatest:ci
+        timeout-minutes: 5
+      - name: CLI migration fresh install is idempotent
+        if: always()
+        run: node scripts/ci-migrate-gate.mjs
+        timeout-minutes: 5
       - name: Validate OpenAPI
         if: always()
         run: npm run api:validate
