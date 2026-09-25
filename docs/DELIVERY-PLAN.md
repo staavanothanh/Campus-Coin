@@ -76,9 +76,9 @@ Trigger gồm OAuth bypass/IDOR, wallet/savings invariant, destructive migration
 
 ## 12. Trạng thái và blocker DevB
 
-**Cập nhật 2026-09-25:** Có schema MySQL và migrations `0001`–`0027`, các service/repository wallet, ledger, savings, budget, report, issue, unit tests, gated MySQL tests và contract smoke tests. PR #1 có MySQL run `35995661822`; run được rerun trên MySQL 8.0.41 disposable rồi operator hủy sau 10m12 ở `npm run test:mysql:required` vì runner treo. Log đã ghi fail cho các flow trong `e2e.contract.smoke.test.ts` nhưng không có lỗi hook/SQL cuối cùng trước khi hủy; chưa có kết luận xanh cho domain, migration-concurrency hoặc runtime-grants. `api:validate` bị skip trong run đó. Thay đổi local hiện tách workflow theo từng suite, thêm timeout và đóng migration connection trong `finally`, nhưng chưa có remote CI result trên revision chứa các thay đổi này.
+**Cập nhật 2026-09-25:** PR #1 được cập nhật và CI MySQL dùng service MySQL 8.0.41 disposable. Run `36087439889` đã chạy riêng domain integration, migration concurrency, runtime grants, contract smoke và API validation. Cả bốn suite MySQL fail trong `before` khi apply migration `0011_ledger_owner_projection_keys.sql`; không suite nào chạy tới assertions nghiệp vụ. InnoDB báo FK `fk_ledger_reference_owner_role` không tìm thấy parent index phù hợp vì unique index được thêm trong cùng `ALTER TABLE`. `Validate OpenAPI` pass. Run cũ `35995661822` đã bị hủy khi chưa có timeout/per-suite logs. CI hiện đã định vị migration blocker nhưng chưa xanh.
 
-Local MySQL/Docker không có trong môi trường hiện tại. Local `npm test` gần nhất: 63 pass, 5 DB-gated skip; focused rollback/route/migration-engine tests và `typecheck` pass. `api:validate` hiện pass; 5 cảnh báo response được ignore có chủ đích cho OAuth redirect/liveness, 49 warning cũ không còn active. Chưa chạy `db:preflight` hoặc kiểm chứng cloud TLS, grants production, backup/restore; source/test pass không thay thế các evidence đó.
+Local MySQL/Docker không có trong môi trường hiện tại. Local `npm test` gần nhất: 63 pass, 5 DB-gated skip; `typecheck` và `verify:docs` pass. `api:validate` pass; 5 cảnh báo response được ignore có chủ đích cho OAuth redirect/liveness, 49 warning cũ không còn active. Chưa chạy `db:preflight` hoặc kiểm chứng cloud TLS, grants production, backup/restore; source/test pass không thay thế các evidence đó.
 
 | ID | Blocker | Owner | Điều kiện đóng |
 |---|---|---|---|
@@ -87,13 +87,13 @@ Local MySQL/Docker không có trong môi trường hiện tại. Local `npm test
 | `BLK-API-01` | Fetch-compatible handlers cho core/issue routes, validation, origin/CSRF port và envelope đã có | A + B | Chờ host mount, auth/session adapter và distributed rate-limit thật; route unit test không thay thế OAuth/session integration |
 | `BLK-ISSUE-01` | Issue service/repository owner scope, related transaction ownership, atomic event/audit và admin role checks đã có | B | Chờ gated MySQL tests; admin role phải đến từ trusted session adapter |
 | `BLK-MIG-01` | `cmdUp` khóa trước khi load/re-plan; có MySQL concurrency integration test | B | Unit test pass; chờ concurrency test MySQL thật |
-| `BLK-MIG-02` | Filename, duplicate/gap, SQL rỗng/statement header và DB-only/out-of-order versions fail-closed | B | Unit tests pass; cú pháp đầy đủ được xác minh bằng fresh migration trên MySQL; DDL failure có thể để lại partial schema, chưa ghi version |
+| `BLK-MIG-02` | MySQL 8.0.41 fresh migration fail ở `0011`: self-referencing composite FK không nhận index tạo trong cùng `ALTER TABLE` | B + Team Leader | Migration đã commit và không được sửa trực tiếp; cần chốt một đường fresh-install/migration lifecycle tuân thủ checksum, rồi chứng minh fresh migration `0011`–`0027` xanh |
 | `BLK-HARNESS-01` | Harness dùng shared `sslOption`, migration principal riêng làm trigger `DEFINER`, runtime principal table/column grants | B | Code harness đã đổi; chờ CI MySQL xanh và test `verify-ca` trên disposable cloud candidate |
 | `BLK-MATH-01` | Checked arithmetic và exact DB integer parsing được thêm cho money/report/projection paths | B | Focused unit tests pass; chờ toàn bộ gated MySQL suite |
 | `BLK-CURSOR-01` | Cursor HMAC-SHA256 versioned, key bắt buộc khi dùng, limit/length bound | A + B | Focused tamper/boundary tests pass; key rotation/production secret provisioning còn là deploy gate |
 | `BLK-GRANT-01` | ADR-0008 chốt row-level authorization ở service; DB enforce integrity, append-only và column grants | B + Team Leader | Chờ CI MySQL chứng minh migration `DEFINER`, runtime grants/projection denial và service/API cross-owner negative tests; direct SQL bằng credential runtime là trusted-backend residual risk |
 | `BLK-AUDIT-01` | Category update và audit insert phải commit/rollback cùng transaction | B | Đã sửa `updateUserCategory`; unit rollback regression pass; chờ xác nhận integration trên MySQL disposable |
-| `BLK-CI-01` | `test:mysql:required` ép gate; workflow chia suite và giới hạn timeout | B + D | Run `35995661822` bị hủy, không xanh; workflow tách suite mới chưa chạy trên PR revision |
+| `BLK-CI-01` | Workflow chia unit, bốn MySQL suite và OpenAPI validation riêng; MySQL service disposable | B + D | Run `36087439889`: API validation pass; các suite MySQL cùng bị chặn bởi `BLK-MIG-02`, chưa có suite xanh |
 | `BLK-RECON-01` | `db:reconcile` đối chiếu wallet/savings projection từ immutable rows; `/health/ready` ping DB | B | Restore runbook đã thêm; restore rehearsal và reconciliation trên restored cloud target chưa có evidence |
 
 ### Dọn trước khi merge
@@ -101,7 +101,7 @@ Local MySQL/Docker không có trong môi trường hiện tại. Local `npm test
 - [x] Sửa `docs/working/aiven-handoff.md`: không claim CA/endpoint/admin user chưa xác minh; không dùng admin user cho runtime.
 - [x] Benchmark tạo schema unique local-only và drop schema; không DELETE append-only history.
 - [x] Có `test:mysql:required`; `npm test` mặc định vẫn có thể skip suite DB và không được dùng làm evidence MySQL.
-- [ ] Giữ PR #1 không merge cho tới khi từng suite MySQL xanh, API validation đạt, migration/owner scope được review và restore evidence hoàn tất.
+- [ ] Giữ PR #1 không merge cho tới khi `BLK-MIG-02` có hướng xử lý được duyệt, từng suite MySQL xanh, API validation đạt và restore evidence hoàn tất.
 
 ### Thứ tự merge đề xuất
 
