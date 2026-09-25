@@ -34,6 +34,7 @@ Tài liệu này giúp thành viên mới nắm quyết định hiện hành, ph
 - `node --import tsx --test tests/db-test-guard.test.ts`: 3/3 pass.
 - `node --import tsx --test tests/auth.test.ts test/schema-readiness.test.ts tests/google-oauth.test.ts tests/client-ip.test.ts`: 27/27 pass.
 - `npm run api:validate`: pass; còn 5 lint warnings về response 4xx ở endpoint discovery, redirect/callback và health.
+- [Workflow run #10](https://github.com/staavanothanh/Campus-Coin/actions/runs/36117665453) trên commit `dd90c11` pass toàn workflow sau cập nhật evidence trong tài liệu nhóm.
 - [Workflow run #9](https://github.com/staavanothanh/Campus-Coin/actions/runs/36117022485) trên commit `ed62986` pass toàn workflow sau cập nhật quy ước cộng tác trong repository.
 - [Workflow run #8](https://github.com/staavanothanh/Campus-Coin/actions/runs/36116299740) trên commit `4bbdb61` pass toàn workflow và xác nhận cập nhật tài liệu nhánh/rubric.
 - [Workflow run #7](https://github.com/staavanothanh/Campus-Coin/actions/runs/36113725073) trên commit `3bf6c0c` pass toàn workflow trước lần cập nhật hiện tại.

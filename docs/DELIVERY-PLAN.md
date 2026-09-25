@@ -31,7 +31,7 @@ Google không cấu hình thì email flow vẫn hoạt động và provider disc
 | SMTP/email | SMTP adapter có timeout 10 giây, tối đa hai lần gửi và lỗi fail-closed; không có fallback OTP vào log/dev | Team Leader xác nhận đã đăng ký thành công bằng email; luồng reset password và timeout/retry khi provider lỗi vẫn cần kiểm chứng riêng |
 | API domain | Auth, preferences, wallet, ledger, savings, category, budget, report, issue và admin routes đã nối application services; client hỗ trợ GET/POST/PUT/PATCH/DELETE | OpenAPI đã khai báo `403` cho Origin ở auth mutation; lint còn 5 warning không chặn validate cho discovery/redirect/health; cần integration review với Developer B |
 | UI | Auth UI có validation/accessibility cơ bản và hai ngôn ngữ; sau login hiện chỉ có chào user, kết nối Google và logout | Chưa có giao diện wallet onboarding, dashboard, income/payment/history, savings, category/budget, report và issue/admin; đây là phần chức năng/UI lớn cần hoàn thiện |
-| CI | Workflow có MySQL disposable service; chạy typecheck, build, API validate/artifacts, auth/schema/Google/client-IP tests, DB-test guard, `db:datatest` và ba suite MySQL | [Workflow run #9 trên commit `ed62986`](https://github.com/staavanothanh/Campus-Coin/actions/runs/36117022485) pass toàn workflow; [run #6 trên commit code `5ee8858`](https://github.com/staavanothanh/Campus-Coin/actions/runs/36113454931) pass `db:datatest` và cả ba suite MySQL riêng |
+| CI | Workflow có MySQL disposable service; chạy typecheck, build, API validate/artifacts, auth/schema/Google/client-IP tests, DB-test guard, `db:datatest` và ba suite MySQL | [Workflow run #10 trên commit `dd90c11`](https://github.com/staavanothanh/Campus-Coin/actions/runs/36117665453) pass toàn workflow; [run #6 trên commit code `5ee8858`](https://github.com/staavanothanh/Campus-Coin/actions/runs/36113454931) pass `db:datatest` và cả ba suite MySQL riêng |
 | Domain owner isolation qua HTTP | Test hai tài khoản bao phủ wallet, ledger, savings, category, budget, report và dashboard; request giả `userId` không đổi owner | Auth MySQL integration pass ở run #6; category ngoài owner trả `404 NOT_FOUND` và không thể tạo budget |
 | Hợp nhất nhánh DB | Giữ `hiep` làm nhánh sản phẩm; chưa merge nguyên nhánh nào | `origin/thien` đưa `node_modules/` và `dist/` vào Git; `database-ingest-0.2` có 22 xung đột mô phỏng với `hiep` và dùng lại số migration `0004`/`0005`. DevB/DB owner cần xác nhận lịch sử apply/restore trước khi review port chọn lọc |
 | Production/restore | Chưa có evidence | Cần backup/restore rehearsal, CA chain/role grants, TLS/connectivity, redacted logs và rollback |
@@ -80,7 +80,7 @@ Hai lệnh DB chỉ dùng disposable MySQL do CI tạo riêng, không Aiven `def
 
 ## 7. Evidence đã chạy trong phiên 2026-09-24 và 2026-09-25
 
-Các bullet lịch sử dưới đây ghi trạng thái tại thời điểm chạy; evidence hiện hành nằm ở [CURRENT-STATUS.md](./CURRENT-STATUS.md). CI run #6 xác nhận ba MySQL suites pass trên DB disposable; run #7, #8 và #9 xác nhận toàn workflow tại các commit `3bf6c0c`, `4bbdb61` và `ed62986`.
+Các bullet lịch sử dưới đây ghi trạng thái tại thời điểm chạy; evidence hiện hành nằm ở [CURRENT-STATUS.md](./CURRENT-STATUS.md). CI run #6 xác nhận ba MySQL suites pass trên DB disposable; run #7, #8, #9 và #10 xác nhận toàn workflow tại các commit `3bf6c0c`, `4bbdb61`, `ed62986` và `dd90c11`.
 
 - `npm run typecheck`: pass.
 - `npm run build`: pass.
