@@ -29,16 +29,14 @@ Tài liệu này giúp thành viên mới nắm quyết định hiện hành, ph
 - `node --import tsx --test tests/db-test-guard.test.ts`: 3/3 pass.
 - `node --import tsx --test tests/auth.test.ts tests/client-ip.test.ts`: 19/19 pass.
 - `npm run api:validate`: pass; còn 5 lint warnings về response 4xx ở endpoint discovery, redirect/callback và health.
-- CI trên commit `be7aac6` là [workflow run #5](https://github.com/staavanothanh/Campus-Coin/actions/runs/36113178742): các bước trước auth integration đã qua; suite auth tìm ra hai lỗi. Budget của category không thuộc owner trả `422` thay vì `404` như OpenAPI; Google integration test tự theo redirect đến hostname giả `accounts.example.test`.
-- Đã sửa budget không tìm thấy trong owner scope trả `404 NOT_FOUND` và cấu hình test giữ redirect ở response để không gọi mạng. Các assertion xác nhận status/error code và redirect được bổ sung; cần workflow kế tiếp xác nhận trên MySQL disposable.
+- CI [workflow run #6](https://github.com/staavanothanh/Campus-Coin/actions/runs/36113454931) trên commit `5ee8858` pass toàn bộ: typecheck, build, API validation/artifacts, unit tests, `db:datatest`, MySQL domain integration, HTTP contract smoke và Auth MySQL integration.
+- Run #5 đã tìm ra budget của category ngoài owner trả `422` thay vì `404` và Google integration test tự theo redirect đến hostname giả. Đã sửa budget thành `404 NOT_FOUND`, giữ redirect ở response trong test; run #6 xác nhận auth/owner integration pass trên MySQL cô lập.
 
 ## Còn cần hoàn tất
 
-1. Chạy lại CI sau hai sửa đổi; chỉ gắn pass khi các MySQL suite thực sự thành công trên MySQL disposable.
-2. Trên staging đã cấu hình SMTP, xác minh register và reset-password gửi thư thật; thử OTP sai/hết hạn/resend, logout và session bị thu hồi. Không ghi mã OTP/token/email đầy đủ vào log hoặc tài liệu evidence.
-3. DevB/DB owner xác nhận DB thử nghiệm tách biệt, quyền create/drop schema, TLS/CA và role runtime least-privilege. Không chạy test destructive trên Aiven `defaultdb` hoặc DB dữ liệu chung.
-4. Nếu CI phát hiện route/domain lỗi, sửa theo contract rồi chạy lại workflow. Nếu staging chưa có hostname hoặc SMTP test mailbox, ghi gate là đang chờ cấu hình staging, không gọi đó là pass.
-5. Cập nhật kết quả, ngày, commit và link workflow ở [DELIVERY-PLAN.md](./DELIVERY-PLAN.md).
+1. Trên staging đã cấu hình SMTP, xác minh register và reset-password gửi thư thật; thử OTP sai/hết hạn/resend, logout và session bị thu hồi. Không ghi mã OTP/token/email đầy đủ vào log hoặc tài liệu evidence.
+2. DevB/DB owner xác nhận DB thử nghiệm tách biệt, quyền create/drop schema, TLS/CA và role runtime least-privilege. Không chạy test destructive trên Aiven `defaultdb` hoặc database dùng chung.
+3. Nếu staging chưa có hostname hoặc SMTP test mailbox, ghi gate là đang chờ cấu hình staging, không gọi đó là pass.
 
 ## Owner
 

@@ -22,10 +22,10 @@ Specialist chỉ cung cấp phân tích; không thay thế bốn developer và k
 | ID | Owner | Trạng thái | Acceptance/gate |
 |---|---|---|---|
 | HUMAN-A | Developer A | Auth implementation và HTTP tests đã push | OTP/login/reset, rate-limit/session/CSRF/IDOR, auth UI và API contract; Team Leader báo register qua email đã thành công; SMTP reset/timeout/retry và staging flow còn chờ evidence |
-| HUMAN-B | Developer B | Chờ CI MySQL pass và target staging | Xác nhận DB/schema test riêng, quyền create/drop cho test role, migration `0004`/`0005`, backup/restore, CA và least-privilege runtime grants; review domain routes |
+| HUMAN-B | Developer B | CI MySQL disposable đã pass; chờ DevB/DB owner xác nhận target staging | Xác nhận DB/schema test riêng, quyền create/drop cho test role, migration `0004`/`0005`, backup/restore, CA và least-privilege runtime grants; review domain routes |
 | HUMAN-C | Developer C | Sẵn sàng Day 1 | UI two-locale, VND/HCMC, accessible, JEV-off |
 | HUMAN-D | Developer D | Sẵn sàng Day 1 | Typed JEV probe/fallback, smoke, redacted logs, rollback |
-| LEADER-INT | Team Leader | Run #5 đã chỉ ra lỗi owner budget `422`/`404` và Google test gọi redirect ra mạng; đã sửa code/test, chờ CI chạy lại | Email auth theo ADR-0008, Google tùy chọn theo ADR-0009; local typecheck/build/unit pass; chưa đánh dấu auth MySQL/owner isolation pass cho tới khi CI xác nhận; register email đã được Team Leader xác nhận |
+| LEADER-INT | Team Leader | Commit `5ee8858` đã push; run #6 pass toàn bộ CI và ba MySQL suites | Email auth theo ADR-0008, Google tùy chọn theo ADR-0009; owner integration pass trên MySQL CI cô lập; staging SMTP reset/session và production gates vẫn chờ evidence; register email đã được Team Leader xác nhận |
 | LEADER-REV | Team Leader | Chờ evidence | GO/NO-GO sau auth/DB/email/API/UI/CI/restore gates |
 
 ## Đường găng
