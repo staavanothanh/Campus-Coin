@@ -11,6 +11,5 @@
 | [0005](0005-immutable-money-domain.md) | Miền tiền bất biến và tách savings | Đã chấp nhận | 2026-09-24 |
 | [0006](0006-optional-openrouter-jev.md) | JEV tùy chọn qua OpenRouter | Đã chấp nhận có điều kiện | 2026-09-24 |
 | [0007](0007-five-day-thin-slice.md) | Phạm vi thin-slice năm ngày và quyền sở hữu | Đã chấp nhận | 2026-09-24 |
-| [0008](0008-runtime-row-authorization-boundary.md) | Ranh giới owner authorization và runtime DB role | Đã chấp nhận | 2026-09-25 |
 
 Mọi thay đổi đối với phương thức xác thực, bất biến tiền, quyền của JEV, nền tảng triển khai hoặc phạm vi MVP phải tạo ADR mới hoặc đánh dấu ADR cũ bị thay thế. Không sửa lịch sử để che giấu quyết định trước đó.

@@ -41,14 +41,6 @@ Specialist chỉ cung cấp phân tích; không thay thế bốn developer và k
 
 Launch blockers: OAuth/IDOR, Vercel env/connectivity, MySQL provider/region/restore, ledger/savings invariant, secret/PII leak, inaccessible core UI hoặc rollback failure. OpenRouter model/quota/policy chưa được claim; JEV có thể off. Email notification và custom domain không chặn launch.
 
-### Blocker mới chặn merge
-
-- Đã có code/test cho `BLK-OWNER-01`, `BLK-IDEMP-01`, `BLK-ISSUE-01`, `BLK-MIG-01/02`, `BLK-HARNESS-01`, `BLK-MATH-01`, `BLK-CURSOR-01`, `BLK-GRANT-01` và reconcile; gated MySQL chưa chạy.
-- `BLK-API-01`: route handlers có nhưng còn cần host mount, auth/session adapter và distributed rate limit thật.
-- `BLK-CI-01`: gate/workflow thêm rồi, chưa có CI result xanh.
-
-Thứ tự merge đề xuất: owner isolation + idempotency → API routes/envelopes + issue/admin boundary → TLS harness + migration/restore/reconcile → overflow + signed cursor → integration/e2e MySQL gate → dọn handoff/benchmark và mở PR sau khi CI MySQL xanh. Chi tiết tại [`DELIVERY-PLAN.md`](./DELIVERY-PLAN.md).
-
 ## Chỉ mục bằng chứng
 
 - [`working/replan/INTEGRATION-HANDOFF.md`](./working/replan/INTEGRATION-HANDOFF.md)

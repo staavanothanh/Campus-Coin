@@ -30,48 +30,37 @@
   ],
   "tags": [
     {
-      "name": "Auth",
-      "description": "Google OAuth, session và preference của user hiện tại"
+      "name": "Auth"
     },
     {
-      "name": "Wallet",
-      "description": "Wallet baseline và số dư authoritative"
+      "name": "Wallet"
     },
     {
-      "name": "Ledger",
-      "description": "Ledger income/payment immutable và correction append-only"
+      "name": "Ledger"
     },
     {
-      "name": "Savings",
-      "description": "Savings aggregate và các transfer atomic"
+      "name": "Savings"
     },
     {
-      "name": "Categories",
-      "description": "Category hệ thống và category theo owner"
+      "name": "Categories"
     },
     {
-      "name": "Budgets",
-      "description": "Budget payment với cảnh báo overrun"
+      "name": "Budgets"
     },
     {
-      "name": "Reports",
-      "description": "Báo cáo deterministic theo tháng Asia/Ho_Chi_Minh"
+      "name": "Reports"
     },
     {
-      "name": "Issues",
-      "description": "Issue do user tạo và truy vấn theo owner"
+      "name": "Issues"
     },
     {
-      "name": "Admin",
-      "description": "Issue triage; audit-log chỉ dành cho role security"
+      "name": "Admin"
     },
     {
-      "name": "JEV",
-      "description": "Gợi ý category advisory, không có money authority"
+      "name": "JEV"
     },
     {
-      "name": "Health",
-      "description": "Liveness và readiness của API"
+      "name": "Health"
     }
   ],
   "paths": {
@@ -81,7 +70,6 @@
           "Auth"
         ],
         "security": [],
-        "operationId": "startGoogleOAuth",
         "summary": "Bắt đầu Google OAuth",
         "responses": {
           "302": {
@@ -99,7 +87,6 @@
           "Auth"
         ],
         "security": [],
-        "operationId": "handleGoogleOAuthCallback",
         "summary": "Xử lý callback Google OAuth",
         "parameters": [
           {
@@ -130,7 +117,6 @@
         "tags": [
           "Auth"
         ],
-        "operationId": "getCurrentSession",
         "summary": "Lấy session hiện tại và trạng thái onboarding",
         "responses": {
           "200": {
@@ -157,7 +143,6 @@
         "tags": [
           "Auth"
         ],
-        "operationId": "logout",
         "summary": "Revoke session hiện tại",
         "x-csrf-required": true,
         "responses": {
@@ -178,7 +163,6 @@
         "tags": [
           "Auth"
         ],
-        "operationId": "updateMyPreferences",
         "summary": "Cập nhật preference người dùng",
         "x-csrf-required": true,
         "requestBody": {
@@ -219,7 +203,6 @@
         "tags": [
           "Wallet"
         ],
-        "operationId": "getWallet",
         "summary": "Lấy wallet authoritative của user hiện tại",
         "responses": {
           "200": {
@@ -234,9 +217,6 @@
           },
           "401": {
             "$ref": "#/components/responses/Unauthorized"
-          },
-          "404": {
-            "$ref": "#/components/responses/NotFound"
           }
         }
       }
@@ -246,7 +226,6 @@
         "tags": [
           "Wallet"
         ],
-        "operationId": "initializeWalletBaseline",
         "summary": "Khởi tạo opening wallet balance một lần",
         "x-csrf-required": true,
         "x-idempotency-required": true,
@@ -291,7 +270,6 @@
         "tags": [
           "Ledger"
         ],
-        "operationId": "listTransactions",
         "summary": "Liệt kê ledger transaction của user hiện tại",
         "parameters": [
           {
@@ -354,7 +332,6 @@
         "tags": [
           "Ledger"
         ],
-        "operationId": "createTransaction",
         "summary": "Tạo income hoặc payment immutable",
         "x-csrf-required": true,
         "x-idempotency-required": true,
@@ -399,7 +376,6 @@
         "tags": [
           "Ledger"
         ],
-        "operationId": "getTransaction",
         "summary": "Lấy một transaction",
         "parameters": [
           {
@@ -431,7 +407,6 @@
         "tags": [
           "Ledger"
         ],
-        "operationId": "createTransactionCorrection",
         "summary": "Tạo correction append-only",
         "x-csrf-required": true,
         "x-idempotency-required": true,
@@ -484,7 +459,6 @@
         "tags": [
           "Savings"
         ],
-        "operationId": "getSavings",
         "summary": "Lấy savings aggregate",
         "responses": {
           "200": {
@@ -499,9 +473,6 @@
           },
           "401": {
             "$ref": "#/components/responses/Unauthorized"
-          },
-          "404": {
-            "$ref": "#/components/responses/NotFound"
           }
         }
       }
@@ -511,7 +482,6 @@
         "tags": [
           "Savings"
         ],
-        "operationId": "listSavingsTransfers",
         "summary": "Liệt kê savings transfer",
         "parameters": [
           {
@@ -541,7 +511,6 @@
         "tags": [
           "Savings"
         ],
-        "operationId": "createSavingsTransfer",
         "summary": "Gửi hoặc rút savings atomic",
         "x-csrf-required": true,
         "x-idempotency-required": true,
@@ -586,7 +555,6 @@
         "tags": [
           "Categories"
         ],
-        "operationId": "listCategories",
         "summary": "Liệt kê category system và user",
         "parameters": [
           {
@@ -625,7 +593,6 @@
         "tags": [
           "Categories"
         ],
-        "operationId": "createCategory",
         "summary": "Tạo custom category",
         "x-csrf-required": true,
         "x-idempotency-required": true,
@@ -670,7 +637,6 @@
         "tags": [
           "Categories"
         ],
-        "operationId": "updateCategory",
         "summary": "Đổi tên hoặc disable custom category",
         "x-csrf-required": true,
         "parameters": [
@@ -719,7 +685,6 @@
         "tags": [
           "Budgets"
         ],
-        "operationId": "listBudgets",
         "summary": "Lấy budget theo tháng HCMC",
         "parameters": [
           {
@@ -751,7 +716,6 @@
         "tags": [
           "Budgets"
         ],
-        "operationId": "upsertBudget",
         "summary": "Tạo hoặc thay thế budget payment category theo tháng",
         "x-csrf-required": true,
         "x-idempotency-required": true,
@@ -801,7 +765,6 @@
         "tags": [
           "Budgets"
         ],
-        "operationId": "getBudgetSummary",
         "summary": "Lấy tổng quan budget theo tháng",
         "parameters": [
           {
@@ -830,7 +793,6 @@
         "tags": [
           "Reports"
         ],
-        "operationId": "getMonthlyReport",
         "summary": "Báo cáo deterministic theo tháng HCMC",
         "parameters": [
           {
@@ -862,7 +824,6 @@
         "tags": [
           "Reports"
         ],
-        "operationId": "getDashboard",
         "summary": "Snapshot dashboard authoritative",
         "responses": {
           "200": {
@@ -886,7 +847,6 @@
         "tags": [
           "Issues"
         ],
-        "operationId": "createIssue",
         "summary": "Tạo issue hỗ trợ",
         "x-csrf-required": true,
         "x-idempotency-required": true,
@@ -928,7 +888,6 @@
         "tags": [
           "Issues"
         ],
-        "operationId": "listMyIssues",
         "summary": "Liệt kê issue của user hiện tại",
         "parameters": [
           {
@@ -960,7 +919,6 @@
         "tags": [
           "Admin"
         ],
-        "operationId": "listAdminIssues",
         "summary": "Triage issue toàn hệ thống",
         "parameters": [
           {
@@ -1009,7 +967,6 @@
         "tags": [
           "Admin"
         ],
-        "operationId": "getAdminIssue",
         "summary": "Lấy issue và timeline đã mask",
         "parameters": [
           {
@@ -1018,11 +975,11 @@
         ],
         "responses": {
           "200": {
-            "description": "Issue detail and timeline",
+            "description": "Issue detail",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AdminIssueDetailResponse"
+                  "$ref": "#/components/schemas/IssueResponse"
                 }
               }
             }
@@ -1042,7 +999,6 @@
         "tags": [
           "Admin"
         ],
-        "operationId": "updateAdminIssue",
         "summary": "Cập nhật status hoặc priority issue",
         "x-csrf-required": true,
         "parameters": [
@@ -1088,7 +1044,6 @@
         "tags": [
           "Admin"
         ],
-        "operationId": "createAdminIssueNote",
         "summary": "Thêm admin note append-only",
         "x-csrf-required": true,
         "x-idempotency-required": true,
@@ -1109,14 +1064,7 @@
         },
         "responses": {
           "201": {
-            "description": "Note đã tạo",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/IssueEventResponse"
-                }
-              }
-            }
+            "description": "Note đã tạo"
           },
           "401": {
             "$ref": "#/components/responses/Unauthorized"
@@ -1135,10 +1083,7 @@
         "tags": [
           "Admin"
         ],
-        "operationId": "listAuditLogs",
-        "summary": "Truy vấn audit đã redact (role security)",
-        "description": "Chỉ actor có role security được truy vấn; role user/admin nhận 403.",
-        "x-required-role": "security",
+        "summary": "Truy vấn audit đã redact",
         "parameters": [
           {
             "$ref": "#/components/parameters/Cursor"
@@ -1163,9 +1108,6 @@
           },
           "403": {
             "$ref": "#/components/responses/Forbidden"
-          },
-          "405": {
-            "$ref": "#/components/responses/MethodNotAllowed"
           }
         }
       }
@@ -1175,7 +1117,6 @@
         "tags": [
           "JEV"
         ],
-        "operationId": "suggestCategory",
         "summary": "Gợi ý category trước submit, luôn advisory",
         "x-csrf-required": true,
         "requestBody": {
@@ -1217,7 +1158,6 @@
           "Health"
         ],
         "security": [],
-        "operationId": "getHealth",
         "summary": "Liveness không chạm database",
         "responses": {
           "200": {
@@ -1238,7 +1178,6 @@
         "tags": [
           "Health"
         ],
-        "operationId": "getReadiness",
         "summary": "Readiness có kiểm tra dependency",
         "responses": {
           "200": {
@@ -1308,7 +1247,7 @@
         "required": true,
         "schema": {
           "type": "string",
-          "pattern": "^\\d{4}-(0[1-9]|1[0-2])$"
+          "pattern": "^\\\\d{4}-(0[1-9]|1[0-2])$"
         },
         "example": "2026-09"
       },
@@ -1370,16 +1309,6 @@
       },
       "Forbidden": {
         "description": "Không đủ quyền",
-        "content": {
-          "application/json": {
-            "schema": {
-              "$ref": "#/components/schemas/ErrorResponse"
-            }
-          }
-        }
-      },
-      "MethodNotAllowed": {
-        "description": "Method không được hỗ trợ cho route",
         "content": {
           "application/json": {
             "schema": {
@@ -1725,15 +1654,6 @@
           "replacement"
         ]
       },
-      "TransactionRole": {
-        "type": "string",
-        "enum": [
-          "original",
-          "reversal",
-          "adjustment",
-          "replacement"
-        ]
-      },
       "CreateCorrectionRequest": {
         "type": "object",
         "required": [
@@ -1792,7 +1712,7 @@
             ]
           },
           "role": {
-            "$ref": "#/components/schemas/TransactionRole"
+            "$ref": "#/components/schemas/CorrectionRole"
           },
           "referenceId": {
             "type": [
@@ -2229,8 +2149,7 @@
             "type": "string"
           },
           "openingWalletBalanceVnd": {
-            "$ref": "#/components/schemas/MoneyVnd",
-            "description": "Carry-forward balance; non-negative under wallet and savings invariants"
+            "$ref": "#/components/schemas/MoneyVnd"
           },
           "totalIncomeVnd": {
             "$ref": "#/components/schemas/MoneyVnd"
@@ -2363,35 +2282,21 @@
       "IssueResponse": {
         "type": "object",
         "required": [
-          "success",
-          "data",
-          "meta"
+          "data"
         ],
         "properties": {
-          "success": {
-            "type": "boolean",
-            "const": true
-          },
           "data": {
             "$ref": "#/components/schemas/Issue"
-          },
-          "meta": {
-            "type": "null"
           }
         }
       },
       "IssuePageResponse": {
         "type": "object",
         "required": [
-          "success",
           "data",
           "meta"
         ],
         "properties": {
-          "success": {
-            "type": "boolean",
-            "const": true
-          },
           "data": {
             "type": "array",
             "items": {
@@ -2400,110 +2305,6 @@
           },
           "meta": {
             "$ref": "#/components/schemas/PageMeta"
-          }
-        }
-      },
-      "IssueEvent": {
-        "type": "object",
-        "required": [
-          "id",
-          "kind",
-          "createdAt"
-        ],
-        "properties": {
-          "id": {
-            "type": "string"
-          },
-          "kind": {
-            "type": "string",
-            "enum": [
-              "created",
-              "reporter_update",
-              "status_change",
-              "priority_change",
-              "note"
-            ]
-          },
-          "note": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time"
-          }
-        }
-      },
-      "AdminIssueDetailResponse": {
-        "type": "object",
-        "required": [
-          "success",
-          "data",
-          "meta"
-        ],
-        "properties": {
-          "success": {
-            "type": "boolean",
-            "const": true
-          },
-          "data": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/Issue"
-              },
-              {
-                "type": "object",
-                "required": [
-                  "events"
-                ],
-                "properties": {
-                  "events": {
-                    "type": "array",
-                    "items": {
-                      "$ref": "#/components/schemas/IssueEvent"
-                    }
-                  }
-                }
-              }
-            ]
-          },
-          "meta": {
-            "type": "null"
-          }
-        }
-      },
-      "IssueEventResponse": {
-        "type": "object",
-        "required": [
-          "success",
-          "data",
-          "meta"
-        ],
-        "properties": {
-          "success": {
-            "type": "boolean",
-            "const": true
-          },
-          "data": {
-            "type": "object",
-            "required": [
-              "id",
-              "createdAt"
-            ],
-            "properties": {
-              "id": {
-                "type": "string"
-              },
-              "createdAt": {
-                "type": "string",
-                "format": "date-time"
-              }
-            }
-          },
-          "meta": {
-            "type": "null"
           }
         }
       },
@@ -2789,24 +2590,11 @@
       "ErrorResponse": {
         "type": "object",
         "required": [
-          "success",
-          "data",
-          "error",
-          "meta"
+          "error"
         ],
         "properties": {
-          "success": {
-            "type": "boolean",
-            "const": false
-          },
-          "data": {
-            "type": "null"
-          },
           "error": {
             "$ref": "#/components/schemas/ApiError"
-          },
-          "meta": {
-            "type": "null"
           }
         }
       }

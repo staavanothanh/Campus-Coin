@@ -13,7 +13,6 @@ Các quyết định chi tiết được chuẩn hóa theo ADR trong [`docs/adr/
 | [0005](./adr/0005-immutable-money-domain.md) | Miền tiền bất biến | Đã chấp nhận | `income`/`payment`, VND nguyên, savings tách riêng, budget warning-only |
 | [0006](./adr/0006-optional-openrouter-jev.md) | JEV tùy chọn qua OpenRouter | Đã chấp nhận có điều kiện | Default-off, typed probe, manual fallback, không money authority |
 | [0007](./adr/0007-five-day-thin-slice.md) | Thin-slice 4–5 ngày | Đã chấp nhận | Bốn developer; Team Leader sở hữu tích hợp và GO/NO-GO |
-| [0008](./adr/0008-runtime-row-authorization-boundary.md) | Row-level owner authorization | Đã chấp nhận | Service/session enforce owner; DB enforce integrity, runtime credential là backend-trusted |
 
 ## Quản trị quyết định
 

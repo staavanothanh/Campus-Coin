@@ -12,7 +12,25 @@ export interface paths {
             cookie?: never;
         };
         /** Bắt đầu Google OAuth */
-        get: operations["startGoogleOAuth"];
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Redirect tới Google OAuth consent */
+                302: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                500: components["responses"]["InternalError"];
+            };
+        };
         put?: never;
         post?: never;
         delete?: never;
@@ -29,7 +47,30 @@ export interface paths {
             cookie?: never;
         };
         /** Xử lý callback Google OAuth */
-        get: operations["handleGoogleOAuthCallback"];
+        get: {
+            parameters: {
+                query: {
+                    code: components["parameters"]["OAuthCode"];
+                    state: components["parameters"]["OAuthState"];
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Redirect tới onboarding hoặc dashboard; response đặt session cookie */
+                302: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                400: components["responses"]["InvalidOAuthState"];
+                401: components["responses"]["UnverifiedEmail"];
+                500: components["responses"]["OAuthExchangeFailed"];
+            };
+        };
         put?: never;
         post?: never;
         delete?: never;
@@ -46,7 +87,28 @@ export interface paths {
             cookie?: never;
         };
         /** Lấy session hiện tại và trạng thái onboarding */
-        get: operations["getCurrentSession"];
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Session hợp lệ */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SessionResponse"];
+                    };
+                };
+                401: components["responses"]["Unauthorized"];
+                403: components["responses"]["AccountDisabled"];
+            };
+        };
         put?: never;
         post?: never;
         delete?: never;
@@ -65,7 +127,26 @@ export interface paths {
         get?: never;
         put?: never;
         /** Revoke session hiện tại */
-        post: operations["logout"];
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Session đã revoke và cookie được clear */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                401: components["responses"]["Unauthorized"];
+                403: components["responses"]["CsrfInvalid"];
+            };
+        };
         delete?: never;
         options?: never;
         head?: never;
@@ -86,7 +167,33 @@ export interface paths {
         options?: never;
         head?: never;
         /** Cập nhật preference người dùng */
-        patch: operations["updateMyPreferences"];
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["UpdatePreferencesRequest"];
+                };
+            };
+            responses: {
+                /** @description Preference đã cập nhật */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["UserResponse"];
+                    };
+                };
+                401: components["responses"]["Unauthorized"];
+                403: components["responses"]["CsrfInvalid"];
+                422: components["responses"]["ValidationError"];
+            };
+        };
         trace?: never;
     };
     "/wallet": {
@@ -97,7 +204,27 @@ export interface paths {
             cookie?: never;
         };
         /** Lấy wallet authoritative của user hiện tại */
-        get: operations["getWallet"];
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Wallet */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["WalletResponse"];
+                    };
+                };
+                401: components["responses"]["Unauthorized"];
+            };
+        };
         put?: never;
         post?: never;
         delete?: never;
@@ -116,7 +243,34 @@ export interface paths {
         get?: never;
         put?: never;
         /** Khởi tạo opening wallet balance một lần */
-        post: operations["initializeWalletBaseline"];
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["WalletBaselineRequest"];
+                };
+            };
+            responses: {
+                /** @description Wallet đã khởi tạo */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["WalletResponse"];
+                    };
+                };
+                401: components["responses"]["Unauthorized"];
+                403: components["responses"]["CsrfInvalid"];
+                409: components["responses"]["WalletAlreadyInitialized"];
+                422: components["responses"]["ValidationError"];
+            };
+        };
         delete?: never;
         options?: never;
         head?: never;
@@ -131,10 +285,65 @@ export interface paths {
             cookie?: never;
         };
         /** Liệt kê ledger transaction của user hiện tại */
-        get: operations["listTransactions"];
+        get: {
+            parameters: {
+                query?: {
+                    cursor?: components["parameters"]["Cursor"];
+                    limit?: components["parameters"]["Limit"];
+                    type?: components["schemas"]["TransactionType"];
+                    categoryId?: string;
+                    from?: string;
+                    to?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Ledger page */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TransactionPageResponse"];
+                    };
+                };
+                401: components["responses"]["Unauthorized"];
+                422: components["responses"]["ValidationError"];
+            };
+        };
         put?: never;
         /** Tạo income hoặc payment immutable */
-        post: operations["createTransaction"];
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CreateTransactionRequest"];
+                };
+            };
+            responses: {
+                /** @description Transaction đã commit */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TransactionResponse"];
+                    };
+                };
+                401: components["responses"]["Unauthorized"];
+                403: components["responses"]["CsrfInvalid"];
+                409: components["responses"]["IdempotencyConflict"];
+                422: components["responses"]["DomainValidationError"];
+            };
+        };
         delete?: never;
         options?: never;
         head?: never;
@@ -149,7 +358,30 @@ export interface paths {
             cookie?: never;
         };
         /** Lấy một transaction */
-        get: operations["getTransaction"];
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    transactionId: components["parameters"]["TransactionId"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Transaction */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TransactionResponse"];
+                    };
+                };
+                401: components["responses"]["Unauthorized"];
+                404: components["responses"]["NotFound"];
+            };
+        };
         put?: never;
         post?: never;
         delete?: never;
@@ -168,7 +400,37 @@ export interface paths {
         get?: never;
         put?: never;
         /** Tạo correction append-only */
-        post: operations["createTransactionCorrection"];
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    transactionId: components["parameters"]["TransactionId"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CreateCorrectionRequest"];
+                };
+            };
+            responses: {
+                /** @description Correction đã commit */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TransactionResponse"];
+                    };
+                };
+                401: components["responses"]["Unauthorized"];
+                403: components["responses"]["CsrfInvalid"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+                422: components["responses"]["DomainValidationError"];
+            };
+        };
         delete?: never;
         options?: never;
         head?: never;
@@ -183,7 +445,27 @@ export interface paths {
             cookie?: never;
         };
         /** Lấy savings aggregate */
-        get: operations["getSavings"];
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Savings */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SavingsResponse"];
+                    };
+                };
+                401: components["responses"]["Unauthorized"];
+            };
+        };
         put?: never;
         post?: never;
         delete?: never;
@@ -200,10 +482,60 @@ export interface paths {
             cookie?: never;
         };
         /** Liệt kê savings transfer */
-        get: operations["listSavingsTransfers"];
+        get: {
+            parameters: {
+                query?: {
+                    cursor?: components["parameters"]["Cursor"];
+                    limit?: components["parameters"]["Limit"];
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Savings transfer page */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SavingsTransferPageResponse"];
+                    };
+                };
+                401: components["responses"]["Unauthorized"];
+            };
+        };
         put?: never;
         /** Gửi hoặc rút savings atomic */
-        post: operations["createSavingsTransfer"];
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CreateSavingsTransferRequest"];
+                };
+            };
+            responses: {
+                /** @description Transfer đã commit */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SavingsTransferResponse"];
+                    };
+                };
+                401: components["responses"]["Unauthorized"];
+                403: components["responses"]["CsrfInvalid"];
+                409: components["responses"]["IdempotencyConflict"];
+                422: components["responses"]["DomainValidationError"];
+            };
+        };
         delete?: never;
         options?: never;
         head?: never;
@@ -218,10 +550,60 @@ export interface paths {
             cookie?: never;
         };
         /** Liệt kê category system và user */
-        get: operations["listCategories"];
+        get: {
+            parameters: {
+                query?: {
+                    appliesTo?: components["schemas"]["TransactionType"];
+                    includeDisabled?: boolean;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Categories */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CategoryListResponse"];
+                    };
+                };
+                401: components["responses"]["Unauthorized"];
+            };
+        };
         put?: never;
         /** Tạo custom category */
-        post: operations["createCategory"];
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CreateCategoryRequest"];
+                };
+            };
+            responses: {
+                /** @description Category đã tạo */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CategoryResponse"];
+                    };
+                };
+                401: components["responses"]["Unauthorized"];
+                403: components["responses"]["CsrfInvalid"];
+                409: components["responses"]["Conflict"];
+                422: components["responses"]["ValidationError"];
+            };
+        };
         delete?: never;
         options?: never;
         head?: never;
@@ -242,7 +624,36 @@ export interface paths {
         options?: never;
         head?: never;
         /** Đổi tên hoặc disable custom category */
-        patch: operations["updateCategory"];
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    categoryId: components["parameters"]["CategoryId"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["UpdateCategoryRequest"];
+                };
+            };
+            responses: {
+                /** @description Category đã cập nhật */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CategoryResponse"];
+                    };
+                };
+                401: components["responses"]["Unauthorized"];
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                422: components["responses"]["ValidationError"];
+            };
+        };
         trace?: never;
     };
     "/budgets": {
@@ -253,7 +664,31 @@ export interface paths {
             cookie?: never;
         };
         /** Lấy budget theo tháng HCMC */
-        get: operations["listBudgets"];
+        get: {
+            parameters: {
+                query: {
+                    /** @example 2026-09 */
+                    month: components["parameters"]["Month"];
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Budget list */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["BudgetListResponse"];
+                    };
+                };
+                401: components["responses"]["Unauthorized"];
+                422: components["responses"]["ValidationError"];
+            };
+        };
         put?: never;
         post?: never;
         delete?: never;
@@ -271,7 +706,36 @@ export interface paths {
         };
         get?: never;
         /** Tạo hoặc thay thế budget payment category theo tháng */
-        put: operations["upsertBudget"];
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    categoryId: components["parameters"]["CategoryId"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["UpsertBudgetRequest"];
+                };
+            };
+            responses: {
+                /** @description Budget đã cập nhật */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["BudgetResponse"];
+                    };
+                };
+                401: components["responses"]["Unauthorized"];
+                403: components["responses"]["CsrfInvalid"];
+                404: components["responses"]["NotFound"];
+                422: components["responses"]["DomainValidationError"];
+            };
+        };
         post?: never;
         delete?: never;
         options?: never;
@@ -287,7 +751,30 @@ export interface paths {
             cookie?: never;
         };
         /** Lấy tổng quan budget theo tháng */
-        get: operations["getBudgetSummary"];
+        get: {
+            parameters: {
+                query: {
+                    /** @example 2026-09 */
+                    month: components["parameters"]["Month"];
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Budget summary */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["BudgetSummaryResponse"];
+                    };
+                };
+                401: components["responses"]["Unauthorized"];
+            };
+        };
         put?: never;
         post?: never;
         delete?: never;
@@ -304,7 +791,31 @@ export interface paths {
             cookie?: never;
         };
         /** Báo cáo deterministic theo tháng HCMC */
-        get: operations["getMonthlyReport"];
+        get: {
+            parameters: {
+                query: {
+                    /** @example 2026-09 */
+                    month: components["parameters"]["Month"];
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Monthly report */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MonthlyReportResponse"];
+                    };
+                };
+                401: components["responses"]["Unauthorized"];
+                422: components["responses"]["ValidationError"];
+            };
+        };
         put?: never;
         post?: never;
         delete?: never;
@@ -321,7 +832,27 @@ export interface paths {
             cookie?: never;
         };
         /** Snapshot dashboard authoritative */
-        get: operations["getDashboard"];
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Dashboard */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DashboardResponse"];
+                    };
+                };
+                401: components["responses"]["Unauthorized"];
+            };
+        };
         put?: never;
         post?: never;
         delete?: never;
@@ -340,7 +871,33 @@ export interface paths {
         get?: never;
         put?: never;
         /** Tạo issue hỗ trợ */
-        post: operations["createIssue"];
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CreateIssueRequest"];
+                };
+            };
+            responses: {
+                /** @description Issue đã tạo */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["IssueResponse"];
+                    };
+                };
+                401: components["responses"]["Unauthorized"];
+                403: components["responses"]["CsrfInvalid"];
+                429: components["responses"]["RateLimited"];
+            };
+        };
         delete?: never;
         options?: never;
         head?: never;
@@ -355,7 +912,30 @@ export interface paths {
             cookie?: never;
         };
         /** Liệt kê issue của user hiện tại */
-        get: operations["listMyIssues"];
+        get: {
+            parameters: {
+                query?: {
+                    cursor?: components["parameters"]["Cursor"];
+                    limit?: components["parameters"]["Limit"];
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Issue page */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["IssuePageResponse"];
+                    };
+                };
+                401: components["responses"]["Unauthorized"];
+            };
+        };
         put?: never;
         post?: never;
         delete?: never;
@@ -372,7 +952,33 @@ export interface paths {
             cookie?: never;
         };
         /** Triage issue toàn hệ thống */
-        get: operations["listAdminIssues"];
+        get: {
+            parameters: {
+                query?: {
+                    cursor?: components["parameters"]["Cursor"];
+                    limit?: components["parameters"]["Limit"];
+                    status?: components["schemas"]["IssueStatus"];
+                    priority?: components["schemas"]["IssuePriority"];
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Admin issue page */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["IssuePageResponse"];
+                    };
+                };
+                401: components["responses"]["Unauthorized"];
+                403: components["responses"]["Forbidden"];
+            };
+        };
         put?: never;
         post?: never;
         delete?: never;
@@ -389,14 +995,66 @@ export interface paths {
             cookie?: never;
         };
         /** Lấy issue và timeline đã mask */
-        get: operations["getAdminIssue"];
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    issueId: components["parameters"]["IssueId"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Issue detail */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["IssueResponse"];
+                    };
+                };
+                401: components["responses"]["Unauthorized"];
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+            };
+        };
         put?: never;
         post?: never;
         delete?: never;
         options?: never;
         head?: never;
         /** Cập nhật status hoặc priority issue */
-        patch: operations["updateAdminIssue"];
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    issueId: components["parameters"]["IssueId"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["UpdateIssueRequest"];
+                };
+            };
+            responses: {
+                /** @description Issue đã cập nhật */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["IssueResponse"];
+                    };
+                };
+                401: components["responses"]["Unauthorized"];
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+            };
+        };
         trace?: never;
     };
     "/admin/issues/{issueId}/notes": {
@@ -409,7 +1067,33 @@ export interface paths {
         get?: never;
         put?: never;
         /** Thêm admin note append-only */
-        post: operations["createAdminIssueNote"];
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    issueId: components["parameters"]["IssueId"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CreateAdminNoteRequest"];
+                };
+            };
+            responses: {
+                /** @description Note đã tạo */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                401: components["responses"]["Unauthorized"];
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+            };
+        };
         delete?: never;
         options?: never;
         head?: never;
@@ -423,11 +1107,32 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /**
-         * Truy vấn audit đã redact (role security)
-         * @description Chỉ actor có role security được truy vấn; role user/admin nhận 403.
-         */
-        get: operations["listAuditLogs"];
+        /** Truy vấn audit đã redact */
+        get: {
+            parameters: {
+                query?: {
+                    cursor?: components["parameters"]["Cursor"];
+                    limit?: components["parameters"]["Limit"];
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Audit page */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AuditPageResponse"];
+                    };
+                };
+                401: components["responses"]["Unauthorized"];
+                403: components["responses"]["Forbidden"];
+            };
+        };
         put?: never;
         post?: never;
         delete?: never;
@@ -446,7 +1151,33 @@ export interface paths {
         get?: never;
         put?: never;
         /** Gợi ý category trước submit, luôn advisory */
-        post: operations["suggestCategory"];
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CategorySuggestionRequest"];
+                };
+            };
+            responses: {
+                /** @description JEV suggestion hoặc manual/disabled fallback */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CategorySuggestionResponse"];
+                    };
+                };
+                401: components["responses"]["Unauthorized"];
+                403: components["responses"]["CsrfInvalid"];
+                429: components["responses"]["RateLimited"];
+            };
+        };
         delete?: never;
         options?: never;
         head?: never;
@@ -461,7 +1192,26 @@ export interface paths {
             cookie?: never;
         };
         /** Liveness không chạm database */
-        get: operations["getHealth"];
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description API đang chạy */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["HealthResponse"];
+                    };
+                };
+            };
+        };
         put?: never;
         post?: never;
         delete?: never;
@@ -478,7 +1228,27 @@ export interface paths {
             cookie?: never;
         };
         /** Readiness có kiểm tra dependency */
-        get: operations["getReadiness"];
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Dependency sẵn sàng */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ReadinessResponse"];
+                    };
+                };
+                503: components["responses"]["ServiceUnavailable"];
+            };
+        };
         put?: never;
         post?: never;
         delete?: never;
@@ -552,8 +1322,6 @@ export interface components {
         };
         /** @enum {string} */
         CorrectionRole: "reversal" | "adjustment" | "replacement";
-        /** @enum {string} */
-        TransactionRole: "original" | "reversal" | "adjustment" | "replacement";
         CreateCorrectionRequest: {
             correctionRole: components["schemas"]["CorrectionRole"];
             reason: string;
@@ -568,7 +1336,7 @@ export interface components {
             /** Format: date-time */
             occurredAt: string;
             description?: string | null;
-            role: components["schemas"]["TransactionRole"];
+            role: components["schemas"]["CorrectionRole"];
             referenceId?: string | null;
             /** Format: date-time */
             createdAt: string;
@@ -680,7 +1448,6 @@ export interface components {
         };
         MonthlyReport: {
             month: string;
-            /** @description Carry-forward balance; non-negative under wallet and savings invariants */
             openingWalletBalanceVnd: components["schemas"]["MoneyVnd"];
             totalIncomeVnd: components["schemas"]["MoneyVnd"];
             totalPaymentVnd: components["schemas"]["MoneyVnd"];
@@ -717,42 +1484,11 @@ export interface components {
             createdAt: string;
         };
         IssueResponse: {
-            /** @constant */
-            success: true;
             data: components["schemas"]["Issue"];
-            meta: null;
         };
         IssuePageResponse: {
-            /** @constant */
-            success: true;
             data: components["schemas"]["Issue"][];
             meta: components["schemas"]["PageMeta"];
-        };
-        IssueEvent: {
-            id: string;
-            /** @enum {string} */
-            kind: "created" | "reporter_update" | "status_change" | "priority_change" | "note";
-            note?: string | null;
-            /** Format: date-time */
-            createdAt: string;
-        };
-        AdminIssueDetailResponse: {
-            /** @constant */
-            success: true;
-            data: components["schemas"]["Issue"] & {
-                events: components["schemas"]["IssueEvent"][];
-            };
-            meta: null;
-        };
-        IssueEventResponse: {
-            /** @constant */
-            success: true;
-            data: {
-                id: string;
-                /** Format: date-time */
-                createdAt: string;
-            };
-            meta: null;
         };
         CreateIssueRequest: {
             title: string;
@@ -825,11 +1561,7 @@ export interface components {
             details?: components["schemas"]["ErrorDetail"][];
         };
         ErrorResponse: {
-            /** @constant */
-            success: false;
-            data: null;
             error: components["schemas"]["ApiError"];
-            meta: null;
         };
     };
     responses: {
@@ -862,15 +1594,6 @@ export interface components {
         };
         /** @description Không đủ quyền */
         Forbidden: {
-            headers: {
-                [name: string]: unknown;
-            };
-            content: {
-                "application/json": components["schemas"]["ErrorResponse"];
-            };
-        };
-        /** @description Method không được hỗ trợ cho route */
-        MethodNotAllowed: {
             headers: {
                 [name: string]: unknown;
             };
@@ -1004,815 +1727,4 @@ export interface components {
     pathItems: never;
 }
 export type $defs = Record<string, never>;
-export interface operations {
-    startGoogleOAuth: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Redirect tới Google OAuth consent */
-            302: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            500: components["responses"]["InternalError"];
-        };
-    };
-    handleGoogleOAuthCallback: {
-        parameters: {
-            query: {
-                code: components["parameters"]["OAuthCode"];
-                state: components["parameters"]["OAuthState"];
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Redirect tới onboarding hoặc dashboard; response đặt session cookie */
-            302: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            400: components["responses"]["InvalidOAuthState"];
-            401: components["responses"]["UnverifiedEmail"];
-            500: components["responses"]["OAuthExchangeFailed"];
-        };
-    };
-    getCurrentSession: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Session hợp lệ */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SessionResponse"];
-                };
-            };
-            401: components["responses"]["Unauthorized"];
-            403: components["responses"]["AccountDisabled"];
-        };
-    };
-    logout: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Session đã revoke và cookie được clear */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            401: components["responses"]["Unauthorized"];
-            403: components["responses"]["CsrfInvalid"];
-        };
-    };
-    updateMyPreferences: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["UpdatePreferencesRequest"];
-            };
-        };
-        responses: {
-            /** @description Preference đã cập nhật */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["UserResponse"];
-                };
-            };
-            401: components["responses"]["Unauthorized"];
-            403: components["responses"]["CsrfInvalid"];
-            422: components["responses"]["ValidationError"];
-        };
-    };
-    getWallet: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Wallet */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["WalletResponse"];
-                };
-            };
-            401: components["responses"]["Unauthorized"];
-            404: components["responses"]["NotFound"];
-        };
-    };
-    initializeWalletBaseline: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["WalletBaselineRequest"];
-            };
-        };
-        responses: {
-            /** @description Wallet đã khởi tạo */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["WalletResponse"];
-                };
-            };
-            401: components["responses"]["Unauthorized"];
-            403: components["responses"]["CsrfInvalid"];
-            409: components["responses"]["WalletAlreadyInitialized"];
-            422: components["responses"]["ValidationError"];
-        };
-    };
-    listTransactions: {
-        parameters: {
-            query?: {
-                cursor?: components["parameters"]["Cursor"];
-                limit?: components["parameters"]["Limit"];
-                type?: components["schemas"]["TransactionType"];
-                categoryId?: string;
-                from?: string;
-                to?: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Ledger page */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TransactionPageResponse"];
-                };
-            };
-            401: components["responses"]["Unauthorized"];
-            422: components["responses"]["ValidationError"];
-        };
-    };
-    createTransaction: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CreateTransactionRequest"];
-            };
-        };
-        responses: {
-            /** @description Transaction đã commit */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TransactionResponse"];
-                };
-            };
-            401: components["responses"]["Unauthorized"];
-            403: components["responses"]["CsrfInvalid"];
-            409: components["responses"]["IdempotencyConflict"];
-            422: components["responses"]["DomainValidationError"];
-        };
-    };
-    getTransaction: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                transactionId: components["parameters"]["TransactionId"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Transaction */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TransactionResponse"];
-                };
-            };
-            401: components["responses"]["Unauthorized"];
-            404: components["responses"]["NotFound"];
-        };
-    };
-    createTransactionCorrection: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                transactionId: components["parameters"]["TransactionId"];
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CreateCorrectionRequest"];
-            };
-        };
-        responses: {
-            /** @description Correction đã commit */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TransactionResponse"];
-                };
-            };
-            401: components["responses"]["Unauthorized"];
-            403: components["responses"]["CsrfInvalid"];
-            404: components["responses"]["NotFound"];
-            409: components["responses"]["Conflict"];
-            422: components["responses"]["DomainValidationError"];
-        };
-    };
-    getSavings: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Savings */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SavingsResponse"];
-                };
-            };
-            401: components["responses"]["Unauthorized"];
-            404: components["responses"]["NotFound"];
-        };
-    };
-    listSavingsTransfers: {
-        parameters: {
-            query?: {
-                cursor?: components["parameters"]["Cursor"];
-                limit?: components["parameters"]["Limit"];
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Savings transfer page */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SavingsTransferPageResponse"];
-                };
-            };
-            401: components["responses"]["Unauthorized"];
-        };
-    };
-    createSavingsTransfer: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CreateSavingsTransferRequest"];
-            };
-        };
-        responses: {
-            /** @description Transfer đã commit */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SavingsTransferResponse"];
-                };
-            };
-            401: components["responses"]["Unauthorized"];
-            403: components["responses"]["CsrfInvalid"];
-            409: components["responses"]["IdempotencyConflict"];
-            422: components["responses"]["DomainValidationError"];
-        };
-    };
-    listCategories: {
-        parameters: {
-            query?: {
-                appliesTo?: components["schemas"]["TransactionType"];
-                includeDisabled?: boolean;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Categories */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CategoryListResponse"];
-                };
-            };
-            401: components["responses"]["Unauthorized"];
-        };
-    };
-    createCategory: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CreateCategoryRequest"];
-            };
-        };
-        responses: {
-            /** @description Category đã tạo */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CategoryResponse"];
-                };
-            };
-            401: components["responses"]["Unauthorized"];
-            403: components["responses"]["CsrfInvalid"];
-            409: components["responses"]["Conflict"];
-            422: components["responses"]["ValidationError"];
-        };
-    };
-    updateCategory: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                categoryId: components["parameters"]["CategoryId"];
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["UpdateCategoryRequest"];
-            };
-        };
-        responses: {
-            /** @description Category đã cập nhật */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CategoryResponse"];
-                };
-            };
-            401: components["responses"]["Unauthorized"];
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-            422: components["responses"]["ValidationError"];
-        };
-    };
-    listBudgets: {
-        parameters: {
-            query: {
-                /** @example 2026-09 */
-                month: components["parameters"]["Month"];
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Budget list */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["BudgetListResponse"];
-                };
-            };
-            401: components["responses"]["Unauthorized"];
-            422: components["responses"]["ValidationError"];
-        };
-    };
-    upsertBudget: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                categoryId: components["parameters"]["CategoryId"];
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["UpsertBudgetRequest"];
-            };
-        };
-        responses: {
-            /** @description Budget đã cập nhật */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["BudgetResponse"];
-                };
-            };
-            401: components["responses"]["Unauthorized"];
-            403: components["responses"]["CsrfInvalid"];
-            404: components["responses"]["NotFound"];
-            422: components["responses"]["DomainValidationError"];
-        };
-    };
-    getBudgetSummary: {
-        parameters: {
-            query: {
-                /** @example 2026-09 */
-                month: components["parameters"]["Month"];
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Budget summary */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["BudgetSummaryResponse"];
-                };
-            };
-            401: components["responses"]["Unauthorized"];
-        };
-    };
-    getMonthlyReport: {
-        parameters: {
-            query: {
-                /** @example 2026-09 */
-                month: components["parameters"]["Month"];
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Monthly report */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["MonthlyReportResponse"];
-                };
-            };
-            401: components["responses"]["Unauthorized"];
-            422: components["responses"]["ValidationError"];
-        };
-    };
-    getDashboard: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Dashboard */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["DashboardResponse"];
-                };
-            };
-            401: components["responses"]["Unauthorized"];
-        };
-    };
-    createIssue: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CreateIssueRequest"];
-            };
-        };
-        responses: {
-            /** @description Issue đã tạo */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["IssueResponse"];
-                };
-            };
-            401: components["responses"]["Unauthorized"];
-            403: components["responses"]["CsrfInvalid"];
-            429: components["responses"]["RateLimited"];
-        };
-    };
-    listMyIssues: {
-        parameters: {
-            query?: {
-                cursor?: components["parameters"]["Cursor"];
-                limit?: components["parameters"]["Limit"];
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Issue page */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["IssuePageResponse"];
-                };
-            };
-            401: components["responses"]["Unauthorized"];
-        };
-    };
-    listAdminIssues: {
-        parameters: {
-            query?: {
-                cursor?: components["parameters"]["Cursor"];
-                limit?: components["parameters"]["Limit"];
-                status?: components["schemas"]["IssueStatus"];
-                priority?: components["schemas"]["IssuePriority"];
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Admin issue page */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["IssuePageResponse"];
-                };
-            };
-            401: components["responses"]["Unauthorized"];
-            403: components["responses"]["Forbidden"];
-        };
-    };
-    getAdminIssue: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                issueId: components["parameters"]["IssueId"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Issue detail and timeline */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AdminIssueDetailResponse"];
-                };
-            };
-            401: components["responses"]["Unauthorized"];
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-        };
-    };
-    updateAdminIssue: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                issueId: components["parameters"]["IssueId"];
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["UpdateIssueRequest"];
-            };
-        };
-        responses: {
-            /** @description Issue đã cập nhật */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["IssueResponse"];
-                };
-            };
-            401: components["responses"]["Unauthorized"];
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-        };
-    };
-    createAdminIssueNote: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                issueId: components["parameters"]["IssueId"];
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CreateAdminNoteRequest"];
-            };
-        };
-        responses: {
-            /** @description Note đã tạo */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["IssueEventResponse"];
-                };
-            };
-            401: components["responses"]["Unauthorized"];
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-        };
-    };
-    listAuditLogs: {
-        parameters: {
-            query?: {
-                cursor?: components["parameters"]["Cursor"];
-                limit?: components["parameters"]["Limit"];
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Audit page */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AuditPageResponse"];
-                };
-            };
-            401: components["responses"]["Unauthorized"];
-            403: components["responses"]["Forbidden"];
-            405: components["responses"]["MethodNotAllowed"];
-        };
-    };
-    suggestCategory: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CategorySuggestionRequest"];
-            };
-        };
-        responses: {
-            /** @description JEV suggestion hoặc manual/disabled fallback */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CategorySuggestionResponse"];
-                };
-            };
-            401: components["responses"]["Unauthorized"];
-            403: components["responses"]["CsrfInvalid"];
-            429: components["responses"]["RateLimited"];
-        };
-    };
-    getHealth: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description API đang chạy */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HealthResponse"];
-                };
-            };
-        };
-    };
-    getReadiness: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Dependency sẵn sàng */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ReadinessResponse"];
-                };
-            };
-            503: components["responses"]["ServiceUnavailable"];
-        };
-    };
-}
+export type operations = Record<string, never>;
