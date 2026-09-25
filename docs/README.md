@@ -17,6 +17,7 @@ docs/
 ├── AUTHENTICATION.md         # Xác thực và phân quyền
 ├── AI-JEV.md                 # Ranh giới JEV/OpenRouter
 ├── ADMIN-OPERATIONS.md       # Quản trị và vận hành
+├── DB-RESTORE-RUNBOOK.md     # Quy trình restore cô lập và evidence gate
 ├── ROADMAP.md                # Lộ trình và các phần để sau
 ├── DELIVERY-PLAN.md          # Kế hoạch giao hàng Day 0–5
 ├── TEAM-BOARD.md             # Bảng triển khai human team
@@ -39,6 +40,7 @@ Root `docs/` là canonical product docs; `adr/` là canonical history; `working/
 | Tiền | `income`/`payment` bất biến, VND nguyên, savings tách biệt, budget chỉ cảnh báo | [ADR-0005](./adr/0005-immutable-money-domain.md) |
 | JEV | Optional, backend-only, OpenRouter typed contract, default-off, manual fallback | [ADR-0006](./adr/0006-optional-openrouter-jev.md) |
 | Giao hàng | Thin-slice 4–5 ngày, bốn developer, Team Leader quyết định GO/NO-GO | [ADR-0007](./adr/0007-five-day-thin-slice.md) |
+| Owner authorization | Service/session scope với shared runtime DB principal; DB enforce invariant, không row identity | [ADR-0008](./adr/0008-runtime-row-authorization-boundary.md) |
 
 ## 3. Bản đồ tài liệu chuẩn
 
@@ -50,6 +52,7 @@ Root `docs/` là canonical product docs; `adr/` là canonical history; `working/
 | [`AUTHENTICATION.md`](./AUTHENTICATION.md) | Google OAuth, session, CSRF, owner scope và threat controls |
 | [`AI-JEV.md`](./AI-JEV.md) | Boundary OpenRouter/JEV, probe, privacy và fallback |
 | [`ADMIN-OPERATIONS.md`](./ADMIN-OPERATIONS.md) | Least privilege, issue workflow, audit và incident |
+| [`DB-RESTORE-RUNBOOK.md`](./DB-RESTORE-RUNBOOK.md) | Restore vào DB cô lập, preflight, grants và reconcile |
 | [`ROADMAP.md`](./ROADMAP.md) | Mốc MVP, deferred work, risk và gate |
 | [`DELIVERY-PLAN.md`](./DELIVERY-PLAN.md) | Kế hoạch Day 0–5, owner, checklist và rollback |
 | [`DECISIONS.md`](./DECISIONS.md) | Chỉ mục quyết định tương thích ADR; chi tiết chuẩn ở `docs/adr/` |

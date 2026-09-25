@@ -74,10 +74,67 @@ Không nằm trên critical path: local auth, linking, OTP/reset, Gmail inbox/c�
 
 Trigger gồm OAuth bypass/IDOR, wallet/savings invariant, destructive migration, DB data loss, secret/PII leak hoặc deploy-wide failure. Tắt JEV trước nếu liên quan; deploy known-good; restore/reconcile từ immutable ledger; không xóa/sửa ledger. Team Leader quyết định resume/read-only/rollback.
 
-## 12. Blocker hiện tại
+## 12. Trạng thái và blocker DevB
 
-Chưa có blocker cho việc lập kế hoạch. Launch vẫn bị chặn bởi Day-1/Day-4 evidence về Google OAuth/Vercel, MySQL provider/region/restore, domain/security, UI/release và production smoke. OpenRouter chưa được claim; JEV có thể giữ off.
+**Cập nhật 2026-09-25 (xử lý tồn đọng):** `0011` được repair (tách `ALTER TABLE` thành columns/UNIQUE trước, FK sau, DROP FK cũ cuối; giữ nguyên tên constraint/index và semantics) vì self-FK không nhận parent index tạo trong cùng `ALTER` (lỗi 1828). Repair đổi checksum file `0011`; được chấp nhận vì chưa có shared DB nào apply thành công `0011` (Aiven applied=3, CI disposable luôn fresh, không financial row nào phụ thuộc). Fresh migration `0001`–`0030` đã xanh trên MySQL 8.0.41 portable local. Full gate local: `typecheck` pass, `test:mysql:required` 106 pass / 0 fail / 0 skip (gồm domain integration 24, migration concurrency, runtime grants, contract smoke 13 và toàn bộ unit), `db:datatest` 30/30 pass, `api:validate` pass (5 ignore có chủ đích cho OAuth redirect/liveness), `git diff --check` sạch. CI workflow chưa re-run (cần push, chưa được ủy quyền) nên run `36087720681` vẫn là kết quả CI mới nhất. Aiven không bị đụng: chưa chạy migration, chưa restore; preflight/TLS/restore/reconcile/grants production vẫn là evidence do operator thực hiện theo runbook.
+> **Cập nhật sau push `c96e653`:** CI run `36100878978` success — đủ 15 steps xanh gồm `npm ci`, `typecheck`, `npm test`, cả bốn suite MySQL (domain integration, migration concurrency, runtime grants, contract smoke) và `Validate OpenAPI` trên service MySQL 8.0.41 disposable.
+
+Read-only `npm run db:preflight` đã chạy trên Aiven ngày 2026-09-25, tại revision có 27 migration: connect/TLS handshake và cipher pass; MySQL `8.4.8`; database tồn tại; `schema_migrations` báo applied=3, pending=24/27. Charset/collation check và pool-vs-`max_connections` được đánh dấu WARN; giá trị đo được là `utf8mb4/utf8mb4_0900_ai_ci` và pool 5 so với max 76. Không ghi endpoint vào tài liệu. Preflight không xác nhận CA provenance/mode chính xác, DB principal/grants, trigger `DEFINER`, backup/restore hoặc reconcile. Từ lần đó chưa chạy migration; source hiện có thêm `0028`–`0030` cho operations log nhưng chưa được preflight/test trên Aiven.
+
+Local `test:mysql:required` sau repair (MySQL 8.0.41 portable): 106 pass, 0 fail, 0 skip; `db:datatest` 30/30 pass; `typecheck`, `api:validate` (5 ignore có chủ đích cho OAuth redirect/liveness, không còn 49 warning cũ) và `verify:docs` pass; `git diff --check` sạch. File test `mysql-primitives` dư thừa (trùng BIGINT SUM/ops-log đã có, sai env) đã xóa để `typecheck` xanh. `openingWalletBalanceVnd` vẫn `MoneyVnd` (minimum 0): opening = initial (≥ 0) + delta có dấu trước kỳ, và invariant wallet không âm giữ opening không âm (có regression test tháng sau kỳ chi vượt thu). `/admin/audit-logs` đã đồng bộ: OpenAPI (`x-required-role: security`, 403 cho user/admin, 405 cho write) khớp implementation (chỉ role security, forged write 405 không chạm DB).
+
+| ID | Blocker | Owner | Điều kiện đóng |
+|---|---|---|---|
+| `BLK-OWNER-01` | Migrations `0011`/`0013`/`0014` thêm composite FK và `0018`/`0020`/`0023` chặn cross-owner/type SQL trực tiếp | B | `db:datatest` 30/30 pass trên MySQL 8.0.41 portable local (sau repair `0011`); chờ CI re-run rồi Team Leader chốt |
+| `BLK-IDEMP-01` | Helper dùng DB được truyền vào; category/budget claim/replay/conflict cùng body hash và audit atomically | B | Unit/typecheck pass; concurrency/replay/integration đã xanh local (MySQL 8.0.41), chờ CI re-run |
+| `BLK-API-01` | Fetch-compatible handlers cho core/issue routes, validation, origin/CSRF port và envelope đã có | A + B | Chờ host mount, auth/session adapter và distributed rate-limit thật; route unit test không thay thế OAuth/session integration |
+| `BLK-ISSUE-01` | Issue service/repository owner scope, related transaction ownership, atomic event/audit và admin role checks đã có | B | Gated MySQL (issue owner/update/events) đã xanh local; admin role phải đến từ trusted session adapter (chưa có integration OAuth/session thật) |
+| `BLK-MIG-01` | `cmdUp` khóa trước khi load/re-plan; có MySQL concurrency integration test | B | Unit + concurrency integration đã xanh local (MySQL 8.0.41), chờ CI re-run |
+| `BLK-MIG-02` | MySQL 8.0.41 fresh migration fail ở `0011` (self-FK không nhận index cùng `ALTER`); đã repair bằng cách tách thứ tự DDL, giữ nguyên objects/semantics | B + Team Leader | Repair đi cùng PR #1 đã merge theo quyết định Team Leader; nhánh `database-ingest-0.2` mang phần còn lại (xem phát hiện Aiven 2026-09-25 bên dưới) |
+| `BLK-HARNESS-01` | Harness dùng shared `sslOption`, migration principal riêng làm trigger `DEFINER`, runtime principal table/column grants | B | Đã sửa hai gap lộ ra sau `0011`: definer thiếu UPDATE cột trigger gán + SELECT base table (`savings_transfers`, `issues`), runtime thiếu UPDATE tối thiểu cho locking read (`wallet`/`savings`.`updated_at`, `ledger`.`description`); trigger `DEFINER` = migration principal đã verify local; Aiven CA provenance/mode/role còn pending |
+| `BLK-MATH-01` | Checked arithmetic và exact DB integer parsing được thêm cho money/report/projection paths | B | Focused unit + toàn bộ gated MySQL suite đã xanh local (gồm BIGINT SUM và reconcile); chờ CI re-run |
+| `BLK-CURSOR-01` | Cursor HMAC-SHA256 versioned, key bắt buộc khi dùng, limit/length bound | A + B | Focused tamper/boundary tests pass; key rotation/production secret provisioning còn là deploy gate |
+| `BLK-GRANT-01` | ADR-0008 chốt row-level authorization ở service; DB enforce integrity, append-only và column grants | B + Team Leader | Kiến trúc đã chốt; negative tests (service/API cross-owner category/issue/budget, forged audit 405, DEFINER, projection denial, direct cross-owner SQL) đã xanh local; direct SQL bằng runtime credential là residual risk đã ghi trong ADR-0008; production grants/TLS/restore chờ evidence operator |
+| `BLK-AUDIT-01` | Category update và audit insert phải commit/rollback cùng transaction | B | `updateUserCategory` đã bọc transaction; unit rollback + integration (audit insert bị từ chối → category giữ nguyên) đã xanh local; chờ CI re-run |
+| `BLK-CI-01` | Workflow chia unit, bốn MySQL suite và OpenAPI validation riêng; MySQL service disposable | B + D | Run `36100878978` (sau repair): success, đủ 15 steps xanh gồm cả bốn suite MySQL + validation trên MySQL 8.0.41 disposable; run `36087720681` (code trước repair) đã lỗi thời |
+| `BLK-RECON-01` | `db:reconcile` đối chiếu wallet/savings projection từ immutable rows; `/health/ready` ping DB | B | Đã sửa bug alias camelCase khiến reconcile luôn throw trên MySQL thật; reconcile pass trong suite integration local; restore rehearsal và reconciliation trên restored cloud target vẫn chờ operator (runbook `docs/DB-RESTORE-RUNBOOK.md`) |
+| `BLK-OPSLOG-01` | Migrations `0028`–`0030` tạo `db_operation_logs` append-only; CLI writer dùng `cc_ops` INSERT-only; CI records stay in GitHub | B | DDL + CLI INSERT + UPDATE/DELETE guards đã pass trong full migration chain local (`0001`–`0030` fresh + suite runtime-grants); chưa áp dụng lên Aiven (operator-gated) |
+
+### Phát hiện Aiven 2026-09-25 (probe read-only, nhánh `database-ingest-0.2`)
+- Service từng auto-sleep (free tier) gây NXDOMAIN; đã wake tay và kết nối lại bình thường.
+- DB `campus_coin` là **shared**: có tables chain khác (`app_log`, `auth_credentials`, `auth_rate_limits`, `email_otps`) và `schema_migrations` ghi `0004_email_auth.sql` + `0005_auth_rate_limits.sql` (applied 2026-09-24) — **trùng version với `0004`/`0005` của chain mình** nên engine fail-closed là đúng.
+- Objects `0004`/`0005` của chain mình (unique/idempotency DDL) **không tồn tại** trên Aiven; `0001`/`0003` khớp intent hiện tại ở DDL đã kiểm tra.
+- Test data chain mình: users `999001`/`999002`, ledger 60 rows, savings_transfers 20 rows (toàn `original`), categories giữ đúng 11 seeds; `wallet_accounts` 0 rows, triggers mới chỉ có 8 append-only của `0001` (DEFINER `avnadmin@%`), chưa có boundary/projection triggers.
+- Chưa provision `cc_migrate`/`cc_runtime`; credential hiện tại là provider admin (chỉ DBA dùng).
+- Team Leader chọn **hội tụ trên DB shared**; test data được dọn có kiểm soát, giữ seeds và tables chain khác.
+- **Phase 1 done 2026-09-25** (đã duyệt từng lệnh): DROP 8 append-only triggers của `0001` → DELETE `savings_transfers` 20 + `ledger_transactions` 60 + `users` 2 (scope `999001`/`999002`, verify không owner lạ) → tạo lại triggers y hệt → verify seeds 11, counts 0, guards 8, chain khác nguyên vẹn (`0/0/2/1`).
+- Hội tụ DDL, re-baseline, provision roles và apply xem các mục Converge/Migrate done bên dưới.
+- **Converge done 2026-09-25** (đã duyệt): DBA apply tay đúng nội dung file `0004`/`0005` (tables trống, verify objects vắng mặt trước, verify tồn tại sau: unique + cột + FK). `db:status`/`db:preflight` trên Aiven hết FAIL: `0001`–`0003` applied sạch (xác minh file LF khớp checksum đã ghi; historical pins đã gỡ), `0004`/`0005` external, pending `0006`–`0030` (25 files). ADR-0009 đã được Team Leader chấp nhận chính thức.
+- **Bài học line-ending 2026-09-25**: checkout với `core.autocrlf=true` đã flip working tree sang CRLF, làm vỡ checksum file (báo mismatch `0002` giả) trong khi blob và Aiven đều LF đúng. Đã pin `.gitattributes` (`eol=lf` cho sql/ts/mjs/json/yaml/md) và rewrite working tree khớp blob; historical pins `0001`/`0003` được gỡ vì file LF khớp checksum đã ghi từng byte (giữ pin sẽ che flip tương lai thay vì fail-closed).
+- **Migrate + roles done 2026-09-25** (đã duyệt): provision `cc_migrate`/`cc_runtime` đúng `db/grants.example.sql` theo 2 phase (cột phụ thuộc migration sau cấp sau khi migrate; verify runtime không DELETE/DDL/TRIGGER/SUPER); `migrate up` bằng `cc_migrate` apply `0006`–`0030` (25 files) trên MySQL 8.4.8; `db:status` sạch (applied 28, pending 0); trigger DEFINER: 8 guards cũ `avnadmin@%`, 14 triggers mới `cc_migrate@%`; `db:reconcile` pass (0 users).
+- **Clone cho team 2026-09-25** (đã duyệt): tạo `campus_coin_clone` cùng service + copy 19 tables (số rows mỗi bảng đã verify), 22 triggers (definer avnadmin do Aiven chặn SET_ANY_DEFINER), 28 FKs (tạo lại sau copy vì CREATE TABLE LIKE không mang FK). User `cc_tester` chỉ DML trên clone, verify login + bị từ chối DB gốc. Lưu ý team: service free tier auto-sleep (DBeaver NXDOMAIN khi ngủ), kiểm tra IP allowlist cho từng member.
+- **Review fixes 2026-09-25** (nhánh `database-ingest-0.2`, đã verify local): (1) `db/grants.example.sql` bổ sung UPDATE cột trigger gán cho migration role (khớp harness; template cũ thiếu gây ER_COLUMNACCESS_DENIED khi provision đúng); (2) CI thêm 3 gates — `db:datatest:ci`, ops-log writer integration, CLI migrate fresh/idempotent (`scripts/ci-migrate-gate.mjs`); `datatest` nới guard password trống cho disposable loopback như harness và chuẩn hóa CRLF khi parse; (3) dispatcher chấp nhận prefix `/api/v1` tùy chọn đúng một lần (`src/api/handler.ts` + `test/api-handler.test.ts`), host rewrite qua mạng và distributed rate-limit vẫn chờ proof hạ tầng. Full gate local: 116 pass / 0 fail, datatest 30/30.
+- Còn mở (vận hành/quyết định, không phải code): app chuyển `.env` sang `cc_runtime` + smoke/reconcile bằng đúng principal; restore rehearsal (có sẵn `campus_coin_clone` làm target tham khảo); mở PR từ nhánh `0.2`/`0.3` để 3 CI gates mới chạy thực tế; merge vào `main` khi Team Leader quyết (`main` hiện ở revert, CI trên đó đỏ là đúng vì thiếu fix).
+
+### Dọn trước khi merge
+
+- [x] Sửa `docs/working/aiven-handoff.md`: không claim CA/endpoint/admin user chưa xác minh; không dùng admin user cho runtime.
+- [x] Benchmark tạo schema unique local-only và drop schema; không DELETE append-only history.
+- [x] Có `test:mysql:required`; `npm test` mặc định vẫn có thể skip suite DB và không được dùng làm evidence MySQL.
+- [x] PR #1 đã merge sau khi CI xanh (runs `36100878978`, `36101142911`) rồi revert theo yêu cầu Team Leader (chỉ push nhánh); `main` hiện thiếu fix nên CI trên đó đỏ là đúng.
+- [ ] BLK-MIG-02 production leg còn lại: app chuyển `.env` sang `cc_runtime` + smoke/reconcile đúng principal; restore rehearsal; mở PR từ `0.2`/`0.3` để CI chạy 3 gates mới; merge vào `main` khi Team Leader quyết.
+
+### Thứ tự merge đề xuất
+
+1. Owner isolation + idempotency.
+2. API routes/envelopes + issue/admin boundary.
+3. TLS harness và migration/restore/reconcile.
+4. Overflow + signed cursor.
+5. Integration/e2e gate chạy với MySQL thật.
+6. Nhánh `database-ingest-0.2`/`0.3` mang BLK-MIG-02 production leg; CI MySQL đã xanh trên run `36100878978`/`36101142911`, 3 gates mới chờ chạy trên PR tiếp theo.
+
+Các blocker cũ về OAuth/IDOR, provider/region/restore, domain invariant, secret/PII, accessibility và rollback vẫn là launch gate. OpenRouter chưa được claim; JEV có thể giữ off.
 
 ## 13. ADR liên quan
 
-[ADR-0003](./adr/0003-cloud-mysql-validation-gate.md), [ADR-0004](./adr/0004-vercel-domain-no-custom-email.md), [ADR-0007](./adr/0007-five-day-thin-slice.md).
+[ADR-0003](./adr/0003-cloud-mysql-validation-gate.md), [ADR-0004](./adr/0004-vercel-domain-no-custom-email.md), [ADR-0007](./adr/0007-five-day-thin-slice.md), [ADR-0008](./adr/0008-runtime-row-authorization-boundary.md).

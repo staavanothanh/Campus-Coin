@@ -1,0 +1,82 @@
+name: MySQL Integration
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  mysql:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0.41
+        env:
+          MYSQL_ROOT_HOST: "%"
+          MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 --silent"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+    env:
+      CAMPUS_COIN_DB_HOST: 127.0.0.1
+      CAMPUS_COIN_DB_PORT: 3306
+      CAMPUS_COIN_DB_NAME: campus_coin_test_bootstrap
+      CAMPUS_COIN_DB_USER: root
+      CAMPUS_COIN_DB_PASSWORD: ""
+      CAMPUS_COIN_DB_SSL: disabled
+      CAMPUS_COIN_TEST_DB_ADMIN_USER: root
+      CAMPUS_COIN_TEST_DB_ADMIN_PASSWORD: ""
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Allow trigger creation on disposable MySQL
+        run: |
+          container_id="$(docker ps --filter ancestor=mysql:8.0.41 --format '{{.ID}}')"
+          test -n "$container_id"
+          docker exec "$container_id" mysql -uroot -e "SET GLOBAL log_bin_trust_function_creators=1"
+      - name: Generate ephemeral cursor signing key
+        shell: bash
+        run: |
+          cursor_key="$(openssl rand -hex 32)"
+          echo "::add-mask::$cursor_key"
+          echo "CAMPUS_COIN_CURSOR_SIGNING_KEY=$cursor_key" >> "$GITHUB_ENV"
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - name: MySQL domain integration
+        run: npm run test:mysql:required -- test/mysql.integration.test.ts
+        timeout-minutes: 5
+      - name: MySQL migration concurrency
+        if: always()
+        run: npm run test:mysql:required -- test/migration-concurrency.integration.test.ts
+        timeout-minutes: 5
+      - name: MySQL runtime grants
+        if: always()
+        run: npm run test:mysql:required -- test/runtime-grants.integration.test.ts
+        timeout-minutes: 5
+      - name: MySQL contract smoke
+        if: always()
+        run: npm run test:mysql:required -- test/e2e.contract.smoke.test.ts
+        timeout-minutes: 5
+      - name: MySQL operation log writer
+        if: always()
+        run: npm run test:mysql:required -- test/operation-log.integration.test.ts
+        timeout-minutes: 5
+      - name: MySQL datatest constraints
+        if: always()
+        run: npm run db:datatest:ci
+        timeout-minutes: 5
+      - name: CLI migration fresh install is idempotent
+        if: always()
+        run: node scripts/ci-migrate-gate.mjs
+        timeout-minutes: 5
+      - name: Validate OpenAPI
+        if: always()
+        run: npm run api:validate

@@ -23,7 +23,7 @@ Node API: validation, session, owner scope, idempotency
 - **Browser:** hiển thị response authoritative; không giữ secret, không tính balance, không authorize payment, không gọi provider.
 - **API:** validate schema, session, CSRF/origin, role, owner scope, category, idempotency và feature flag.
 - **Domain:** quyết định tiền, period, authorization và report; không import SDK JEV.
-- **Persistence:** ledger/audit append-only; projection có thể rebuild; runtime DB role least privilege.
+- **Persistence:** ledger/audit append-only; wallet/savings projection được cập nhật bởi DB trigger từ immutable inserts và reconcile được rebuild; runtime DB role least privilege.
 - **Admin:** issue/report triage; không có quyền sửa balance, ledger hoặc audit.
 
 ## 3. Xác thực và session
@@ -53,6 +53,7 @@ JEV là optional category suggestion trước submit. API gửi description đã
 - Secret: Vercel environment בלבד; không log/commit.
 - Log: structured và redact OAuth code/token, cookie, password, raw JEV, raw financial data.
 - Migration: versioned, non-destructive với ledger; rollback deployment và restore data theo runbook.
+- API handler hiện có: `src/api/handler.ts` là Fetch-compatible dispatcher; host phải cung cấp trusted session/CSRF adapters. Chưa có Google OAuth/session adapter hoặc deployment mount trong repo nên chưa phải production endpoint hoàn chỉnh.
 - JEV/email lỗi không được chặn money path.
 
 ## 7. Tiêu chí chấp nhận kiến trúc
