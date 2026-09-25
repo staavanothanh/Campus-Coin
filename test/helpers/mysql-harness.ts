@@ -111,10 +111,10 @@ export function createMysqlHarness(): MysqlHarness {
       });
       dbName = `campus_coin_test_${process.pid}_${randomUUID().slice(0, 8)}`;
       this.dbName = dbName;
-      migrationUser = `cc_migrate_test_${randomUUID().replaceAll("-", "")}`;
+      migrationUser = `cc_migrate_test_${randomUUID().replaceAll("-", "").slice(0, 16)}`;
       migrationPassword = randomUUID().replaceAll("-", "");
       this.migrationUser = migrationUser;
-      runtimeUser = `cc_test_${randomUUID().replaceAll("-", "")}`;
+      runtimeUser = `cc_test_${randomUUID().replaceAll("-", "").slice(0, 24)}`;
       runtimePassword = randomUUID().replaceAll("-", "");
       await admin.query(
         `CREATE DATABASE \`${dbName}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci`,
