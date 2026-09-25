@@ -44,6 +44,8 @@ h1 { font-size: 38px; margin: 0 0 20px; }
 .emailHint { margin-top: -8px; color: #60736a; }
 form { display: grid; gap: 18px; }
 form label { display: grid; gap: 8px; font-weight: bold; }
+.fieldError { color: #b42318; font-size: 14px; font-weight: normal; line-height: 1.4; }
+form input[aria-invalid='true'] { border-color: #b42318; }
 
 form input:not([type='checkbox']) {
   width: 100%;

@@ -46,6 +46,50 @@ test('POST từ origin lạ bị chặn trước khi đọc dữ liệu', async 
   assert.equal(result.error.code, 'ORIGIN_INVALID');
 });
 
+test('chấp nhận origin local khi cấu hình client origin trỏ sang môi trường khác', async () => {
+  const originalOrigin = process.env.CLIENT_ORIGIN;
+  const originalNodeEnv = process.env.NODE_ENV;
+  process.env.CLIENT_ORIGIN = 'https://campus-coin.example';
+  process.env.NODE_ENV = 'development';
+  try {
+    const response = await fetch(`${baseUrl}/api/v1/auth/register`, {
+      method: 'POST',
+      headers: { origin: 'http://127.0.0.1:5173', 'content-type': 'application/json' },
+      body: JSON.stringify({})
+    });
+    assert.equal(response.status, 422);
+    const result = await response.json();
+    assert.equal(result.error.code, 'VALIDATION_ERROR');
+  } finally {
+    if (originalOrigin === undefined) delete process.env.CLIENT_ORIGIN;
+    else process.env.CLIENT_ORIGIN = originalOrigin;
+    if (originalNodeEnv === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = originalNodeEnv;
+  }
+});
+
+test('production vẫn chặn origin local không nằm trong cấu hình', async () => {
+  const originalOrigin = process.env.CLIENT_ORIGIN;
+  const originalNodeEnv = process.env.NODE_ENV;
+  process.env.CLIENT_ORIGIN = 'https://campus-coin.example';
+  process.env.NODE_ENV = 'production';
+  try {
+    const response = await fetch(`${baseUrl}/api/v1/auth/register`, {
+      method: 'POST',
+      headers: { origin: 'http://127.0.0.1:5173', 'content-type': 'application/json' },
+      body: JSON.stringify({})
+    });
+    assert.equal(response.status, 403);
+    const result = await response.json();
+    assert.equal(result.error.code, 'ORIGIN_INVALID');
+  } finally {
+    if (originalOrigin === undefined) delete process.env.CLIENT_ORIGIN;
+    else process.env.CLIENT_ORIGIN = originalOrigin;
+    if (originalNodeEnv === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = originalNodeEnv;
+  }
+});
+
 test('gửi lại OTP chỉ chấp nhận mục đích đăng ký hoặc quên mật khẩu', async () => {
   const response = await fetch(`${baseUrl}/api/v1/auth/resend-otp`, {
     method: 'POST',

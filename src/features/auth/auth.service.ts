@@ -73,12 +73,6 @@ async function requireNotRateLimited(policies: AuthRateLimitPolicy[], message: s
 }
 
 async function issueOtp(email: string, purpose: Purpose, ip: string, emailSender: OtpSender) {
-  const quota = await consumeAuthQuota([
-    { scope: `otp-send-${purpose}-email`, value: email, maxAttempts: 3, windowMs: 3_600_000, blockMs: 3_600_000 },
-    { scope: 'otp-send-ip', value: ip, maxAttempts: 30, windowMs: 3_600_000, blockMs: 3_600_000 },
-  ]);
-  if (quota !== null) throw new AppError(429, 'RATE_LIMITED', 'Đã vượt giới hạn gửi mã, vui lòng thử lại sau', quota);
-
   const db = getDb();
   const [rows] = await db.execute<OtpRow[]>(
     'SELECT created_at FROM email_otps WHERE email = ? AND purpose = ? ORDER BY created_at DESC LIMIT 1',
@@ -88,6 +82,12 @@ async function issueOtp(email: string, purpose: Purpose, ip: string, emailSender
     const retryAfter = Math.ceil((60_000 - (Date.now() - rows[0].created_at.getTime())) / 1000);
     throw new AppError(429, 'RATE_LIMITED', 'Vui lòng chờ một phút trước khi yêu cầu mã mới', retryAfter);
   }
+
+  const quota = await consumeAuthQuota([
+    { scope: `otp-send-${purpose}-email`, value: email, maxAttempts: 3, windowMs: 3_600_000, blockMs: 3_600_000 },
+    { scope: 'otp-send-ip', value: ip, maxAttempts: 30, windowMs: 3_600_000, blockMs: 3_600_000 },
+  ]);
+  if (quota !== null) throw new AppError(429, 'RATE_LIMITED', 'Đã vượt giới hạn gửi mã, vui lòng thử lại sau', quota);
 
   const code = newOtp();
   const id = randomUUID();

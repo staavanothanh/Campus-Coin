@@ -1,5 +1,4 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
-import { isIP } from 'node:net';
 import { createUserIssue, getAdminIssue, listAdminIssues, listUserIssues, updateAdminIssue, addAdminIssueNote } from '../application/issue.service.ts';
 import { listAdminAuditLogs } from '../application/admin.service.ts';
 import { getPool } from '../infrastructure/db/pool.ts';
@@ -11,6 +10,7 @@ import { DomainError } from '../domain/errors.js';
 import { canonicalHash } from '../lib/hash.js';
 import { AppError, forgotPassword, getCsrf, getSession, hasGoogleIdentity, linkGoogleIdentity, login, loginWithGoogle, logout, register, resendOtp, resetPassword, verifyRegistration } from '../features/auth/auth.service.js';
 import { handleDomainRequest } from './domain.ts';
+import { getClientIp } from './client-ip.ts';
 import { createGoogleOAuthProvider, GoogleOAuthError, type GoogleOAuthProvider } from '../infrastructure/google-oauth.ts';
 
 type GoogleAuthErrorCode =
@@ -107,15 +107,21 @@ function cookie(token: string, clear = false) {
 
 function checkOrigin(req: IncomingMessage) {
   const allowed = process.env.CLIENT_ORIGIN || 'http://127.0.0.1:5173';
-  if (req.headers.origin !== allowed) throw new AppError(403, 'ORIGIN_INVALID', 'Nguồn yêu cầu không hợp lệ');
+  const localDevOrigins = process.env.NODE_ENV === 'production'
+    ? []
+    : ['http://127.0.0.1:5173', 'http://localhost:5173'];
+  if (req.headers.origin !== allowed && !localDevOrigins.includes(req.headers.origin || '')) {
+    throw new AppError(403, 'ORIGIN_INVALID', 'Nguồn yêu cầu không hợp lệ');
+  }
 }
 
 function clientIp(req: IncomingMessage) {
-  const socketIp = req.socket.remoteAddress || 'unknown';
-  if (process.env.TRUST_PROXY !== 'true') return socketIp;
-  const forwarded = req.headers['x-forwarded-for'];
-  const firstAddress = (Array.isArray(forwarded) ? forwarded[0] : forwarded?.split(',')[0])?.trim();
-  return firstAddress && isIP(firstAddress) ? firstAddress : socketIp;
+  return getClientIp(
+    req.socket.remoteAddress,
+    req.headers['x-forwarded-for'],
+    process.env.TRUST_PROXY === 'true',
+    process.env.TRUSTED_PROXY_IPS?.split(',') ?? [],
+  );
 }
 
 function requiredString(value: unknown, name: string, maxLength: number) {

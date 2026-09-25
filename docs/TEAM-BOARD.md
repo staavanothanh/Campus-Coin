@@ -21,11 +21,11 @@ Specialist chỉ cung cấp phân tích; không thay thế bốn developer và k
 
 | ID | Owner | Trạng thái | Acceptance/gate |
 |---|---|---|---|
-| HUMAN-A | Developer A | Đã có code; chờ DB/provider evidence | OTP/login/reset, rate-limit/session/CSRF/IDOR, auth UI và API contract; MySQL E2E/SMTP thật còn chờ |
+| HUMAN-A | Developer A | Đã có code; chờ DB/provider evidence | OTP/login/reset, rate-limit/session/CSRF/IDOR, auth UI và API contract; Team Leader báo register qua email đã thành công; DB E2E, reset email và SMTP timeout/retry còn chờ |
 | HUMAN-B | Developer B | Cần phối hợp | Xác nhận DB target, migration `0004`/`0005`, backup/restore, CA và least-privilege grants; review API/domain integration |
 | HUMAN-C | Developer C | Sẵn sàng Day 1 | UI two-locale, VND/HCMC, accessible, JEV-off |
 | HUMAN-D | Developer D | Sẵn sàng Day 1 | Typed JEV probe/fallback, smoke, redacted logs, rollback |
-| LEADER-INT | Team Leader | Canonical docs/API contract đã cập nhật theo ADR-0009 | Email auth giữ theo ADR-0008; Google là phương thức tùy chọn; DB/SMTP/CI/live-OAuth evidence còn chờ |
+| LEADER-INT | Team Leader | Canonical docs/API contract đã cập nhật theo ADR-0009 | Email auth giữ theo ADR-0008; Google là phương thức tùy chọn; DB E2E/CI remote/live-OAuth evidence còn chờ; register email đã được Team Leader xác nhận |
 | LEADER-REV | Team Leader | Chờ evidence | GO/NO-GO sau auth/DB/email/API/UI/CI/restore gates |
 
 ## Đường găng

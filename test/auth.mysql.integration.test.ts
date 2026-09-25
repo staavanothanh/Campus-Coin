@@ -59,6 +59,7 @@ if (!ENABLED) {
     process.env.AUTH_RATE_LIMIT_SECRET = 'rate-limit-test-secret-0123456789';
     process.env.CLIENT_ORIGIN = 'http://127.0.0.1:5173';
     process.env.TRUST_PROXY = 'true';
+    process.env.TRUSTED_PROXY_IPS = '127.0.0.1';
     process.env.NODE_ENV = 'production';
     await harness.start();
     await new Promise<void>(resolve => server.listen(0, resolve));
@@ -247,6 +248,47 @@ if (!ENABLED) {
     });
     assert.equal(locked.status, 429);
     assert.ok(Number(locked.headers.get('Retry-After')) > 0);
+  });
+
+  test('OTP cooldown không tiêu quota gửi của register hoặc reset password', async () => {
+    const registrationEmail = `cooldown-register-${randomUUID()}@example.test`;
+    const registrationIp = '198.51.100.40';
+    assert.equal((await call('POST', '/api/v1/auth/register', {
+      body: { email: registrationEmail }, ip: registrationIp,
+    })).status, 201);
+    assert.equal((await call('POST', '/api/v1/auth/resend-otp', {
+      body: { email: registrationEmail, purpose: 'registration' }, ip: registrationIp,
+    })).status, 429);
+
+    for (let send = 0; send < 2; send += 1) {
+      await getPool().execute(
+        'UPDATE email_otps SET created_at = DATE_SUB(UTC_TIMESTAMP(3), INTERVAL 61 SECOND) WHERE email = ? AND purpose = ?',
+        [registrationEmail, 'registration'],
+      );
+      assert.equal((await call('POST', '/api/v1/auth/resend-otp', {
+        body: { email: registrationEmail, purpose: 'registration' }, ip: registrationIp,
+      })).status, 200);
+    }
+    assert.equal(sentOtps.filter(item => item.email === registrationEmail && item.purpose === 'registration').length, 3);
+
+    const resetEmail = `cooldown-reset-${randomUUID()}@example.test`;
+    const resetIp = '198.51.100.41';
+    assert.equal((await call('POST', '/api/v1/auth/register', { body: { email: resetEmail }, ip: resetIp })).status, 201);
+    const registrationOtp = sentOtp(resetEmail, 'registration');
+    assert.equal((await call('POST', '/api/v1/auth/verify-registration', {
+      body: { email: resetEmail, fullName: 'Reset User', password: 'Password12345', otp: registrationOtp }, ip: resetIp,
+    })).status, 200);
+
+    assert.equal((await call('POST', '/api/v1/auth/forgot-password', { body: { email: resetEmail }, ip: resetIp })).status, 200);
+    assert.equal((await call('POST', '/api/v1/auth/forgot-password', { body: { email: resetEmail }, ip: resetIp })).status, 200);
+    for (let send = 0; send < 2; send += 1) {
+      await getPool().execute(
+        'UPDATE email_otps SET created_at = DATE_SUB(UTC_TIMESTAMP(3), INTERVAL 61 SECOND) WHERE email = ? AND purpose = ?',
+        [resetEmail, 'password_reset'],
+      );
+      assert.equal((await call('POST', '/api/v1/auth/forgot-password', { body: { email: resetEmail }, ip: resetIp })).status, 200);
+    }
+    assert.equal(sentOtps.filter(item => item.email === resetEmail && item.purpose === 'password_reset').length, 3);
   });
 
   test('login rate-limit áp dụng cho account và IP', async () => {

@@ -4,6 +4,15 @@ import { errorText, text, type Language } from './text';
 
 type Page = 'login' | 'register' | 'verify' | 'forgot' | 'reset';
 type MessageKind = 'error' | 'status';
+type AuthField = 'email' | 'name' | 'otp' | 'password' | 'confirm';
+
+const fieldsByPage: Record<Page, AuthField[]> = {
+  login: ['email', 'password'],
+  register: ['email'],
+  verify: ['name', 'otp', 'password', 'confirm'],
+  forgot: ['email'],
+  reset: ['otp', 'password', 'confirm'],
+};
 
 export function App() {
   const [language, setLanguage] = useState<Language>('vi');
@@ -15,6 +24,11 @@ export function App() {
   const [confirm, setConfirm] = useState('');
   const [otp, setOtp] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [touched, setTouched] = useState<Record<AuthField, boolean>>({
+    email: false, name: false, otp: false, password: false, confirm: false,
+  });
+  const [submitted, setSubmitted] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [googleEnabled, setGoogleEnabled] = useState(false);
   const [googleLinked, setGoogleLinked] = useState(false);
@@ -89,6 +103,41 @@ export function App() {
     setConfirm('');
     setOtp('');
     setShowPassword(false);
+    setShowConfirmPassword(false);
+    setTouched({ email: false, name: false, otp: false, password: false, confirm: false });
+    setSubmitted(false);
+  }
+
+  function validationMessage(field: AuthField) {
+    if (field === 'email' && ['login', 'register', 'forgot'].includes(page)) {
+      if (!email.trim()) return t.emailRequired;
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return t.emailInvalid;
+    }
+    if (field === 'name' && page === 'verify' && (name.trim().length < 2 || name.trim().length > 120)) {
+      return t.nameInvalid;
+    }
+    if (field === 'otp' && ['verify', 'reset'].includes(page) && !/^\d{6}$/.test(otp)) {
+      return t.codeInvalid;
+    }
+    if (field === 'password') {
+      if (page === 'login' && !password) return t.passwordRequired;
+      if (['verify', 'reset'].includes(page) && (password.length < 8 || password.length > 128)) {
+        return t.passwordInvalid;
+      }
+    }
+    if (field === 'confirm' && ['verify', 'reset'].includes(page)) {
+      if (!confirm) return t.confirmRequired;
+      if (password !== confirm) return t.mismatch;
+    }
+    return '';
+  }
+
+  function fieldError(field: AuthField) {
+    return submitted || touched[field] ? validationMessage(field) : '';
+  }
+
+  function touchField(field: AuthField) {
+    setTouched(current => ({ ...current, [field]: true }));
   }
 
   function showError(error: unknown) {
@@ -108,10 +157,14 @@ export function App() {
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (requestInProgress.current) return;
+    setSubmitted(true);
     setMessage('');
     setMessageKind('status');
-    if ((page === 'verify' || page === 'reset') && password !== confirm) {
-      setMessage(t.mismatch);
+    setShowPassword(false);
+    setShowConfirmPassword(false);
+    const firstInvalidField = fieldsByPage[page].find(field => validationMessage(field));
+    if (firstInvalidField) {
+      document.getElementById(`auth-${firstInvalidField}`)?.focus();
       return;
     }
 
@@ -231,33 +284,123 @@ export function App() {
       </> : <>
         <h1 ref={headingRef} tabIndex={-1}>{title}</h1>
         {page === 'verify' && <p className="emailHint">{t.email}: {email}</p>}
-        <form onSubmit={submit}>
+        <form noValidate onSubmit={submit}>
           {(page === 'login' || page === 'register' || page === 'forgot') && <label>
             {t.email}
-            <input type="email" value={email} onChange={event => setEmail(event.target.value)} required autoComplete="email" />
+            <input
+              id="auth-email"
+              type="email"
+              value={email}
+              onChange={event => setEmail(event.target.value)}
+              onBlur={() => touchField('email')}
+              aria-invalid={Boolean(fieldError('email'))}
+              aria-describedby={fieldError('email') ? 'auth-email-error' : undefined}
+              maxLength={255}
+              required
+              autoComplete="email"
+            />
+            {fieldError('email') && <span id="auth-email-error" className="fieldError" aria-live="polite">{fieldError('email')}</span>}
           </label>}
 
           {page === 'verify' && <label>
             {t.name}
-            <input value={name} onChange={event => setName(event.target.value)} required minLength={2} maxLength={120} autoComplete="name" />
+            <input
+              id="auth-name"
+              value={name}
+              onChange={event => setName(event.target.value.slice(0, 120))}
+              onBlur={() => touchField('name')}
+              aria-invalid={Boolean(fieldError('name'))}
+              aria-describedby={fieldError('name') ? 'auth-name-error' : undefined}
+              required
+              minLength={2}
+              maxLength={120}
+              autoComplete="name"
+            />
+            {fieldError('name') && <span id="auth-name-error" className="fieldError" aria-live="polite">{fieldError('name')}</span>}
           </label>}
 
           {(page === 'verify' || page === 'reset') && <label>
             {t.code}
-            <input value={otp} onChange={event => setOtp(event.target.value)} placeholder={t.codeHint} required pattern="[0-9]{6}" inputMode="numeric" maxLength={6} />
+            <input
+              id="auth-otp"
+              value={otp}
+              onChange={event => setOtp(event.target.value.replace(/\D/g, '').slice(0, 6))}
+              onBlur={() => touchField('otp')}
+              aria-invalid={Boolean(fieldError('otp'))}
+              aria-describedby={fieldError('otp') ? 'auth-otp-error' : undefined}
+              placeholder={t.codeHint}
+              required
+              pattern="[0-9]{6}"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              maxLength={6}
+            />
+            {fieldError('otp') && <span id="auth-otp-error" className="fieldError" aria-live="polite">{fieldError('otp')}</span>}
           </label>}
 
           {(page === 'login' || page === 'verify' || page === 'reset') && <label>
             {page === 'reset' ? t.newPassword : t.password}
-            <span className="passwordField">
-              <input type={showPassword ? 'text' : 'password'} value={password} onChange={event => setPassword(event.target.value)} placeholder={page === 'login' ? '' : t.passwordHint} required minLength={page === 'login' ? 1 : 8} maxLength={128} autoComplete={page === 'login' ? 'current-password' : 'new-password'} />
-              <button type="button" onClick={() => setShowPassword(!showPassword)} aria-label={showPassword ? t.hide : t.show}>{showPassword ? t.hideShort : t.showShort}</button>
+            <span
+              className="passwordField"
+              onBlur={event => {
+                if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setShowPassword(false);
+              }}
+            >
+              <input
+                id="auth-password"
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={event => setPassword(event.target.value)}
+                onBlur={() => touchField('password')}
+                aria-invalid={Boolean(fieldError('password'))}
+                aria-describedby={fieldError('password') ? 'auth-password-error' : undefined}
+                placeholder={page === 'login' ? '' : t.passwordHint}
+                required
+                minLength={page === 'login' ? 1 : 8}
+                maxLength={128}
+                autoComplete={page === 'login' ? 'current-password' : 'new-password'}
+              />
+              <button
+                type="button"
+                disabled={busy}
+                aria-pressed={showPassword}
+                onClick={() => setShowPassword(current => !current)}
+                aria-label={showPassword ? t.hide : t.show}
+              >{showPassword ? t.hideShort : t.showShort}</button>
             </span>
+            {fieldError('password') && <span id="auth-password-error" className="fieldError" aria-live="polite">{fieldError('password')}</span>}
           </label>}
 
           {(page === 'verify' || page === 'reset') && <label>
             {t.confirm}
-            <input type={showPassword ? 'text' : 'password'} value={confirm} onChange={event => setConfirm(event.target.value)} required minLength={8} maxLength={128} autoComplete="new-password" />
+            <span
+              className="passwordField"
+              onBlur={event => {
+                if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setShowConfirmPassword(false);
+              }}
+            >
+              <input
+                id="auth-confirm"
+                type={showConfirmPassword ? 'text' : 'password'}
+                value={confirm}
+                onChange={event => setConfirm(event.target.value)}
+                onBlur={() => touchField('confirm')}
+                aria-invalid={Boolean(fieldError('confirm'))}
+                aria-describedby={fieldError('confirm') ? 'auth-confirm-error' : undefined}
+                required
+                minLength={8}
+                maxLength={128}
+                autoComplete="new-password"
+              />
+              <button
+                type="button"
+                disabled={busy}
+                aria-pressed={showConfirmPassword}
+                onClick={() => setShowConfirmPassword(current => !current)}
+                aria-label={showConfirmPassword ? t.hide : t.show}
+              >{showConfirmPassword ? t.hideShort : t.showShort}</button>
+            </span>
+            {fieldError('confirm') && <span id="auth-confirm-error" className="fieldError" aria-live="polite">{fieldError('confirm')}</span>}
           </label>}
 
           {page === 'login' && <label className="checkLabel">

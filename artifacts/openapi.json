@@ -107,6 +107,9 @@
           "400": {
             "$ref": "#/components/responses/BadRequest"
           },
+          "403": {
+            "$ref": "#/components/responses/OriginInvalid"
+          },
           "409": {
             "$ref": "#/components/responses/Conflict"
           },
@@ -163,6 +166,9 @@
           "400": {
             "$ref": "#/components/responses/BadRequest"
           },
+          "403": {
+            "$ref": "#/components/responses/OriginInvalid"
+          },
           "409": {
             "$ref": "#/components/responses/Conflict"
           },
@@ -215,6 +221,9 @@
           },
           "400": {
             "$ref": "#/components/responses/BadRequest"
+          },
+          "403": {
+            "$ref": "#/components/responses/OriginInvalid"
           },
           "409": {
             "$ref": "#/components/responses/Conflict"
@@ -276,7 +285,7 @@
             "$ref": "#/components/responses/Unauthorized"
           },
           "403": {
-            "$ref": "#/components/responses/AccountDisabled"
+            "$ref": "#/components/responses/LoginForbidden"
           },
           "413": {
             "$ref": "#/components/responses/PayloadTooLarge"
@@ -489,6 +498,9 @@
           "400": {
             "$ref": "#/components/responses/BadRequest"
           },
+          "403": {
+            "$ref": "#/components/responses/OriginInvalid"
+          },
           "413": {
             "$ref": "#/components/responses/PayloadTooLarge"
           },
@@ -535,6 +547,9 @@
           },
           "400": {
             "$ref": "#/components/responses/BadRequest"
+          },
+          "403": {
+            "$ref": "#/components/responses/OriginInvalid"
           },
           "413": {
             "$ref": "#/components/responses/PayloadTooLarge"
@@ -2157,8 +2172,18 @@
           }
         }
       },
-      "AccountDisabled": {
-        "description": "Tài khoản bị disable",
+      "LoginForbidden": {
+        "description": "Origin không hợp lệ, tài khoản bị vô hiệu hoặc email chưa xác minh",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      },
+      "OriginInvalid": {
+        "description": "Origin của request không được phép",
         "content": {
           "application/json": {
             "schema": {
@@ -2168,7 +2193,7 @@
         }
       },
       "CsrfInvalid": {
-        "description": "CSRF hoặc Origin không hợp lệ",
+        "description": "Origin không hợp lệ hoặc CSRF token thiếu/sai; error code trong body phân biệt hai trường hợp",
         "content": {
           "application/json": {
             "schema": {

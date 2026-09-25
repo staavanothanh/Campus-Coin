@@ -39,11 +39,13 @@ OAuth đọc `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`, `GOOGLE_OAU
 
 Database/provider failure phải fail closed. Email send failure trả lỗi ổn định, không để lại OTP dùng được nếu mail không được chấp nhận. SMTP có timeout và số retry hữu hạn; retry dùng cùng OTP để tránh nhiều mã khác nhau đang hiệu lực.
 
+Cooldown OTP được kiểm tra trước quota gửi; yêu cầu bị từ chối trong cooldown không trừ quota gửi theo email hoặc IP. Proxy IP mặc định không được tin: chỉ bật `TRUST_PROXY=true` khi đã khai báo toàn bộ IP proxy trong chuỗi forwarding vào `TRUSTED_PROXY_IPS` (danh sách IP chính xác, phân tách bằng dấu phẩy). Khi socket peer không khớp danh sách, server bỏ qua `X-Forwarded-For`. Proxy phải ghi hoặc append chuỗi forwarding theo chuẩn để server lần ngược từ proxy gần nhất tới địa chỉ client.
+
 ## 4. Session, cookie và CSRF
 
 Session ID là random opaque; DB chỉ lưu hash ID, user, issued/expires, revoked, last_seen và metadata tối thiểu. Session có expiry và logout/recovery revoke. Cookie phải `HttpOnly`, `Secure` trong production, `SameSite=Lax` hoặc chặt hơn sau kiểm thử, `Path=/`, và không có `Domain` rộng. Không lưu session trong localStorage/sessionStorage.
 
-Public auth mutation bắt buộc kiểm tra Origin; mutation của session đã xác thực kiểm tra cả Origin và CSRF token, kể cả logout. Money mutation có idempotency khi có thể retry. 401 là thiếu/hết session; 403 là đã xác thực nhưng không có quyền; lỗi không trả stack hoặc nội dung nội bộ.
+Public auth mutation bắt buộc kiểm tra Origin; mutation của session đã xác thực kiểm tra cả Origin và CSRF token, kể cả logout. Ở development, API cho phép thêm hai origin local `http://127.0.0.1:5173` và `http://localhost:5173` để khớp Vite; production chỉ nhận đúng `CLIENT_ORIGIN`. Money mutation có idempotency khi có thể retry. 401 là thiếu/hết session; 403 là đã xác thực nhưng không có quyền; lỗi không trả stack hoặc nội dung nội bộ.
 
 ## 5. Phân quyền và owner scope
 

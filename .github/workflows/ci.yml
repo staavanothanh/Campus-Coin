@@ -51,7 +51,7 @@ jobs:
       - run: npm run api:bundle
       - run: npm run api:types
       - run: git diff --exit-code -- artifacts/openapi.json artifacts/api.d.ts
-      - run: node --import tsx --test tests/auth.test.ts test/schema-readiness.test.ts tests/google-oauth.test.ts
+      - run: node --import tsx --test tests/auth.test.ts test/schema-readiness.test.ts tests/google-oauth.test.ts tests/client-ip.test.ts
       - run: npm run db:datatest
       - run: node --import tsx --test test/mysql.integration.test.ts test/e2e.contract.smoke.test.ts test/auth.mysql.integration.test.ts
         env:

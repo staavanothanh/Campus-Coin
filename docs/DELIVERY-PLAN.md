@@ -1,6 +1,6 @@
 # Kế hoạch giao hàng — Campus Coin
 
-> Cập nhật: 2026-09-24 · Owner: Team Leader — Hiệp
+> Cập nhật: 2026-09-25 · Owner: Team Leader — Hiệp
 > Nguồn quyết định auth: [ADR-0008](./adr/0008-email-password-otp-auth.md) và phần Google bổ sung tại [ADR-0009](./adr/0009-optional-google-sign-in.md)
 
 Tài liệu này ghi trạng thái/gate. Team Leader đã chốt giữ email/password/OTP và thêm Google Sign-In tùy chọn; production readiness là trạng thái riêng, chỉ ghi đạt khi có evidence.
@@ -23,21 +23,21 @@ Google không cấu hình thì email flow vẫn hoạt động và provider disc
 | Quyết định auth và canonical docs | Đã chốt; ADR-0008 giữ email auth, ADR-0009 thêm Google tùy chọn | ADR-0001/0007 được giữ làm lịch sử; live Google callback còn cần client config |
 | Auth implementation | Email/OTP flow, Google OIDC start/callback, explicit link, provider discovery, opaque session, CSRF/Origin và login rate-limit đã có code | Chạy unit và auth MySQL integration trên disposable DB; Google secrets/provider live và production evidence còn chờ |
 | Google Sign-In | SDK server-side, PKCE S256, state, nonce, verified email, Google `sub`; không lưu Google token hoặc gọi Gmail API | Owner cấu hình OAuth client/callback và chạy thử login/link trên environment an toàn |
-| Migration `0004_email_auth.sql` | Chưa có evidence áp dụng trên DB đích hiện được xác nhận | Phải xác minh DB Campus Coin, backup/restore, preflight/status và chỉ `0004` pending trước khi chạy |
-| Migration `0005_auth_rate_limits.sql` | Có migration và schema readiness check | Chưa có evidence áp dụng trên DB đích; CI disposable MySQL phải xác minh |
+| Migration `0004_email_auth.sql` | `npm run db:status` ngày 2026-09-25 báo đã apply trên DB mà CLI hiện cấu hình | Chưa có evidence riêng cho DB disposable CI, staging hoặc mọi cloud target; DevB cần xác nhận đúng target và backup/restore |
+| Migration `0005_auth_rate_limits.sql` | `npm run db:status` ngày 2026-09-25 báo đã apply trên DB mà CLI hiện cấu hình | Chưa có evidence riêng cho DB disposable CI, staging hoặc mọi cloud target; DevB cần xác nhận đúng target và backup/restore |
 | Aiven query access | Có thông tin endpoint và database `defaultdb`; chưa xác nhận thuộc Campus Coin | Chỉ dùng DBeaver với credential user tự nhập để chạy read-only queries; không migration/seed/DDL/DML |
-| SMTP/email | Adapter SMTP có trong source | Chưa có evidence email OTP thật; phải chọn provider, cấu hình timeout/retry và xác nhận nhận thư trên DB cô lập |
-| API domain | Auth, preferences, wallet, ledger, savings, category, budget, report, issue và admin routes đã nối application services; owner lấy từ session | JEV endpoint chưa mở; CI phải xác nhận response/status và service assumptions với Developer B |
-| UI auth | Có register/verify/resend/login/forgot/reset; nút Google theo provider discovery và explicit account link; message en/vi | Cần kiểm tra bằng keyboard/screen reader và hai locale; chưa có browser E2E evidence |
-| CI | Workflow MySQL disposable service và gate lint/typecheck/build/auth/readiness/database đã thêm; unit test OAuth được thêm | Workflow chưa được thực thi từ CI trong phiên này; local DB gates chưa chạy |
+| SMTP/email | SMTP adapter có timeout 10 giây, tối đa hai lần gửi và lỗi fail-closed; không có fallback OTP vào log/dev | Team Leader xác nhận đã đăng ký thành công bằng email; luồng reset password và timeout/retry khi provider lỗi vẫn cần kiểm chứng riêng |
+| API domain | Auth, preferences, wallet, ledger, savings, category, budget, report, issue và admin routes đã nối application services; client hỗ trợ GET/POST/PUT/PATCH/DELETE | OpenAPI đã khai báo `403` cho Origin ở auth mutation; lint còn 5 warning không chặn validate cho discovery/redirect/health; cần integration review với Developer B |
+| UI auth | Có đủ màn auth; validation theo field khi blur/submit, OTP chỉ nhận sáu chữ số, mật khẩu mặc định ẩn và tự ẩn khi rời ô; lỗi có VI/EN và submit chống lặp | Đã kiểm tra browser thủ công; keyboard/screen reader E2E và flow OTP thật còn chờ |
+| CI | Workflow có MySQL disposable service. Local typecheck/build/OpenAPI/auth/client-IP tests pass trong evidence bên dưới | Lần chạy remote cuối được ghi nhận là [workflow run #1 trên commit `99585e2`](https://github.com/staavanothanh/Campus-Coin/actions/runs/36032360164), thất bại ở command gộp ba MySQL suite; chưa có log đủ để xác định suite/test lỗi và chưa xác minh run remote mới hơn. `db:datatest`/MySQL integration chưa chạy trong lượt này |
 | Production/restore | Chưa có evidence | Cần backup/restore rehearsal, CA chain/role grants, TLS/connectivity, redacted logs và rollback |
 
 Không suy ra trạng thái DB, SMTP, cloud hoặc production từ sự tồn tại của config/file/migration hay từ health `SELECT 1`.
 
 ## 3. Gate auth/security
 
-- Login account+IP rate-limit, OTP attempt/backoff và quota đã có trong MySQL; CI integration phải xác nhận hành vi block và thời hạn.
-- OTP expiry, max attempts, resend cooldown và single-use đã có code; CI auth MySQL integration bao phủ; SMTP thật chưa kiểm chứng.
+- Login account+IP rate-limit, OTP attempt/backoff và quota đã có trong MySQL; OTP resend cooldown không trừ quota gửi; regression test register/reset đã thêm nhưng chưa chạy trên MySQL cô lập. `X-Forwarded-For` chỉ được tin khi socket peer khớp `TRUSTED_PROXY_IPS`; unit test bao phủ header giả mạo và pass trong lượt này.
+- OTP expiry, max attempts, resend cooldown và single-use đã có code và auth MySQL test; CI command gần nhất thất bại nhưng chưa xác định test lỗi; SMTP thật chưa kiểm chứng.
 - Cookie `HttpOnly`, `Secure` production, `SameSite`, expiry, revoke, logout và reset-password revoke session cũ đã có code; CI auth integration bao phủ.
 - CSRF/Origin, IDOR, owner isolation, lỗi provider/DB, 401/403/404/409/422/429/5xx và response envelope.
 - Email: adapter SMTP provider thật, timeout, retry giới hạn, cùng một mã trong retry, lỗi rõ; không fallback OTP vào log/dev.
@@ -75,13 +75,31 @@ Hai lệnh DB chỉ dùng disposable MySQL do CI tạo riêng, không Aiven `def
 
 - `npm run typecheck`: pass.
 - `npm run build`: pass.
-- `npm run api:validate`: exit 0, schema hợp lệ; 5 lint warnings yêu cầu 4xx cho `/auth/providers`, `/auth/google/start`, `/auth/google/callback`, `/health` và `/health/ready`. Ba OAuth endpoint là discovery/redirect/callback và xử lý lỗi theo contract tương ứng; hai health endpoint hiện chỉ trả 200/500 và 200/503. Không khai báo response 4xx giả chỉ để xóa warning.
+- `npm run api:validate`: exit 0, schema hợp lệ; 5 lint warnings yêu cầu 4xx cho `/auth/providers`, `/auth/google/start`, `/auth/google/callback`, `/health` và `/health/ready`. Đây là các endpoint discovery/redirect/callback/health không dùng 4xx cho behavior hiện tại; không khai báo response 4xx giả chỉ để xóa warning.
 - `npm run api:bundle` và `npm run api:types`: pass; artifacts đã được sinh lại từ `docs/contracts/openapi.yaml`.
 - `node --import tsx --test tests/auth.test.ts test/schema-readiness.test.ts tests/google-oauth.test.ts`: 21 tests pass; bao gồm Google config, PKCE S256, state, chữ ký cookie, callback cancel và TTL 10 phút. Nonce được gửi trong authorization request và dùng khi xác minh ID token; live token exchange chưa chạy.
 - `node --import tsx --test test/mysql.integration.test.ts test/e2e.contract.smoke.test.ts test/auth.mysql.integration.test.ts`: 3 suite gated bị skip vì chưa bật MySQL cô lập; auth test có thêm case yêu cầu explicit link khi email đã tồn tại.
-- `npm run db:datatest` chưa chạy trong phiên này để không đọc/sử dụng cấu hình DB local chưa xác nhận; CI workflow cấu hình MySQL service riêng nhưng chưa được chạy từ xa trong phiên này.
+- `npm run db:datatest` và gated MySQL integration chưa chạy trong evidence trước đó; cần disposable MySQL riêng, không suy ra kết quả từ migration status.
 - Google OAuth live callback chưa chạy vì owner chưa cấu hình/kiểm chứng OAuth client secrets và callback URL trong environment.
-- Aiven connection/query, migration apply, SMTP provider, backup/restore và remote CI result chưa được kiểm chứng.
+- Aiven target riêng chưa được xác nhận; SMTP provider, backup/restore và remote CI result chưa được kiểm chứng.
+
+### Bổ sung ngày 2026-09-25
+
+- `npm run db:status`: DB mà CLI hiện cấu hình báo `0001`–`0005` đều `applied`. Kết quả này chỉ xác nhận target hiện tại, không xác nhận DB CI, staging hoặc production.
+- `node --import tsx --test tests/auth.test.ts`: 15 tests pass, gồm Origin local development; `node --import tsx --test tests/client-ip.test.ts`: 4 tests pass, gồm header `X-Forwarded-For` giả mạo.
+- `npm run typecheck`, `npm run build` và `git diff --check`: pass. `npm run api:validate`: exit 0, còn 5 warnings đã liệt kê ở trên.
+- Browser local: email sai hiện lỗi tại trường; password mặc định ẩn, nút `Hiện` bật tạm thời và password tự ẩn khi focus rời nhóm trường. Không gửi OTP trong lần kiểm tra này.
+- Health/readiness trả `pass`; probe auth với body rỗng qua `http://127.0.0.1:5173` qua được Origin rồi dừng ở `422 VALIDATION_ERROR`, trước khi truy cập DB hoặc email sender.
+- Tại thời điểm lượt kiểm tra trước, chưa chạy `db:datatest`, auth MySQL integration, SMTP send/receive, Google OAuth live hoặc backup/restore.
+
+### Bổ sung kiểm tra và xác nhận của Team Leader ngày 2026-09-25
+
+- `npm run typecheck`, `npm run build`, `npm run api:bundle` và `npm run api:types`: pass.
+- `npm run api:validate`: exit 0; OpenAPI hợp lệ với 5 warning đã mô tả. Contract hiện khai báo `403 ORIGIN_INVALID` cho auth mutation bị thiếu.
+- `node --import tsx --test tests/auth.test.ts test/schema-readiness.test.ts tests/google-oauth.test.ts tests/client-ip.test.ts`: 27 tests pass.
+- Team Leader xác nhận đã hoàn tất đăng ký qua email. Đây là evidence được báo cáo cho luồng register; reset email, timeout/retry SMTP thật và lỗi provider vẫn chưa được kiểm chứng riêng.
+- Không chạy `npm run db:datatest` hoặc MySQL integration trên Aiven `defaultdb`: hai bộ này tạo/xóa database tạm, còn target này chưa được xác nhận là DB test cô lập.
+- Chưa xác minh kết quả workflow GitHub mới hơn lần chạy được liên kết ở bảng trên.
 
 ## 8. Phối hợp Developer B
 

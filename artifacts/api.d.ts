@@ -1072,8 +1072,8 @@ export interface components {
                 "application/json": components["schemas"]["ErrorResponse"];
             };
         };
-        /** @description Tài khoản bị disable */
-        AccountDisabled: {
+        /** @description Origin không hợp lệ, tài khoản bị vô hiệu hoặc email chưa xác minh */
+        LoginForbidden: {
             headers: {
                 [name: string]: unknown;
             };
@@ -1081,7 +1081,16 @@ export interface components {
                 "application/json": components["schemas"]["ErrorResponse"];
             };
         };
-        /** @description CSRF hoặc Origin không hợp lệ */
+        /** @description Origin của request không được phép */
+        OriginInvalid: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["ErrorResponse"];
+            };
+        };
+        /** @description Origin không hợp lệ hoặc CSRF token thiếu/sai; error code trong body phân biệt hai trường hợp */
         CsrfInvalid: {
             headers: {
                 [name: string]: unknown;
@@ -1220,6 +1229,7 @@ export interface operations {
                 };
             };
             400: components["responses"]["BadRequest"];
+            403: components["responses"]["OriginInvalid"];
             409: components["responses"]["Conflict"];
             413: components["responses"]["PayloadTooLarge"];
             422: components["responses"]["ValidationError"];
@@ -1252,6 +1262,7 @@ export interface operations {
                 };
             };
             400: components["responses"]["BadRequest"];
+            403: components["responses"]["OriginInvalid"];
             409: components["responses"]["Conflict"];
             413: components["responses"]["PayloadTooLarge"];
             422: components["responses"]["ValidationError"];
@@ -1283,6 +1294,7 @@ export interface operations {
                 };
             };
             400: components["responses"]["BadRequest"];
+            403: components["responses"]["OriginInvalid"];
             409: components["responses"]["Conflict"];
             413: components["responses"]["PayloadTooLarge"];
             422: components["responses"]["ValidationError"];
@@ -1316,7 +1328,7 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
-            403: components["responses"]["AccountDisabled"];
+            403: components["responses"]["LoginForbidden"];
             413: components["responses"]["PayloadTooLarge"];
             422: components["responses"]["ValidationError"];
             429: components["responses"]["RateLimited"];
@@ -1454,6 +1466,7 @@ export interface operations {
                 };
             };
             400: components["responses"]["BadRequest"];
+            403: components["responses"]["OriginInvalid"];
             413: components["responses"]["PayloadTooLarge"];
             422: components["responses"]["ValidationError"];
             500: components["responses"]["InternalError"];
@@ -1483,6 +1496,7 @@ export interface operations {
                 };
             };
             400: components["responses"]["BadRequest"];
+            403: components["responses"]["OriginInvalid"];
             413: components["responses"]["PayloadTooLarge"];
             422: components["responses"]["ValidationError"];
             429: components["responses"]["RateLimited"];
