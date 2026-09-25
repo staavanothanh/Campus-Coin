@@ -33,7 +33,10 @@ function splitStatements(sql: string): string[] {
 
 function parseFile(content: string): { expectError: string | null; sql: string } {
   let expectError: string | null = null;
-  for (const line of content.split("\n")) {
+  // Chuẩn hóa CRLF (Windows/autocrlf) trước khi parse: `\r` sót lại làm regex
+  // `$` fail và biến expect-error thành null dù header đúng.
+  const normalized = content.replaceAll("\r\n", "\n");
+  for (const line of normalized.split("\n")) {
     const trimmed = line.trimStart();
     if (!trimmed.startsWith("--")) break;
     const match = /^--\s*expect-error(?::\s*(.*))?$/.exec(trimmed);
@@ -41,7 +44,7 @@ function parseFile(content: string): { expectError: string | null; sql: string }
       expectError = (match[1] ?? "").trim().length > 0 ? match[1]!.trim() : "error";
     }
   }
-  return { expectError, sql: content };
+  return { expectError, sql: normalized };
 }
 
 async function collectFiles(dir: string): Promise<SqlFile[]> {

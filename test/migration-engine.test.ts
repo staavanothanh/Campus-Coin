@@ -1,17 +1,19 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import { mkdtempSync, writeFileSync, rmSync, mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { createHash } from "node:crypto";
 import {
   applyMigration,
   loadAppliedMigrations,
+  loadBaselines,
   MigrationError,
   planMigrations,
   scanMigrationDir,
   supportsCheckConstraints,
   withMigrationLock,
+  type MigrationBaselines,
   type MigrationFile,
 } from "../src/infrastructure/db/migration-engine.ts";
 
@@ -239,4 +241,86 @@ test("applyMigration: reports DDL/history split clearly if recording the version
     applyMigration(conn, { version: "0001", name: "0001_a.sql", checksum: "abc", sql: "SELECT 1;" }),
     { name: "MigrationError", message: /DDL completed but schema_migrations recording failed; inspect database state before retry/ },
   );
+});
+
+function baselinesOf(entries: Array<{ version: string; kind: "historical" | "external"; checksum: string }>): MigrationBaselines {
+  const historical = new Map();
+  const external = new Map();
+  for (const e of entries) {
+    const target = e.kind === "historical" ? historical : external;
+    target.set(e.version, { version: e.version, kind: e.kind, acceptedChecksums: [e.checksum], reason: "test" });
+  }
+  return { historical, external };
+}
+
+test("scanMigrationDir: strict contiguity, không cần biết baselines", async () => {
+  const dir = makeDir({
+    "0001_first.sql": "CREATE TABLE a (id INT);",
+    "0002_second.sql": "CREATE TABLE b (id INT);",
+  });
+  try {
+    const files = await scanMigrationDir(dir);
+    assert.deepEqual(files.map((f) => f.version), ["0001", "0002"]);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("scanMigrationDir: không có baselines thì gap vẫn fail-closed", async () => {
+  const dir = makeDir({ "0001_first.sql": "SELECT 1;", "0003_third.sql": "SELECT 3;" });
+  try {
+    await assert.rejects(scanMigrationDir(dir), { name: "MigrationError", message: /version gap: expected 0002/ });
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("loadBaselines: thiếu file thì rỗng; sai shape thì fail-closed", async () => {
+  const parent = mkdtempSync(path.join(tmpdir(), "cc-base-"));
+  try {
+    const empty = await loadBaselines(path.join(parent, "migrations"));
+    assert.equal(empty.historical.size, 0);
+    assert.equal(empty.external.size, 0);
+    writeFileSync(path.join(parent, "baselines.json"), JSON.stringify({
+      entries: [{ version: "0002", kind: "external", acceptedChecksums: ["a".repeat(64)], reason: "other chain" }],
+    }));
+    const loaded = await loadBaselines(path.join(parent, "migrations"));
+    assert.deepEqual([...loaded.external.keys()], ["0002"]);
+    writeFileSync(path.join(parent, "baselines.json"), JSON.stringify({ entries: [{ version: "zz", kind: "external" }] }));
+    await assert.rejects(loadBaselines(path.join(parent, "migrations")), { name: "MigrationError" });
+  } finally {
+    rmSync(parent, { recursive: true, force: true });
+  }
+});
+
+test("planMigrations: chấp nhận historical/external đã pin, từ chối checksum lạ", () => {
+  const files: MigrationFile[] = [
+    { version: "0001", name: "0001_a.sql", checksum: "aaa", sql: "x" },
+    { version: "0002", name: "0002_b.sql", checksum: "bbb", sql: "x" },
+    { version: "0003", name: "0003_c.sql", checksum: "ccc", sql: "x" },
+  ];
+  const baselines = baselinesOf([
+    { version: "0001", kind: "historical", checksum: "HIST" },
+    { version: "0002", kind: "external", checksum: "EXT" },
+  ]);
+  // Slot external có file local nhưng row đã ghi khớp pin → skip file, không pending.
+  const plan = planMigrations(
+    files,
+    new Map([["0001", "HIST"], ["0002", "EXT"]]),
+    baselines,
+  );
+  assert.deepEqual(plan.appliedHistorical, ["0001"]);
+  assert.deepEqual(plan.appliedExternal, ["0002"]);
+  assert.deepEqual(plan.appliedMismatch, []);
+  assert.deepEqual(plan.appliedMissing, []);
+  assert.deepEqual(plan.pending.map((f) => f.version), ["0003"]);
+
+  const bad = planMigrations(files, new Map([["0001", "aaa"], ["0002", "UNKNOWN"]]), baselines);
+  assert.deepEqual(bad.appliedMismatch, [{ version: "0002", expected: "bbb", actual: "UNKNOWN" }]);
+  assert.deepEqual(bad.pending.map((f) => f.version), ["0003"]);
+
+  const fresh = planMigrations(files, new Map(), baselines);
+  assert.deepEqual(fresh.appliedExternal, []);
+  assert.deepEqual(fresh.appliedMismatch, []);
+  assert.deepEqual(fresh.pending.map((f) => f.version), ["0001", "0002", "0003"]);
 });

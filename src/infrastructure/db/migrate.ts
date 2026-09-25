@@ -7,6 +7,7 @@ import mysql from "mysql2/promise";
 import {
   applyMigration,
   loadAppliedMigrations,
+  loadBaselines,
   MigrationError,
   planMigrations,
   scanMigrationDir,
@@ -144,7 +145,7 @@ async function cmdPreflight(): Promise<number> {
 
     const files = await scanMigrationDir(MIGRATIONS_DIR);
     const applied = await loadAppliedMigrations(conn as unknown as MigrationConnection);
-    const plan = planMigrations(files, applied);
+    const plan = planMigrations(files, applied, await loadBaselines(MIGRATIONS_DIR));
     const hasDrift = plan.appliedMismatch.length > 0 || plan.appliedMissing.length > 0 || plan.pendingOutOfOrder.length > 0;
     results.push({
       ok: !hasDrift,
@@ -162,7 +163,10 @@ async function cmdPreflight(): Promise<number> {
               ? [`pending versions precede already-applied versions: ${plan.pendingOutOfOrder.join(", ")}`]
               : []),
           ].join("; ")
-        : `applied=${plan.appliedClean.length} pending=${plan.pending.length} total=${files.length}`,
+        : `applied=${plan.appliedClean.length} pending=${plan.pending.length} total=${files.length}` +
+          (plan.appliedHistorical.length > 0 || plan.appliedExternal.length > 0
+            ? ` baselined=[${[...plan.appliedHistorical, ...plan.appliedExternal].sort().join(", ")}]`
+            : ""),
     });
   } catch (error) {
     results.push({ ok: false, warn: false, label: "preflight execution", detail: String(error) });
@@ -191,13 +195,21 @@ async function cmdStatus(): Promise<number> {
     conn = await connect(dbEnv, false);
     const files = await scanMigrationDir(MIGRATIONS_DIR);
     const applied = await loadAppliedMigrations(conn as unknown as MigrationConnection);
-    const plan = planMigrations(files, applied);
+    const plan = planMigrations(files, applied, await loadBaselines(MIGRATIONS_DIR));
     console.log(`Migrations dir: ${MIGRATIONS_DIR}`);
+    const baselined = new Set([...plan.appliedHistorical, ...plan.appliedExternal]);
     for (const file of files) {
       const state = applied.has(file.version)
-        ? (plan.appliedMismatch.some((m) => m.version === file.version) ? "MISMATCH" : "applied ")
+        ? (plan.appliedMismatch.some((m) => m.version === file.version)
+          ? "MISMATCH "
+          : baselined.has(file.version)
+            ? "baselined"
+            : "applied ")
         : "pending ";
       console.log(`${state}  ${file.version}  ${file.name}`);
+    }
+    for (const version of plan.appliedExternal) {
+      console.log(`external  ${version}  (owned by another chain, see db/baselines.json)`);
     }
     if (plan.appliedMismatch.length > 0 || plan.appliedMissing.length > 0 || plan.pendingOutOfOrder.length > 0) {
       if (plan.appliedMismatch.length > 0) {
@@ -240,7 +252,7 @@ async function cmdUp(): Promise<number> {
     const files = await scanMigrationDir(MIGRATIONS_DIR);
     return await withMigrationLock(conn as unknown as MigrationConnection, async () => {
       const applied = await loadAppliedMigrations(conn as unknown as MigrationConnection);
-      const plan = planMigrations(files, applied);
+      const plan = planMigrations(files, applied, await loadBaselines(MIGRATIONS_DIR));
       if (plan.appliedMismatch.length > 0 || plan.appliedMissing.length > 0 || plan.pendingOutOfOrder.length > 0) {
         if (plan.appliedMismatch.length > 0) {
           console.log(`FAIL  checksum mismatch: ${plan.appliedMismatch.map((m) => m.version).join(", ")}`);

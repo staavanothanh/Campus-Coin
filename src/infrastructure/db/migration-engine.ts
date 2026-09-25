@@ -14,6 +14,79 @@ export interface MigrationFile {
   sql: string;
 }
 
+/** Một baseline entry trong db/baselines.json (ADR-0009, database shared). */
+export interface BaselineEntry {
+  version: string;
+  kind: "historical" | "external";
+  acceptedChecksums: string[];
+  reason: string;
+}
+
+export interface MigrationBaselines {
+  historical: Map<string, BaselineEntry>;
+  external: Map<string, BaselineEntry>;
+}
+
+const EMPTY_BASELINES: MigrationBaselines = { historical: new Map(), external: new Map() };
+
+const VERSION_PATTERN = /^\d{4}$/;
+const CHECKSUM_PATTERN = /^[0-9a-f]{64}$/;
+
+/**
+ * Đọc db/baselines.json cạnh thư mục migrations (db/baselines.json khi dir là
+ * db/migrations). File vắng mặt → baseline rỗng (behavior strict cũ).
+ * File sai shape → MigrationError fail-closed.
+ */
+export async function loadBaselines(migrationsDir: string): Promise<MigrationBaselines> {
+  const { readFile } = await import("node:fs/promises");
+  const filePath = path.join(migrationsDir, "..", "baselines.json");
+  let raw: string;
+  try {
+    raw = await readFile(filePath, "utf8");
+  } catch {
+    return { historical: new Map(), external: new Map() };
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw) as unknown;
+  } catch {
+    throw new MigrationError(`invalid baselines JSON: ${filePath}`);
+  }
+  if (typeof parsed !== "object" || parsed === null || !Array.isArray((parsed as { entries?: unknown }).entries)) {
+    throw new MigrationError(`invalid baselines shape: ${filePath} (expected { entries: [...] })`);
+  }
+  const baselines: MigrationBaselines = { historical: new Map(), external: new Map() };
+  for (const item of (parsed as { entries: unknown[] }).entries) {
+    if (typeof item !== "object" || item === null) throw new MigrationError(`invalid baseline entry: ${filePath}`);
+    const entry = item as Record<string, unknown>;
+    if (typeof entry["version"] !== "string" || !VERSION_PATTERN.test(entry["version"])) {
+      throw new MigrationError(`invalid baseline version: ${filePath}`);
+    }
+    if (entry["kind"] !== "historical" && entry["kind"] !== "external") {
+      throw new MigrationError(`invalid baseline kind for ${entry["version"]}: ${filePath}`);
+    }
+    if (!Array.isArray(entry["acceptedChecksums"]) || entry["acceptedChecksums"].length === 0 ||
+        !entry["acceptedChecksums"].every((c) => typeof c === "string" && CHECKSUM_PATTERN.test(c))) {
+      throw new MigrationError(`invalid baseline checksums for ${entry["version"]}: ${filePath}`);
+    }
+    if (typeof entry["reason"] !== "string" || entry["reason"].trim().length === 0) {
+      throw new MigrationError(`baseline ${entry["version"]} requires a reason: ${filePath}`);
+    }
+    const version = entry["version"];
+    if (baselines.historical.has(version) || baselines.external.has(version)) {
+      throw new MigrationError(`duplicate baseline version ${version}: ${filePath}`);
+    }
+    const target = entry["kind"] === "historical" ? baselines.historical : baselines.external;
+    target.set(version, {
+      version,
+      kind: entry["kind"],
+      acceptedChecksums: [...entry["acceptedChecksums"] as string[]],
+      reason: entry["reason"] as string,
+    });
+  }
+  return baselines;
+}
+
 export interface MigrationConnection {
   query(sql: string, params?: unknown[]): Promise<unknown>;
   end(): Promise<void>;
@@ -118,6 +191,10 @@ export async function loadAppliedMigrations(conn: MigrationConnection): Promise<
 export interface MigrationPlan {
   pending: MigrationFile[];
   appliedClean: string[];
+  /** Version khớp checksum lịch sử đã pin (ADR-0009), không phải checksum file hiện tại. */
+  appliedHistorical: string[];
+  /** Version external đã apply và khớp checksum pin (không có file local). */
+  appliedExternal: string[];
   appliedMismatch: Array<{ version: string; expected: string; actual: string }>;
   appliedMissing: string[];
   pendingOutOfOrder: string[];
@@ -126,17 +203,28 @@ export interface MigrationPlan {
 /**
  * So khớp file local với state DB.
  * Checksum lệch → lỗi hard (fail closed): không âm thầm apply lại file đã chạy.
+ * Ngoại lệ duy nhất là baseline đã khai trong db/baselines.json (ADR-0009).
  */
-export function planMigrations(files: MigrationFile[], applied: Map<string, string>): MigrationPlan {
+export function planMigrations(
+  files: MigrationFile[],
+  applied: Map<string, string>,
+  baselines: MigrationBaselines = EMPTY_BASELINES,
+): MigrationPlan {
   const plan: MigrationPlan = {
     pending: [],
     appliedClean: [],
+    appliedHistorical: [],
+    appliedExternal: [],
     appliedMismatch: [],
     appliedMissing: [],
     pendingOutOfOrder: [],
   };
   const localVersions = new Set(files.map((file) => file.version));
   const appliedVersions = [...applied.keys()].sort();
+  const externalPin = (version: string): string[] | null => {
+    const entry = baselines.external.get(version);
+    return entry === undefined ? null : entry.acceptedChecksums;
+  };
   for (const file of files) {
     const recorded = applied.get(file.version);
     if (recorded === undefined) {
@@ -144,11 +232,29 @@ export function planMigrations(files: MigrationFile[], applied: Map<string, stri
       if (appliedVersions.some((version) => version > file.version)) plan.pendingOutOfOrder.push(file.version);
     } else if (recorded === file.checksum) {
       plan.appliedClean.push(file.version);
+    } else if ((baselines.historical.get(file.version)?.acceptedChecksums ?? []).includes(recorded)) {
+      plan.appliedHistorical.push(file.version);
+    } else if ((externalPin(file.version) ?? []).includes(recorded)) {
+      // Slot thuộc chain khác (ADR-0009): chấp nhận row đã ghi, BỎ QUA file local.
+      // DDL hội tụ do DBA apply thủ công có duyệt và verify (không auto-apply).
+      plan.appliedExternal.push(file.version);
     } else {
       plan.appliedMismatch.push({ version: file.version, expected: file.checksum, actual: recorded });
     }
   }
-  plan.appliedMissing = [...applied.keys()].filter((version) => !localVersions.has(version)).sort();
+  for (const [version, entry] of baselines.external) {
+    if (localVersions.has(version)) continue; // đã xử lý trong vòng file ở trên.
+    const recorded = applied.get(version);
+    if (recorded === undefined) continue; // DB fresh: slot external vắng mặt là sạch.
+    if (entry.acceptedChecksums.includes(recorded)) {
+      plan.appliedExternal.push(version);
+    } else {
+      plan.appliedMismatch.push({ version, expected: entry.acceptedChecksums.join("|"), actual: recorded });
+    }
+  }
+  plan.appliedMissing = [...applied.keys()]
+    .filter((version) => !localVersions.has(version) && !baselines.external.has(version))
+    .sort();
   return plan;
 }
 
