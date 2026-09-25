@@ -107,6 +107,9 @@ Local `test:mysql:required` sau repair (MySQL 8.0.41 portable): 106 pass, 0 fail
 - Objects `0004`/`0005` của chain mình (unique/idempotency DDL) **không tồn tại** trên Aiven; `0001`/`0003` khớp intent hiện tại ở DDL đã kiểm tra.
 - Test data chain mình: users `999001`/`999002`, ledger 60 rows, savings_transfers 20 rows (toàn `original`), categories giữ đúng 11 seeds; `wallet_accounts` 0 rows, triggers mới chỉ có 8 append-only của `0001` (DEFINER `avnadmin@%`), chưa có boundary/projection triggers.
 - Chưa provision `cc_migrate`/`cc_runtime`; credential hiện tại là provider admin (chỉ DBA dùng).
+- Team Leader chọn **hội tụ trên DB shared**; test data được dọn có kiểm soát, giữ seeds và tables chain khác.
+- **Phase 1 done 2026-09-25** (đã duyệt từng lệnh): DROP 8 append-only triggers của `0001` → DELETE `savings_transfers` 20 + `ledger_transactions` 60 + `users` 2 (scope `999001`/`999002`, verify không owner lạ) → tạo lại triggers y hệt → verify seeds 11, counts 0, guards 8, chain khác nguyên vẹn (`0/0/2/1`).
+- Còn lại: hội tụ DDL `0004`/`0005` còn thiếu, re-baseline checksum (cần ADR), provision `cc_migrate`/`cc_runtime`, apply `0006`–`0030`, review grants/trigger `DEFINER`, restore rehearsal + reconcile.
 - Hệ quả: (1) không drop/recreate DB; (2) `0011` không apply được khi chưa remediation (FK đòi wallet cho 60 ledger rows đang thiếu); (3) cần quyết định tách database riêng hay DBA hội tụ trên DB shared (re-baseline checksum cần ADR).
 
 ### Dọn trước khi merge
