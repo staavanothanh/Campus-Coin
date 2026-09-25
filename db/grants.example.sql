@@ -15,9 +15,12 @@ GRANT SELECT, INSERT ON campus_coin.schema_migrations TO 'cc_migrate'@'%';
 GRANT INSERT ON campus_coin.categories TO 'cc_migrate'@'%';
 GRANT INSERT, UPDATE ON campus_coin.savings_accounts TO 'cc_migrate'@'%';
 GRANT UPDATE (available_balance_vnd) ON campus_coin.wallet_accounts TO 'cc_migrate'@'%';
-GRANT SELECT ON campus_coin.categories, campus_coin.ledger_transactions,
-  campus_coin.mutation_idempotency, campus_coin.budgets,
-  campus_coin.wallet_accounts, campus_coin.savings_accounts TO 'cc_migrate'@'%';
+GRANT SELECT ON campus_coin.categories TO 'cc_migrate'@'%';
+GRANT SELECT ON campus_coin.ledger_transactions TO 'cc_migrate'@'%';
+GRANT SELECT ON campus_coin.mutation_idempotency TO 'cc_migrate'@'%';
+GRANT SELECT ON campus_coin.budgets TO 'cc_migrate'@'%';
+GRANT SELECT ON campus_coin.wallet_accounts TO 'cc_migrate'@'%';
+GRANT SELECT ON campus_coin.savings_accounts TO 'cc_migrate'@'%';
 
 -- 3) Runtime role: reset the former schema-wide DML grant, then grant only
 -- table/column operations required by application repositories. No DELETE.
@@ -26,17 +29,32 @@ CREATE USER IF NOT EXISTS 'cc_runtime'@'%' IDENTIFIED BY '${CAMPUS_COIN_DB_PASSW
 -- first confirm these grants exist with SHOW GRANTS, then run once:
 -- REVOKE SELECT, INSERT, UPDATE, DELETE ON campus_coin.* FROM 'cc_runtime'@'%';
 
-GRANT SELECT ON campus_coin.users, campus_coin.auth_identities, campus_coin.sessions,
-  campus_coin.wallet_accounts, campus_coin.mutation_idempotency, campus_coin.categories,
-  campus_coin.ledger_transactions, campus_coin.budgets, campus_coin.savings_accounts,
-  campus_coin.savings_transfers, campus_coin.issues, campus_coin.issue_events,
-  campus_coin.audit_events TO 'cc_runtime'@'%';
+GRANT SELECT ON campus_coin.users TO 'cc_runtime'@'%';
+GRANT SELECT ON campus_coin.auth_identities TO 'cc_runtime'@'%';
+GRANT SELECT ON campus_coin.sessions TO 'cc_runtime'@'%';
+GRANT SELECT ON campus_coin.wallet_accounts TO 'cc_runtime'@'%';
+GRANT SELECT ON campus_coin.mutation_idempotency TO 'cc_runtime'@'%';
+GRANT SELECT ON campus_coin.categories TO 'cc_runtime'@'%';
+GRANT SELECT ON campus_coin.ledger_transactions TO 'cc_runtime'@'%';
+GRANT SELECT ON campus_coin.budgets TO 'cc_runtime'@'%';
+GRANT SELECT ON campus_coin.savings_accounts TO 'cc_runtime'@'%';
+GRANT SELECT ON campus_coin.savings_transfers TO 'cc_runtime'@'%';
+GRANT SELECT ON campus_coin.issues TO 'cc_runtime'@'%';
+GRANT SELECT ON campus_coin.issue_events TO 'cc_runtime'@'%';
+GRANT SELECT ON campus_coin.audit_events TO 'cc_runtime'@'%';
 
-GRANT INSERT ON campus_coin.users, campus_coin.auth_identities, campus_coin.sessions,
-  campus_coin.wallet_accounts, campus_coin.mutation_idempotency, campus_coin.categories,
-  campus_coin.ledger_transactions, campus_coin.budgets,
-  campus_coin.savings_transfers, campus_coin.issues, campus_coin.issue_events,
-  campus_coin.audit_events TO 'cc_runtime'@'%';
+GRANT INSERT ON campus_coin.users TO 'cc_runtime'@'%';
+GRANT INSERT ON campus_coin.auth_identities TO 'cc_runtime'@'%';
+GRANT INSERT ON campus_coin.sessions TO 'cc_runtime'@'%';
+GRANT INSERT ON campus_coin.wallet_accounts TO 'cc_runtime'@'%';
+GRANT INSERT ON campus_coin.mutation_idempotency TO 'cc_runtime'@'%';
+GRANT INSERT ON campus_coin.categories TO 'cc_runtime'@'%';
+GRANT INSERT ON campus_coin.ledger_transactions TO 'cc_runtime'@'%';
+GRANT INSERT ON campus_coin.budgets TO 'cc_runtime'@'%';
+GRANT INSERT ON campus_coin.savings_transfers TO 'cc_runtime'@'%';
+GRANT INSERT ON campus_coin.issues TO 'cc_runtime'@'%';
+GRANT INSERT ON campus_coin.issue_events TO 'cc_runtime'@'%';
+GRANT INSERT ON campus_coin.audit_events TO 'cc_runtime'@'%';
 
 GRANT UPDATE (display_name, locale, timezone) ON campus_coin.users TO 'cc_runtime'@'%';
 GRANT UPDATE (last_seen_at, revoked_at) ON campus_coin.sessions TO 'cc_runtime'@'%';

@@ -90,11 +90,12 @@ export function createMysqlHarness(): MysqlHarness {
     await admin.query(`GRANT INSERT ON \`${database}\`.categories TO ${account}`);
     await admin.query(`GRANT INSERT, UPDATE ON \`${database}\`.savings_accounts TO ${account}`);
     await admin.query(`GRANT UPDATE (available_balance_vnd) ON \`${database}\`.wallet_accounts TO ${account}`);
-    await admin.query(
-      `GRANT SELECT ON \`${database}\`.categories, \`${database}\`.ledger_transactions,
-        \`${database}\`.mutation_idempotency, \`${database}\`.budgets,
-        \`${database}\`.wallet_accounts, \`${database}\`.savings_accounts TO ${account}`,
-    );
+    const readableTables = [
+      "categories", "ledger_transactions", "mutation_idempotency", "budgets", "wallet_accounts", "savings_accounts",
+    ];
+    for (const table of readableTables) {
+      await admin.query(`GRANT SELECT ON \`${database}\`.\`${table}\` TO ${account}`);
+    }
   }
 
   return {
