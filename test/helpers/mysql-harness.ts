@@ -12,8 +12,11 @@ export const MIGRATIONS_DIR = path.resolve(import.meta.dirname, "..", "..", "db"
 
 export interface MysqlHarness {
   dbName: string;
+  migrationUser: string;
   /** Tạo user mới trong database tạm; trả user_id. */
   newUserId(): Promise<number>;
+  listTriggerDefiners(): Promise<string[]>;
+  setAuditInsertFailure(enabled: boolean): Promise<void>;
   start(): Promise<void>;
   stop(): Promise<void>;
 }
@@ -21,8 +24,11 @@ export interface MysqlHarness {
 export function createMysqlHarness(): MysqlHarness {
   let admin: Connection | null = null;
   let dbName = "";
+  let migrationUser = "";
+  let migrationPassword = "";
   let runtimeUser = "";
   let runtimePassword = "";
+  let auditInsertFailureInstalled = false;
   const originalEnv = {
     database: process.env["CAMPUS_COIN_DB_NAME"],
     user: process.env["CAMPUS_COIN_DB_USER"],
@@ -64,8 +70,26 @@ export function createMysqlHarness(): MysqlHarness {
     }
   }
 
+  async function grantMigrationPrivileges(database: string, username: string): Promise<void> {
+    if (admin === null) throw new Error("harness admin connection missing");
+    const account = `'${username}'@'%'`;
+    await admin.query(
+      `GRANT CREATE, ALTER, DROP, INDEX, REFERENCES, TRIGGER ON \`${database}\`.* TO ${account}`,
+    );
+    await admin.query(`GRANT SELECT, INSERT ON \`${database}\`.schema_migrations TO ${account}`);
+    await admin.query(`GRANT INSERT ON \`${database}\`.categories TO ${account}`);
+    await admin.query(`GRANT INSERT, UPDATE ON \`${database}\`.savings_accounts TO ${account}`);
+    await admin.query(`GRANT UPDATE (available_balance_vnd) ON \`${database}\`.wallet_accounts TO ${account}`);
+    await admin.query(
+      `GRANT SELECT ON \`${database}\`.categories, \`${database}\`.ledger_transactions,
+        \`${database}\`.mutation_idempotency, \`${database}\`.budgets,
+        \`${database}\`.wallet_accounts, \`${database}\`.savings_accounts TO ${account}`,
+    );
+  }
+
   return {
     dbName: "",
+    migrationUser: "",
 
     async start(): Promise<void> {
       const env = readDbEnv();
@@ -87,26 +111,34 @@ export function createMysqlHarness(): MysqlHarness {
       });
       dbName = `campus_coin_test_${process.pid}_${randomUUID().slice(0, 8)}`;
       this.dbName = dbName;
+      migrationUser = `cc_migrate_test_${randomUUID().replaceAll("-", "")}`;
+      migrationPassword = randomUUID().replaceAll("-", "");
+      this.migrationUser = migrationUser;
       runtimeUser = `cc_test_${randomUUID().replaceAll("-", "")}`;
       runtimePassword = randomUUID().replaceAll("-", "");
       await admin.query(
         `CREATE DATABASE \`${dbName}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci`,
       );
       await closePool();
+      await admin.query(`CREATE USER '${migrationUser}'@'%' IDENTIFIED BY '${migrationPassword}'`);
+      await grantMigrationPrivileges(dbName, migrationUser);
 
       const mig = (await mysql.createConnection({
         host: env.host,
         port: env.port,
         database: dbName,
-        user: adminUser,
-        password: adminPassword,
+        user: migrationUser,
+        password: migrationPassword,
         ...(ssl === undefined ? {} : { ssl }),
         multipleStatements: true,
       })) as unknown as MigrationConnection;
-      for (const file of await scanMigrationDir(MIGRATIONS_DIR)) {
-        await applyMigration(mig, file);
+      try {
+        for (const file of await scanMigrationDir(MIGRATIONS_DIR)) {
+          await applyMigration(mig, file);
+        }
+      } finally {
+        await mig.end();
       }
-      await mig.end();
 
       await admin.query(`CREATE USER '${runtimeUser}'@'%' IDENTIFIED BY '${runtimePassword}'`);
       await grantRuntimePrivileges(dbName, runtimeUser);
@@ -114,6 +146,30 @@ export function createMysqlHarness(): MysqlHarness {
       process.env["CAMPUS_COIN_DB_USER"] = runtimeUser;
       process.env["CAMPUS_COIN_DB_PASSWORD"] = runtimePassword;
       await closePool();
+    },
+
+    async listTriggerDefiners(): Promise<string[]> {
+      if (admin === null) throw new Error("harness not started");
+      const [rows] = (await admin.query(
+        "SELECT DEFINER AS definer FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = ? ORDER BY TRIGGER_NAME",
+        [dbName],
+      )) as [{ definer: string }[], unknown];
+      return rows.map((row) => row.definer);
+    },
+
+    async setAuditInsertFailure(enabled: boolean): Promise<void> {
+      if (admin === null) throw new Error("harness not started");
+      const trigger = `\`${dbName}\`.\`trg_test_reject_audit_insert\``;
+      if (enabled) {
+        await admin.query(
+          `CREATE TRIGGER ${trigger} BEFORE INSERT ON \`${dbName}\`.audit_events
+           FOR EACH ROW SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'test audit insert rejected'`,
+        );
+        auditInsertFailureInstalled = true;
+      } else if (auditInsertFailureInstalled) {
+        await admin.query(`DROP TRIGGER IF EXISTS ${trigger}`);
+        auditInsertFailureInstalled = false;
+      }
     },
 
     async newUserId(): Promise<number> {
@@ -134,7 +190,14 @@ export function createMysqlHarness(): MysqlHarness {
           if (runtimeUser !== "") {
             await admin.query(`DROP USER IF EXISTS '${runtimeUser}'@'%'`);
           }
+          if (auditInsertFailureInstalled) {
+            await admin.query(`DROP TRIGGER IF EXISTS \`${dbName}\`.\`trg_test_reject_audit_insert\``);
+            auditInsertFailureInstalled = false;
+          }
           await admin.query(`DROP DATABASE IF EXISTS \`${dbName}\``);
+          if (migrationUser !== "") {
+            await admin.query(`DROP USER IF EXISTS '${migrationUser}'@'%'`);
+          }
         } finally {
           await admin.end();
           admin = null;
@@ -145,6 +208,9 @@ export function createMysqlHarness(): MysqlHarness {
       restoreEnv("CAMPUS_COIN_DB_PASSWORD", originalEnv.password);
       runtimeUser = "";
       runtimePassword = "";
+      migrationUser = "";
+      migrationPassword = "";
+      this.migrationUser = "";
     },
   };
 }

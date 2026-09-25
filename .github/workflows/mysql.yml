@@ -44,5 +44,17 @@ jobs:
           echo "CAMPUS_COIN_CURSOR_SIGNING_KEY=$cursor_key" >> "$GITHUB_ENV"
       - run: npm ci
       - run: npm run typecheck
-      - run: npm run test:mysql:required
+      - run: npm test
+      - name: MySQL domain integration
+        run: npm run test:mysql:required -- test/mysql.integration.test.ts
+        timeout-minutes: 5
+      - name: MySQL migration concurrency
+        run: npm run test:mysql:required -- test/migration-concurrency.integration.test.ts
+        timeout-minutes: 5
+      - name: MySQL runtime grants
+        run: npm run test:mysql:required -- test/runtime-grants.integration.test.ts
+        timeout-minutes: 5
+      - name: MySQL contract smoke
+        run: npm run test:mysql:required -- test/e2e.contract.smoke.test.ts
+        timeout-minutes: 5
       - run: npm run api:validate

@@ -124,6 +124,7 @@ if (!ENABLED) {
         updateUserIssue(getPool(), { userId: otherUserId, issueId: Number(issue.id), title: "Cross-owner update" }),
         expectCode("NOT_FOUND"),
       );
+      assert.equal((await getUserIssue(getPool(), ownerId, Number(issue.id))).title, "Income question");
       assert.equal((await listUserIssueEvents(getPool(), ownerId, Number(issue.id))).length, 1);
       await assert.rejects(listUserIssueEvents(getPool(), otherUserId, Number(issue.id)), expectCode("NOT_FOUND"));
 

@@ -76,7 +76,9 @@ Trigger gồm OAuth bypass/IDOR, wallet/savings invariant, destructive migration
 
 ## 12. Trạng thái và blocker DevB
 
-Đã có schema MySQL và migrations `0001`–`0027`, các service/repository wallet, ledger, savings, budget, report, unit tests, gated MySQL tests và contract smoke tests. Migration owner/projection được chia thành một DDL statement mỗi version để resume sau lỗi statement-level. Branch local đang ahead 5/behind 0 so với `main`; chưa có PR hoặc CI result. Workflow MySQL thật và lệnh gate bắt buộc đã được thêm nhưng chưa chạy trong môi trường này. Source/test pass chưa đồng nghĩa DB/restore/provider đã được xác minh.
+**Cập nhật 2026-09-25:** Có schema MySQL và migrations `0001`–`0027`, các service/repository wallet, ledger, savings, budget, report, issue, unit tests, gated MySQL tests và contract smoke tests. PR #1 có MySQL run `35995661822`; run được rerun trên MySQL 8.0.41 disposable rồi operator hủy sau 10m12 ở `npm run test:mysql:required` vì runner treo. Log đã ghi fail cho các flow trong `e2e.contract.smoke.test.ts` nhưng không có lỗi hook/SQL cuối cùng trước khi hủy; chưa có kết luận xanh cho domain, migration-concurrency hoặc runtime-grants. `api:validate` bị skip trong run đó. Thay đổi local hiện tách workflow theo từng suite, thêm timeout và đóng migration connection trong `finally`, nhưng chưa có remote CI result trên revision chứa các thay đổi này.
+
+Local MySQL/Docker không có trong môi trường hiện tại. Local `npm test` gần nhất: 63 pass, 5 DB-gated skip; focused rollback/route/migration-engine tests và `typecheck` pass. `api:validate` hiện pass; 5 cảnh báo response được ignore có chủ đích cho OAuth redirect/liveness, 49 warning cũ không còn active. Chưa chạy `db:preflight` hoặc kiểm chứng cloud TLS, grants production, backup/restore; source/test pass không thay thế các evidence đó.
 
 | ID | Blocker | Owner | Điều kiện đóng |
 |---|---|---|---|
@@ -86,19 +88,20 @@ Trigger gồm OAuth bypass/IDOR, wallet/savings invariant, destructive migration
 | `BLK-ISSUE-01` | Issue service/repository owner scope, related transaction ownership, atomic event/audit và admin role checks đã có | B | Chờ gated MySQL tests; admin role phải đến từ trusted session adapter |
 | `BLK-MIG-01` | `cmdUp` khóa trước khi load/re-plan; có MySQL concurrency integration test | B | Unit test pass; chờ concurrency test MySQL thật |
 | `BLK-MIG-02` | Filename, duplicate/gap, SQL rỗng/statement header và DB-only/out-of-order versions fail-closed | B | Unit tests pass; cú pháp đầy đủ được xác minh bằng fresh migration trên MySQL; DDL failure có thể để lại partial schema, chưa ghi version |
-| `BLK-HARNESS-01` | Harness dùng shared `sslOption`, admin test account riêng và runtime principal table/column grants | B | Chờ chạy `verify-ca` test thật trên disposable cloud candidate; local CI dùng MySQL riêng |
+| `BLK-HARNESS-01` | Harness dùng shared `sslOption`, migration principal riêng làm trigger `DEFINER`, runtime principal table/column grants | B | Code harness đã đổi; chờ CI MySQL xanh và test `verify-ca` trên disposable cloud candidate |
 | `BLK-MATH-01` | Checked arithmetic và exact DB integer parsing được thêm cho money/report/projection paths | B | Focused unit tests pass; chờ toàn bộ gated MySQL suite |
 | `BLK-CURSOR-01` | Cursor HMAC-SHA256 versioned, key bắt buộc khi dùng, limit/length bound | A + B | Focused tamper/boundary tests pass; key rotation/production secret provisioning còn là deploy gate |
-| `BLK-GRANT-01` | Grants chuyển từ schema-wide DML sang table/column scope; wallet/savings projections chỉ cập nhật qua trigger-definer; runtime grant test đã có | B + Team Leader | Chờ test bằng MySQL principal thật. Shared runtime DB identity không cung cấp row-level user identity; nếu acceptance yêu cầu cấm cả arbitrary SQL update issue/custom category ngoài service, cần chốt DB command/credential boundary trước khi đóng blocker |
-| `BLK-CI-01` | `test:mysql:required` ép gate và GitHub workflow MySQL 8.0.41 đã thêm | B + D | Workflow/check chưa chạy; cần CI result xanh trên PR |
-| `BLK-RECON-01` | `db:reconcile` đối chiếu wallet/savings projection từ immutable rows; `/health/ready` ping DB | B | Unit tests pass; restore rehearsal và reconciliation trên restored DB còn mở |
+| `BLK-GRANT-01` | ADR-0008 chốt row-level authorization ở service; DB enforce integrity, append-only và column grants | B + Team Leader | Chờ CI MySQL chứng minh migration `DEFINER`, runtime grants/projection denial và service/API cross-owner negative tests; direct SQL bằng credential runtime là trusted-backend residual risk |
+| `BLK-AUDIT-01` | Category update và audit insert phải commit/rollback cùng transaction | B | Đã sửa `updateUserCategory`; unit rollback regression pass; chờ xác nhận integration trên MySQL disposable |
+| `BLK-CI-01` | `test:mysql:required` ép gate; workflow chia suite và giới hạn timeout | B + D | Run `35995661822` bị hủy, không xanh; workflow tách suite mới chưa chạy trên PR revision |
+| `BLK-RECON-01` | `db:reconcile` đối chiếu wallet/savings projection từ immutable rows; `/health/ready` ping DB | B | Restore runbook đã thêm; restore rehearsal và reconciliation trên restored cloud target chưa có evidence |
 
 ### Dọn trước khi merge
 
 - [x] Sửa `docs/working/aiven-handoff.md`: không claim CA/endpoint/admin user chưa xác minh; không dùng admin user cho runtime.
 - [x] Benchmark tạo schema unique local-only và drop schema; không DELETE append-only history.
 - [x] Có `test:mysql:required`; `npm test` mặc định vẫn có thể skip suite DB và không được dùng làm evidence MySQL.
-- [ ] Chỉ mở PR sau khi diff, secret/PII, migration, restore, owner scope và test evidence được review.
+- [ ] Giữ PR #1 không merge cho tới khi từng suite MySQL xanh, API validation đạt, migration/owner scope được review và restore evidence hoàn tất.
 
 ### Thứ tự merge đề xuất
 
@@ -113,4 +116,4 @@ Các blocker cũ về OAuth/IDOR, provider/region/restore, domain invariant, sec
 
 ## 13. ADR liên quan
 
-[ADR-0003](./adr/0003-cloud-mysql-validation-gate.md), [ADR-0004](./adr/0004-vercel-domain-no-custom-email.md), [ADR-0007](./adr/0007-five-day-thin-slice.md).
+[ADR-0003](./adr/0003-cloud-mysql-validation-gate.md), [ADR-0004](./adr/0004-vercel-domain-no-custom-email.md), [ADR-0007](./adr/0007-five-day-thin-slice.md), [ADR-0008](./adr/0008-runtime-row-authorization-boundary.md).

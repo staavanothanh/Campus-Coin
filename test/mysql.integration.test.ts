@@ -13,10 +13,12 @@ import { createCorrection, createTransaction, getTransaction, listTransactions }
 import { createTransfer, getSavings, listTransfers } from "../src/application/savings.service.ts";
 import { listMonthBudgets, monthBudgetSummary, upsertUserBudget } from "../src/application/budget.service.ts";
 import { monthlyReport } from "../src/application/report.service.ts";
-import { createCustomCategory, updateUserCategory } from "../src/application/category.service.ts";
-import { currentMonthKey } from "../src/domain/period.ts";
+import { createCustomCategory, listUserCategories, updateUserCategory } from "../src/application/category.service.ts";
+import { currentMonthKey, monthRangeUtc } from "../src/domain/period.ts";
 import { DomainError } from "../src/domain/errors.ts";
 import { reconcileFinancialProjections } from "../src/application/reconciliation.service.ts";
+import { monthTotals } from "../src/infrastructure/persistence/report.repository.ts";
+import { amountFromDb } from "../src/infrastructure/persistence/rows.ts";
 
 const ENABLED = process.env["CAMPUS_COIN_TEST_DB"] === "1";
 
@@ -209,10 +211,48 @@ if (!ENABLED) {
         categoryId: Number(created!.id),
         status: "disabled",
       });
+      const otherUserId = await newUserId();
+      await assert.rejects(
+        updateUserCategory(getPool(), {
+          userId: otherUserId,
+          categoryId: Number(created!.id),
+          nameEn: "Cross-owner change",
+        }),
+        expectCode("NOT_FOUND"),
+      );
+      const ownerCategories = await listUserCategories(getPool(), userId, { includeDisabled: true });
+      assert.equal(ownerCategories.find((category) => Number(category.id) === Number(created!.id))?.name.en, "Disable me");
       await assert.rejects(
         createTx(userId, "payment", 10_000, Number(created!.id)),
         expectCode("CATEGORY_DISABLED"),
       );
+    });
+
+    test("category update rolls back when MySQL rejects its audit insert", async () => {
+      const userId = await newUserId();
+      const body = { nameEn: "Atomic update", nameVi: "Cập nhật atomic", appliesTo: "payment" as const };
+      const category = await createCustomCategory(getPool(), {
+        userId,
+        ...body,
+        idempotencyKey: randomUUID(),
+        requestHash: canonicalHash(body),
+      });
+      assert.notEqual(category, null);
+
+      await harness.setAuditInsertFailure(true);
+      try {
+        await assert.rejects(
+          updateUserCategory(getPool(), { userId, categoryId: Number(category!.id), status: "disabled" }),
+          /test audit insert rejected/,
+        );
+      } finally {
+        await harness.setAuditInsertFailure(false);
+      }
+
+      const categories = await listUserCategories(getPool(), userId, { includeDisabled: true });
+      const unchanged = categories.find((candidate) => Number(candidate.id) === Number(category!.id));
+      assert.equal(unchanged?.status, "active");
+      assert.equal(await auditCountFor(userId, "category.update"), 0);
     });
 
     test("custom category retry replays; same key with different body conflicts", async () => {
@@ -441,6 +481,44 @@ if (!ENABLED) {
       const otherOwnerResult = await upsertUserBudget(getPool(), { ...input, userId: otherUserId });
       assert.equal(otherOwnerResult.limitVnd, body.limitVnd);
       assert.equal(await auditCountFor(otherUserId, "budget.upsert"), 1);
+      assert.equal((await listMonthBudgets(getPool(), userId, month))[0]!.limitVnd, body.limitVnd);
+    });
+
+    test("user cannot create a budget using another owner's custom category", async () => {
+      const categoryOwnerId = await newUserId();
+      const otherUserId = await newUserId();
+      const categoryBody = { nameEn: "Private category", nameVi: "Danh mục riêng", appliesTo: "payment" as const };
+      const category = await createCustomCategory(getPool(), {
+        userId: categoryOwnerId,
+        ...categoryBody,
+        idempotencyKey: randomUUID(),
+        requestHash: canonicalHash(categoryBody),
+      });
+      assert.notEqual(category, null);
+      const month = currentMonthKey();
+      await upsertUserBudget(getPool(), {
+        userId: categoryOwnerId,
+        categoryId: Number(category!.id),
+        month,
+        limitVnd: 250_000,
+        idempotencyKey: randomUUID(),
+        requestHash: canonicalHash({ categoryId: category!.id, month, limitVnd: 250_000 }),
+      });
+
+      await assert.rejects(
+        upsertUserBudget(getPool(), {
+          userId: otherUserId,
+          categoryId: Number(category!.id),
+          month,
+          limitVnd: 1,
+          idempotencyKey: randomUUID(),
+          requestHash: canonicalHash({ categoryId: category!.id, month, limitVnd: 1 }),
+        }),
+        expectCode("CATEGORY_NOT_FOUND"),
+      );
+
+      assert.equal((await listMonthBudgets(getPool(), categoryOwnerId, month))[0]!.limitVnd, 250_000);
+      assert.deepEqual(await listMonthBudgets(getPool(), otherUserId, month), []);
     });
   });
 
@@ -458,9 +536,8 @@ if (!ENABLED) {
       assert.equal(report.closingWalletBalanceVnd, 400_000);
     });
 
-    test("report tháng sau kỳ chi vượt thu: opening âm hợp lệ, không throw", async () => {
-      // Regression: delta trước kỳ là số CÓ DẤU; amountFromDb chặn số âm từng làm
-      // monthlyReport throw "db amount out of safe integer range" cho mọi kỳ sau.
+    test("report tháng sau kỳ có delta âm vẫn cho opening không âm", async () => {
+      // Delta ledger có dấu; opening vẫn không âm vì savings transfers giữ aggregate non-negative.
       const userId = await newUserId();
       await initWalletFor(userId, 1_000_000);
       const occurredAt = "2026-03-15T03:00:00.000Z";
@@ -477,8 +554,22 @@ if (!ENABLED) {
       });
       const report = await monthlyReport(getPool(), userId, "2026-04");
       assert.equal(report.openingWalletBalanceVnd, 700_000);
+      assert.ok(report.openingWalletBalanceVnd >= 0);
       assert.equal(report.totalPaymentVnd, 0);
       assert.equal(report.closingWalletBalanceVnd, 700_000);
+    });
+
+    test("SQL SUM near unsigned BIGINT maximum stays exact and fails closed at VND boundary", async () => {
+      const [rows] = (await getPool().query(
+        `SELECT SUM(amount_vnd) AS total FROM (
+           SELECT CAST('18446744073709551614' AS UNSIGNED) AS amount_vnd
+           UNION ALL
+           SELECT CAST('1' AS UNSIGNED) AS amount_vnd
+         ) AS amounts`,
+      )) as [{ total: number | string }[], unknown];
+
+      assert.equal(String(rows[0]!.total), "18446744073709551615");
+      assert.throws(() => amountFromDb(rows[0]!.total), /safe integer range/);
     });
   });
 

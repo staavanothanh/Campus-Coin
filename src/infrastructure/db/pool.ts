@@ -57,9 +57,10 @@ export async function closePool(): Promise<void> {
   if (current !== null) await current.end();
 }
 
-/** Chạy fn trong transaction ngắn; rollback khi lỗi, commit khi thành công. */
-export async function withTransaction<T>(fn: (conn: PoolConnection) => Promise<T>): Promise<T> {
-  const conn = await getPool().getConnection();
+/** Chạy fn trong transaction ngắn trên pool hoặc connection đã được truyền vào. */
+export async function withTransaction<T>(db: Db, fn: (conn: PoolConnection) => Promise<T>): Promise<T> {
+  const isPool = "getConnection" in db;
+  const conn = isPool ? await db.getConnection() : db;
   try {
     await conn.beginTransaction();
     const result = await fn(conn);
@@ -73,7 +74,7 @@ export async function withTransaction<T>(fn: (conn: PoolConnection) => Promise<T
     }
     throw error;
   } finally {
-    conn.release();
+    if (isPool) conn.release();
   }
 }
 

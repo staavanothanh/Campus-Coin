@@ -61,7 +61,9 @@ Xem `.env.example`; giá trị thật chỉ ở secret manager/Vercel environmen
 | `CAMPUS_COIN_CURSOR_SIGNING_KEY` | signed keyset cursor | bắt buộc khi encode/decode cursor; ít nhất 32 bytes, secret manager only |
 | `CAMPUS_COIN_TEST_DB_ADMIN_USER` / `_PASSWORD` | test/benchmark admin | chỉ cho local disposable MySQL; quyền CREATE/DROP DATABASE, CREATE USER và GRANT |
 
-Runtime role dùng table/column-level grants, không có DELETE/DDL/schema_migrations access và không được UPDATE wallet/savings projection; DB triggers cập nhật projection từ immutable ledger/transfer insert. Migration role DDL/trigger-definer tách biệt. Test harness tạo runtime account tạm với grants giới hạn, còn test-admin chỉ provisioning schema/user. Pool runtime `waitForConnections`, `queueLimit=0`, timezone `Z` (UTC); kỳ HCMC tính ở application.
+Runtime role dùng table/column-level grants, không có DELETE/DDL/schema_migrations access và không được UPDATE wallet/savings projection; DB triggers cập nhật projection từ immutable ledger/transfer insert. Migration role DDL/trigger-definer tách biệt và phải còn tồn tại với đúng grants để trigger chạy. Test harness tạo migration principal giới hạn và runtime principal riêng; test-admin chỉ provisioning schema/user.
+
+`cc_runtime` dùng chung không mang trusted end-user identity. Owner-level authorization được enforce trong API/application service từ server session; trigger/FK chỉ enforce integrity, không row-level authorization. Raw SQL với runtime credential có thể chạm row owner khác trong các cột được cấp quyền và có thể insert audit row; credential chỉ được giữ ở backend. Đây là residual risk đã chốt trong [ADR-0008](./adr/0008-runtime-row-authorization-boundary.md), không được mô tả là DB-enforced tenant isolation. Pool runtime `waitForConnections`, `queueLimit=0`, timezone `Z` (UTC); kỳ HCMC tính ở application.
 
 ### MySQL local dev (không phải production — ADR-0003)
 
@@ -99,10 +101,11 @@ Chạy: `npm run db:preflight` → `npm run db:migrate` → `npm run test:mysql:
 ## Day-1 verification (cổng ADR-0003)
 
 1. `npm run db:preflight` → env, connect+TLS cipher, MySQL >= 8.0.16, utf8mb4, database tồn tại, migration state, pool vs `max_connections`.
-2. Backup/export/restore provider + rehearsl restore: restore vào DB cô lập rồi chạy test integration (`CAMPUS_COIN_TEST_DB=1`) và reconcile:
-   - `wallet.available_balance` khớp effect từ ledger (opening + income − payment − deposit + withdraw);
-   - `savings.balance` khớp `sum(deposit) − sum(withdraw)`;
-   - FK không lỗi; ledger/audit không có row bị sửa/xóa (append-only); idempotency không trùng response.
+2. Backup/export/restore provider: restore vào DB/service cô lập, sau đó chạy `db:preflight`, `db:status`, kiểm tra grants/trigger `DEFINER`, `db:reconcile` và read-only application smoke theo [`docs/DB-RESTORE-RUNBOOK.md`](../docs/DB-RESTORE-RUNBOOK.md):
+    - `wallet.available_balance` khớp effect từ ledger (opening + income − payment − deposit + withdraw);
+    - `savings.balance` khớp `sum(deposit) − sum(withdraw)`;
+    - FK không lỗi; ledger/audit không có row bị sửa/xóa (append-only); idempotency không trùng response.
+   `test:mysql:required` tạo schema mới và không kiểm tra dữ liệu trong restored target; dùng riêng làm disposable migration/domain gate.
 3. Reconcile fail → fail closed, mở incident, không mở write path (xem `docs/ADMIN-OPERATIONS.md`).
 
 ## Đưa lên cloud (Aiven MySQL free tier + Vercel)

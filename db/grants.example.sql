@@ -51,8 +51,11 @@ FLUSH PRIVILEGES;
 --   SUPER, FILE, CREATE ROUTINE, or GRANT OPTION privileges.
 -- - Wallet/savings projection UPDATE and savings_accounts INSERT are trigger-definer
 --   privileges only; runtime cannot write projections directly.
--- - Add grants only with a matching reviewed use case and a negative direct-SQL test.
+-- - Add grants only with a reviewed DB-enforced invariant and a negative direct-SQL test;
+--   owner authorization tests belong at the service/API boundary (ADR-0008).
 -- - Use a separate disposable test-admin role for creating/dropping integration DBs;
 --   never add CREATE/DROP DATABASE to cc_runtime or cc_migrate.
 -- - Replace '%' only if the provider/network offers a stable source address policy.
 -- - Credentials belong only in secret manager/runtime environment.
+-- - Owner authorization is service-layer only for the shared cc_runtime identity;
+--   DB constraints/triggers enforce integrity, not per-user row visibility.

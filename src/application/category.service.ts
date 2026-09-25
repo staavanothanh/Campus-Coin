@@ -1,7 +1,7 @@
 // Category service: system + custom; disable/retire giữ history, không hard-delete.
 
 import type { Db } from "../infrastructure/db/pool.ts";
-import { withConnection } from "../infrastructure/db/pool.ts";
+import { withTransaction } from "../infrastructure/db/pool.ts";
 import {
   findCategoryById,
   insertCustomCategory,
@@ -94,7 +94,7 @@ export async function updateUserCategory(db: Db, input: UpdateCategoryInput): Pr
   if (input.status !== undefined && !isCategoryStatus(input.status)) {
     throw invalidInput("invalid status");
   }
-  return withConnection(async (conn) => {
+  return withTransaction(db, async (conn) => {
     const patch: { nameEn?: string; nameVi?: string; status?: "active" | "disabled" | "retired" } = {};
     if (input.nameEn !== undefined) patch.nameEn = input.nameEn;
     if (input.nameVi !== undefined) patch.nameVi = input.nameVi;

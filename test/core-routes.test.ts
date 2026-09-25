@@ -203,3 +203,22 @@ test("audit log route is restricted to the security role before database access"
   assert.equal(response.status, 403);
   assert.equal(databaseCalls, 0);
 });
+
+test("audit log endpoint rejects forged write requests without database access", async () => {
+  let databaseCalls = 0;
+  const db = {
+    query: async () => {
+      databaseCalls += 1;
+      throw new Error("unexpected database call");
+    },
+  } as unknown as Db;
+  const deps = dependencies({ db, actor: { userId: 73, role: "admin" } });
+  const response = await handleCoreRequest(new Request("https://campus.example/admin/audit-logs", {
+    method: "POST",
+    headers: { origin: "https://campus.example", "content-type": "application/json" },
+    body: JSON.stringify({ actorUserId: 1, action: "forged", outcome: "success" }),
+  }), deps.value);
+
+  assert.equal(response.status, 405);
+  assert.equal(databaseCalls, 0);
+});

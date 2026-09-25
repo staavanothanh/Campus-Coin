@@ -19,6 +19,10 @@ if (!ENABLED) {
   after(async () => harness.stop());
 
   test("restricted runtime role can use services but cannot DDL or create cross-owner financial references", async () => {
+    const triggerDefiners = await harness.listTriggerDefiners();
+    assert.ok(triggerDefiners.length > 0);
+    assert.deepEqual([...new Set(triggerDefiners)], [`${harness.migrationUser}@%`]);
+
     const ownerId = await harness.newUserId();
     const otherOwnerId = await harness.newUserId();
     await initializeWallet(getPool(), {
