@@ -103,6 +103,13 @@ if (!ENABLED) {
       "UPDATE savings_accounts SET balance_vnd = 1 WHERE user_id = ?",
       [ownerId],
     ));
+    await assert.rejects(getPool().query("SELECT id FROM db_operation_logs LIMIT 1"));
+    await assert.rejects(getPool().query(
+      `INSERT INTO db_operation_logs
+        (operation_id, project_key, environment_key, operation, outcome, migration_version, duration_ms)
+       VALUES (?, 'forged', 'staging', 'restore', 'success', NULL, 1)`,
+      [randomUUID()],
+    ));
 
     const issueKey = randomUUID();
     const issueHash = canonicalHash({ relatedTransactionId: transaction.transaction.id });

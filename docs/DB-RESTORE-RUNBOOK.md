@@ -21,6 +21,8 @@ Runbook này không chọn provider hoặc khẳng định backup/TLS đã hoạ
 7. Nếu có approved synthetic identity, chạy read-only application smoke qua đúng network/runtime path, gồm readiness và các financial reads owner-scoped. Không dùng PII thật hoặc tạo mutation tùy tiện trên bản restore.
 8. Chỉ đóng rehearsal khi restore, migration state, grants/trigger review, reconcile và read-only smoke đều pass. Giữ bản restore đến khi evidence được review; sau đó xóa target cô lập theo quy trình provider đã duyệt.
 
+Sau mỗi migration/reconcile/restore và khi `db_operation_logs` đã tồn tại, operator có thể ghi outcome metadata bằng `npm run db:operation-log -- <project-key> <environment> <operation> <outcome> <duration-ms> <migration-version|-> <external-reference|-> <error-code|->`. Dùng principal `cc_ops`; `error-code` phải là code ổn định, không truyền raw error text. CI run IDs/logs vẫn được lưu ở GitHub. Nếu DB mất kết nối hoặc migration log table chưa được tạo, ghi nhận sự kiện ở external change/evidence store.
+
 `npm run test:mysql:required` và `db:datatest` tạo schema/test fixtures riêng. Chúng xác minh migration/domain/harness trên disposable database nhưng **không** chạy trên dữ liệu vừa restore và không thay thế bước reconcile/read-only smoke ở target restore.
 
 ## Evidence cần lưu

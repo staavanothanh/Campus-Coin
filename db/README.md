@@ -1,6 +1,6 @@
 # Campus Coin — DB MySQL (lane Developer B)
 
-Nguồn: ADR-0003 (cloud MySQL validation gate), ADR-0005 (money immutable), `docs/DOMAIN-MODEL.md`, `docs/ARCHITECTURE.md`, `docs/contracts/openapi.yaml`.
+Nguồn: ADR-0003 (cloud MySQL validation gate), ADR-0005 (money immutable), ADR-0008 (runtime row-authorization boundary), `docs/DOMAIN-MODEL.md`, `docs/ARCHITECTURE.md`, `docs/contracts/openapi.yaml`.
 
 ## Cấu trúc
 
@@ -11,12 +11,13 @@ db/
 │   ├── 0002_seed_default_categories.sql
 │   ├── 0003_ledger_owner_reference_index.sql
 │   ├── 0004–0015 owner/idempotency/FK/check migrations
-│   └── 0016–0027 owner/projection triggers
+│   ├── 0016–0027 owner/projection triggers
+│   └── 0028–0030 append-only database operation log
 ├── grants.example.sql     # Least-privilege template (chạy tay bởi DBA/provider)
 └── README.md
 src/
 ├── domain/                # money.ts (effects), period.ts (HCMC/cursor) — pure
-├── infrastructure/db/     # env, pool (TLS+bounded), migration engine + CLI
+├── infrastructure/db/     # env, pool (TLS+bounded), migration engine + ops-log CLI
 ├── infrastructure/persistence/  # repositories (SQL typed, owner-scope)
 └── application/           # services: wallet, ledger, savings, budget, report, category
 test/
@@ -32,6 +33,7 @@ npm run test:mysql:required    # all unit + MySQL integration/e2e must execute
 npm run db:preflight  # kiểm tra read-only: env, TLS, version, charset, migration state
 npm run db:status     # so khớp file migration vs schema_migrations
 npm run db:migrate    # apply migration chưa chạy (GET_LOCK chống chạy song song)
+npm run db:operation-log -- campus-coin staging reconcile success 812 - CHG-123 -
 npm run db:datatest   # test SQL trên database tạm (xem datatest/README.md)
 npm run db:reconcile  # so projection wallet/savings với ledger/transfer append-only
 npm run benchmark     # local-only, tạo và drop schema benchmark cô lập
@@ -57,6 +59,7 @@ Xem `.env.example`; giá trị thật chỉ ở secret manager/Vercel environmen
 | `CAMPUS_COIN_DB_CA_PATH` | CA bundle | bắt buộc khi `verify-ca` |
 | `CAMPUS_COIN_DB_CONNECTION_LIMIT` | bounded pool | mặc định 5, max 50; chỉnh theo quota provider |
 | `CAMPUS_COIN_DB_MIGRATE_USER` / `_PASSWORD` | migration role | tùy chọn; fallback runtime role cho dev |
+| `CAMPUS_COIN_DB_OPS_USER` / `_PASSWORD` | CLI ops-log writer `cc_ops` | INSERT-only vào `db_operation_logs`; không cấp cho API runtime hoặc CI |
 | `CAMPUS_COIN_MIGRATIONS_DIR` | thư mục migration | tùy chọn; mặc định `db/migrations` |
 | `CAMPUS_COIN_CURSOR_SIGNING_KEY` | signed keyset cursor | bắt buộc khi encode/decode cursor; ít nhất 32 bytes, secret manager only |
 | `CAMPUS_COIN_TEST_DB_ADMIN_USER` / `_PASSWORD` | test/benchmark admin | chỉ cho local disposable MySQL; quyền CREATE/DROP DATABASE, CREATE USER và GRANT |
@@ -64,6 +67,8 @@ Xem `.env.example`; giá trị thật chỉ ở secret manager/Vercel environmen
 Runtime role dùng table/column-level grants, không có DELETE/DDL/schema_migrations access và không được UPDATE wallet/savings projection; DB triggers cập nhật projection từ immutable ledger/transfer insert. Migration role DDL/trigger-definer tách biệt và phải còn tồn tại với đúng grants để trigger chạy. Test harness tạo migration principal giới hạn và runtime principal riêng; test-admin chỉ provisioning schema/user.
 
 `cc_runtime` dùng chung không mang trusted end-user identity. Owner-level authorization được enforce trong API/application service từ server session; trigger/FK chỉ enforce integrity, không row-level authorization. Raw SQL với runtime credential có thể chạm row owner khác trong các cột được cấp quyền và có thể insert audit row; credential chỉ được giữ ở backend. Đây là residual risk đã chốt trong [ADR-0008](./adr/0008-runtime-row-authorization-boundary.md), không được mô tả là DB-enforced tenant isolation. Pool runtime `waitForConnections`, `queueLimit=0`, timezone `Z` (UTC); kỳ HCMC tính ở application.
+
+`db_operation_logs` là register append-only cho metadata migration/reconcile/restore. Bảng chỉ nhận alias project/environment, operation/outcome, duration, migration version, external reference và stable error code; không lưu endpoint, raw log/error, secret hoặc PII. Chỉ CLI dùng `cc_ops` được INSERT; API runtime không có access. `db:preflight` giữ read-only và CI run ID/log vẫn lưu ở GitHub Actions. Nếu database không sẵn sàng, nó không thể ghi log vào chính nó.
 
 ### MySQL local dev (không phải production — ADR-0003)
 

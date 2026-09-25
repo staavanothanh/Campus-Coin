@@ -13,6 +13,7 @@
     "db:status": "cross-env node --env-file=.env src/infrastructure/db/migrate.ts status",
     "db:preflight": "cross-env node --env-file=.env src/infrastructure/db/migrate.ts preflight",
     "db:reconcile": "cross-env node --env-file=.env src/infrastructure/db/reconcile.ts",
+    "db:operation-log": "cross-env node --env-file=.env src/infrastructure/db/record-operation.ts",
     "db:datatest": "cross-env node --env-file=.env datatest/run.ts",
     "db:migrate": "cross-env node --env-file=.env src/infrastructure/db/migrate.ts up",
     "benchmark": "cross-env node --env-file=.env benchmark/run.ts",

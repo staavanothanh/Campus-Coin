@@ -76,9 +76,11 @@ Trigger gồm OAuth bypass/IDOR, wallet/savings invariant, destructive migration
 
 ## 12. Trạng thái và blocker DevB
 
-**Cập nhật 2026-09-25:** PR #1 được cập nhật và CI MySQL dùng service MySQL 8.0.41 disposable. Run `36087439889` đã chạy riêng domain integration, migration concurrency, runtime grants, contract smoke và API validation. Cả bốn suite MySQL fail trong `before` khi apply migration `0011_ledger_owner_projection_keys.sql`; không suite nào chạy tới assertions nghiệp vụ. InnoDB báo FK `fk_ledger_reference_owner_role` không tìm thấy parent index phù hợp vì unique index được thêm trong cùng `ALTER TABLE`. `Validate OpenAPI` pass. Run cũ `35995661822` đã bị hủy khi chưa có timeout/per-suite logs. CI hiện đã định vị migration blocker nhưng chưa xanh.
+**Cập nhật 2026-09-25:** PR #1 được cập nhật và CI MySQL dùng service MySQL 8.0.41 disposable. Run `36087720681` chạy riêng domain integration, migration concurrency, runtime grants, contract smoke và API validation. Cả bốn suite MySQL fail trong `before` khi apply migration `0011_ledger_owner_projection_keys.sql`; không suite nào chạy tới assertions nghiệp vụ. InnoDB báo FK `fk_ledger_reference_owner_role` không tìm thấy parent index phù hợp vì unique index được thêm trong cùng `ALTER TABLE`. Lỗi này được tái hiện trên MySQL 8.0.41 portable local. `Validate OpenAPI` pass. Migration đã commit nên không sửa trực tiếp; fresh-install path chưa có hướng xử lý được duyệt.
 
-Local MySQL/Docker không có trong môi trường hiện tại. Local `npm test` gần nhất: 63 pass, 5 DB-gated skip; `typecheck` và `verify:docs` pass. `api:validate` pass; 5 cảnh báo response được ignore có chủ đích cho OAuth redirect/liveness, 49 warning cũ không còn active. Chưa chạy `db:preflight` hoặc kiểm chứng cloud TLS, grants production, backup/restore; source/test pass không thay thế các evidence đó.
+Read-only `npm run db:preflight` đã chạy trên Aiven ngày 2026-09-25, tại revision có 27 migration: connect/TLS handshake và cipher pass; MySQL `8.4.8`; database tồn tại; `schema_migrations` báo applied=3, pending=24/27. Charset/collation check và pool-vs-`max_connections` được đánh dấu WARN; giá trị đo được là `utf8mb4/utf8mb4_0900_ai_ci` và pool 5 so với max 76. Không ghi endpoint vào tài liệu. Preflight không xác nhận CA provenance/mode chính xác, DB principal/grants, trigger `DEFINER`, backup/restore hoặc reconcile. Từ lần đó chưa chạy migration; source hiện có thêm `0028`–`0030` cho operations log nhưng chưa được preflight/test trên Aiven.
+
+Local `npm test` gần nhất: 63 pass, 5 DB-gated skip; `typecheck` và `verify:docs` pass. Local MySQL 8.0.41 disposable cũng dừng tại migration `0011`. `api:validate` pass; 5 cảnh báo response được ignore có chủ đích cho OAuth redirect/liveness, 49 warning cũ không còn active. Source/test pass không thay thế grants/restore evidence.
 
 | ID | Blocker | Owner | Điều kiện đóng |
 |---|---|---|---|
@@ -88,13 +90,14 @@ Local MySQL/Docker không có trong môi trường hiện tại. Local `npm test
 | `BLK-ISSUE-01` | Issue service/repository owner scope, related transaction ownership, atomic event/audit và admin role checks đã có | B | Chờ gated MySQL tests; admin role phải đến từ trusted session adapter |
 | `BLK-MIG-01` | `cmdUp` khóa trước khi load/re-plan; có MySQL concurrency integration test | B | Unit test pass; chờ concurrency test MySQL thật |
 | `BLK-MIG-02` | MySQL 8.0.41 fresh migration fail ở `0011`: self-referencing composite FK không nhận index tạo trong cùng `ALTER TABLE` | B + Team Leader | Migration đã commit và không được sửa trực tiếp; cần chốt một đường fresh-install/migration lifecycle tuân thủ checksum, rồi chứng minh fresh migration `0011`–`0027` xanh |
-| `BLK-HARNESS-01` | Harness dùng shared `sslOption`, migration principal riêng làm trigger `DEFINER`, runtime principal table/column grants | B | Code harness đã đổi; chờ CI MySQL xanh và test `verify-ca` trên disposable cloud candidate |
+| `BLK-HARNESS-01` | Harness dùng shared `sslOption`, migration principal riêng làm trigger `DEFINER`, runtime principal table/column grants | B | CI bị chặn trước test grants tại `0011`; Aiven TLS handshake pass nhưng CA provenance/mode, role và trigger `DEFINER` chưa được xác nhận |
 | `BLK-MATH-01` | Checked arithmetic và exact DB integer parsing được thêm cho money/report/projection paths | B | Focused unit tests pass; chờ toàn bộ gated MySQL suite |
 | `BLK-CURSOR-01` | Cursor HMAC-SHA256 versioned, key bắt buộc khi dùng, limit/length bound | A + B | Focused tamper/boundary tests pass; key rotation/production secret provisioning còn là deploy gate |
 | `BLK-GRANT-01` | ADR-0008 chốt row-level authorization ở service; DB enforce integrity, append-only và column grants | B + Team Leader | Chờ CI MySQL chứng minh migration `DEFINER`, runtime grants/projection denial và service/API cross-owner negative tests; direct SQL bằng credential runtime là trusted-backend residual risk |
 | `BLK-AUDIT-01` | Category update và audit insert phải commit/rollback cùng transaction | B | Đã sửa `updateUserCategory`; unit rollback regression pass; chờ xác nhận integration trên MySQL disposable |
-| `BLK-CI-01` | Workflow chia unit, bốn MySQL suite và OpenAPI validation riêng; MySQL service disposable | B + D | Run `36087439889`: API validation pass; các suite MySQL cùng bị chặn bởi `BLK-MIG-02`, chưa có suite xanh |
+| `BLK-CI-01` | Workflow chia unit, bốn MySQL suite và OpenAPI validation riêng; MySQL service disposable | B + D | Run `36087720681`: API validation pass; các suite MySQL cùng bị chặn bởi `BLK-MIG-02`, chưa có suite xanh |
 | `BLK-RECON-01` | `db:reconcile` đối chiếu wallet/savings projection từ immutable rows; `/health/ready` ping DB | B | Restore runbook đã thêm; restore rehearsal và reconciliation trên restored cloud target chưa có evidence |
+| `BLK-OPSLOG-01` | Migrations `0028`–`0030` tạo `db_operation_logs` append-only; CLI writer dùng `cc_ops` INSERT-only; CI records stay in GitHub | B | DDL, CLI INSERT và UPDATE/DELETE guards đã smoke-test trên schema cô lập MySQL 8.0.41; không áp dụng qua full migration chain hoặc Aiven vì `BLK-MIG-02` |
 
 ### Dọn trước khi merge
 

@@ -62,6 +62,11 @@ GRANT UPDATE (response_json) ON campus_coin.mutation_idempotency TO 'cc_runtime'
 GRANT UPDATE (name_en, name_vi, status) ON campus_coin.categories TO 'cc_runtime'@'%';
 GRANT UPDATE (limit_vnd, idempotency_id, updated_at) ON campus_coin.budgets TO 'cc_runtime'@'%';
 GRANT UPDATE (title, description, category, status, priority) ON campus_coin.issues TO 'cc_runtime'@'%';
+
+-- CLI-only operations register writer; not granted to the application runtime.
+-- Run this section only after migrations create db_operation_logs.
+CREATE USER IF NOT EXISTS 'cc_ops'@'%' IDENTIFIED BY '${CAMPUS_COIN_DB_OPS_PASSWORD}';
+GRANT INSERT ON campus_coin.db_operation_logs TO 'cc_ops'@'%';
 FLUSH PRIVILEGES;
 
 -- Lưu ý bảo mật:
@@ -77,3 +82,5 @@ FLUSH PRIVILEGES;
 -- - Credentials belong only in secret manager/runtime environment.
 -- - Owner authorization is service-layer only for the shared cc_runtime identity;
 --   DB constraints/triggers enforce integrity, not per-user row visibility.
+-- - db:operation-log uses cc_ops and stores only bounded operational metadata;
+--   preflight stays read-only and CI logs remain in GitHub Actions.
