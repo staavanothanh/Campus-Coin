@@ -5,6 +5,8 @@
 
 Tài liệu này ghi trạng thái/gate. Team Leader đã chốt giữ email/password/OTP và thêm Google Sign-In tùy chọn; production readiness là trạng thái riêng, chỉ ghi đạt khi có evidence.
 
+Hướng dẫn chi tiết cho MySQL test cô lập, auth/email staging và kiểm tra owner nằm trong [DB-STAGING-TESTING.md](./DB-STAGING-TESTING.md). Rubric và evidence lấy điểm nằm trong [QUALITY-AND-SCORING.md](./QUALITY-AND-SCORING.md); câu hỏi nguyên lý và cách áp dụng nằm trong [ENGINEERING-PRINCIPLES-APPLICATION.md](./ENGINEERING-PRINCIPLES-APPLICATION.md); quyết định và trạng thái hiện tại nằm trong [CURRENT-STATUS.md](./CURRENT-STATUS.md).
+
 ## 1. Luồng sản phẩm đã chốt
 
 ```text
@@ -29,7 +31,8 @@ Google không cấu hình thì email flow vẫn hoạt động và provider disc
 | SMTP/email | SMTP adapter có timeout 10 giây, tối đa hai lần gửi và lỗi fail-closed; không có fallback OTP vào log/dev | Team Leader xác nhận đã đăng ký thành công bằng email; luồng reset password và timeout/retry khi provider lỗi vẫn cần kiểm chứng riêng |
 | API domain | Auth, preferences, wallet, ledger, savings, category, budget, report, issue và admin routes đã nối application services; client hỗ trợ GET/POST/PUT/PATCH/DELETE | OpenAPI đã khai báo `403` cho Origin ở auth mutation; lint còn 5 warning không chặn validate cho discovery/redirect/health; cần integration review với Developer B |
 | UI auth | Có đủ màn auth; validation theo field khi blur/submit, OTP chỉ nhận sáu chữ số, mật khẩu mặc định ẩn và tự ẩn khi rời ô; lỗi có VI/EN và submit chống lặp | Đã kiểm tra browser thủ công; keyboard/screen reader E2E và flow OTP thật còn chờ |
-| CI | Workflow có MySQL disposable service. Local typecheck/build/OpenAPI/auth/client-IP tests pass trong evidence bên dưới | Lần chạy remote cuối được ghi nhận là [workflow run #1 trên commit `99585e2`](https://github.com/staavanothanh/Campus-Coin/actions/runs/36032360164), thất bại ở command gộp ba MySQL suite; chưa có log đủ để xác định suite/test lỗi và chưa xác minh run remote mới hơn. `db:datatest`/MySQL integration chưa chạy trong lượt này |
+| CI | Workflow có MySQL disposable service. Local typecheck/build/OpenAPI/auth/client-IP tests pass trong evidence bên dưới | [Workflow run #3 trên commit `36ed519`](https://github.com/staavanothanh/Campus-Coin/actions/runs/36111118954) đã qua các bước đến `db:datatest`; command gộp MySQL integration/E2E trả exit 1. Annotation công khai không nêu test lỗi. Email owner test có dấu cách đã được sửa; chờ run kế tiếp xác nhận |
+| Domain owner isolation qua HTTP | Đã thêm test hai tài khoản ở `test/auth.mysql.integration.test.ts` cho wallet, ledger, savings, category, budget, report và dashboard; kiểm tra body `userId` giả không đổi owner | Test được đưa vào command MySQL đang fail ở run #3; email test invalid đã sửa, cần run mới pass trước khi xác nhận behavior |
 | Production/restore | Chưa có evidence | Cần backup/restore rehearsal, CA chain/role grants, TLS/connectivity, redacted logs và rollback |
 
 Không suy ra trạng thái DB, SMTP, cloud hoặc production từ sự tồn tại của config/file/migration hay từ health `SELECT 1`.
@@ -102,6 +105,8 @@ Hai lệnh DB chỉ dùng disposable MySQL do CI tạo riêng, không Aiven `def
 - Chưa xác minh kết quả workflow GitHub mới hơn lần chạy được liên kết ở bảng trên.
 
 ## 8. Phối hợp Developer B
+
+Quy trình chi tiết và điều kiện không chạy destructive test trên DB dùng chung nằm trong [DB-STAGING-TESTING.md](./DB-STAGING-TESTING.md).
 
 - Đồng bộ migration `0004` và DB handoff; không sửa migration đã chạy.
 - Xác nhận target/schema, preflight/status, backup/restore và grants trên DB cô lập.

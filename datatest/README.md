@@ -5,7 +5,8 @@ Kiểm tra invariant ở lớp database (schema, seed, trigger append-only, CHEC
 ## Chạy
 
 ```bash
-# Cần CAMPUS_COIN_DB_* giống db:preflight (xem db/README.md và .env.example)
+# Cần CAMPUS_COIN_TEST_DB=1, CAMPUS_COIN_DB_NAME=campus_coin_test_<tên> và CAMPUS_COIN_DB_*.
+# Chỉ chạy trên MySQL test cô lập; runner tạo rồi xóa database tạm.
 npm run db:datatest
 ```
 
@@ -15,6 +16,8 @@ Runner (Node + mysql2):
 2. Apply toàn bộ migration có version trong `db/migrations/` (hiện `0001`–`0005`, gồm schema, seed, index owner-reference, email auth và rate-limit state).
 3. Chạy từng file trong `datatest/sql/` theo thứ tự tên.
 4. Drop database tạm; exit code = 0 khi toàn bộ PASS.
+
+Runner từ chối chạy nếu chưa bật `CAMPUS_COIN_TEST_DB=1` hoặc `CAMPUS_COIN_DB_NAME` không bắt đầu bằng `campus_coin_test_`. Prefix là chốt chống thao tác nhầm tên DB; DB owner vẫn phải xác nhận host/service thực sự cô lập trước khi cấp quyền create/drop.
 
 Cũng có thể chạy tay từng file qua mysql CLI vào một database đã migrate.
 

@@ -282,133 +282,135 @@ export function App() {
           : <button className="textButton" disabled={busy} onClick={connectGoogle}>{t.googleConnect}</button>}
         <button className="primaryButton" disabled={busy} onClick={signOut}>{t.logout}</button>
       </> : <>
-        <h1 ref={headingRef} tabIndex={-1}>{title}</h1>
+        <h1 id="auth-title" ref={headingRef} tabIndex={-1}>{title}</h1>
         {page === 'verify' && <p className="emailHint">{t.email}: {email}</p>}
-        <form noValidate onSubmit={submit}>
-          {(page === 'login' || page === 'register' || page === 'forgot') && <label>
-            {t.email}
-            <input
-              id="auth-email"
-              type="email"
-              value={email}
-              onChange={event => setEmail(event.target.value)}
-              onBlur={() => touchField('email')}
-              aria-invalid={Boolean(fieldError('email'))}
-              aria-describedby={fieldError('email') ? 'auth-email-error' : undefined}
-              maxLength={255}
-              required
-              autoComplete="email"
-            />
-            {fieldError('email') && <span id="auth-email-error" className="fieldError" aria-live="polite">{fieldError('email')}</span>}
-          </label>}
-
-          {page === 'verify' && <label>
-            {t.name}
-            <input
-              id="auth-name"
-              value={name}
-              onChange={event => setName(event.target.value.slice(0, 120))}
-              onBlur={() => touchField('name')}
-              aria-invalid={Boolean(fieldError('name'))}
-              aria-describedby={fieldError('name') ? 'auth-name-error' : undefined}
-              required
-              minLength={2}
-              maxLength={120}
-              autoComplete="name"
-            />
-            {fieldError('name') && <span id="auth-name-error" className="fieldError" aria-live="polite">{fieldError('name')}</span>}
-          </label>}
-
-          {(page === 'verify' || page === 'reset') && <label>
-            {t.code}
-            <input
-              id="auth-otp"
-              value={otp}
-              onChange={event => setOtp(event.target.value.replace(/\D/g, '').slice(0, 6))}
-              onBlur={() => touchField('otp')}
-              aria-invalid={Boolean(fieldError('otp'))}
-              aria-describedby={fieldError('otp') ? 'auth-otp-error' : undefined}
-              placeholder={t.codeHint}
-              required
-              pattern="[0-9]{6}"
-              inputMode="numeric"
-              autoComplete="one-time-code"
-              maxLength={6}
-            />
-            {fieldError('otp') && <span id="auth-otp-error" className="fieldError" aria-live="polite">{fieldError('otp')}</span>}
-          </label>}
-
-          {(page === 'login' || page === 'verify' || page === 'reset') && <label>
-            {page === 'reset' ? t.newPassword : t.password}
-            <span
-              className="passwordField"
-              onBlur={event => {
-                if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setShowPassword(false);
-              }}
-            >
+        <form aria-labelledby="auth-title" onInvalid={() => setSubmitted(true)} onSubmit={submit}>
+          <fieldset className="authFields">
+            <legend className="visuallyHidden">{title}</legend>
+            {(page === 'login' || page === 'register' || page === 'forgot') && <label>
+              {t.email}
               <input
-                id="auth-password"
-                type={showPassword ? 'text' : 'password'}
-                value={password}
-                onChange={event => setPassword(event.target.value)}
-                onBlur={() => touchField('password')}
-                aria-invalid={Boolean(fieldError('password'))}
-                aria-describedby={fieldError('password') ? 'auth-password-error' : undefined}
-                placeholder={page === 'login' ? '' : t.passwordHint}
+                id="auth-email"
+                type="email"
+                value={email}
+                onChange={event => setEmail(event.target.value)}
+                onBlur={() => touchField('email')}
+                aria-invalid={Boolean(fieldError('email'))}
+                aria-describedby={fieldError('email') ? 'auth-email-error' : undefined}
+                maxLength={255}
                 required
-                minLength={page === 'login' ? 1 : 8}
-                maxLength={128}
-                autoComplete={page === 'login' ? 'current-password' : 'new-password'}
+                autoComplete="email"
               />
-              <button
-                type="button"
-                disabled={busy}
-                aria-pressed={showPassword}
-                onClick={() => setShowPassword(current => !current)}
-                aria-label={showPassword ? t.hide : t.show}
-              >{showPassword ? t.hideShort : t.showShort}</button>
-            </span>
-            {fieldError('password') && <span id="auth-password-error" className="fieldError" aria-live="polite">{fieldError('password')}</span>}
-          </label>}
+              {fieldError('email') && <span id="auth-email-error" className="fieldError" aria-live="polite">{fieldError('email')}</span>}
+            </label>}
 
-          {(page === 'verify' || page === 'reset') && <label>
-            {t.confirm}
-            <span
-              className="passwordField"
-              onBlur={event => {
-                if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setShowConfirmPassword(false);
-              }}
-            >
+            {page === 'verify' && <label>
+              {t.name}
               <input
-                id="auth-confirm"
-                type={showConfirmPassword ? 'text' : 'password'}
-                value={confirm}
-                onChange={event => setConfirm(event.target.value)}
-                onBlur={() => touchField('confirm')}
-                aria-invalid={Boolean(fieldError('confirm'))}
-                aria-describedby={fieldError('confirm') ? 'auth-confirm-error' : undefined}
+                id="auth-name"
+                value={name}
+                onChange={event => setName(event.target.value.slice(0, 120))}
+                onBlur={() => touchField('name')}
+                aria-invalid={Boolean(fieldError('name'))}
+                aria-describedby={fieldError('name') ? 'auth-name-error' : undefined}
                 required
-                minLength={8}
-                maxLength={128}
-                autoComplete="new-password"
+                minLength={2}
+                maxLength={120}
+                autoComplete="name"
               />
-              <button
-                type="button"
-                disabled={busy}
-                aria-pressed={showConfirmPassword}
-                onClick={() => setShowConfirmPassword(current => !current)}
-                aria-label={showConfirmPassword ? t.hide : t.show}
-              >{showConfirmPassword ? t.hideShort : t.showShort}</button>
-            </span>
-            {fieldError('confirm') && <span id="auth-confirm-error" className="fieldError" aria-live="polite">{fieldError('confirm')}</span>}
-          </label>}
+              {fieldError('name') && <span id="auth-name-error" className="fieldError" aria-live="polite">{fieldError('name')}</span>}
+            </label>}
 
-          {page === 'login' && <label className="checkLabel">
-            <input type="checkbox" checked={remember} onChange={event => setRemember(event.target.checked)} />
-            {t.remember}
-          </label>}
+            {(page === 'verify' || page === 'reset') && <label>
+              {t.code}
+              <input
+                id="auth-otp"
+                value={otp}
+                onChange={event => setOtp(event.target.value.replace(/\D/g, '').slice(0, 6))}
+                onBlur={() => touchField('otp')}
+                aria-invalid={Boolean(fieldError('otp'))}
+                aria-describedby={fieldError('otp') ? 'auth-otp-error' : undefined}
+                placeholder={t.codeHint}
+                required
+                pattern="[0-9]{6}"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                maxLength={6}
+              />
+              {fieldError('otp') && <span id="auth-otp-error" className="fieldError" aria-live="polite">{fieldError('otp')}</span>}
+            </label>}
 
-          <button className="primaryButton" disabled={busy}>{busy ? t.wait : buttonText}</button>
+            {(page === 'login' || page === 'verify' || page === 'reset') && <label>
+              {page === 'reset' ? t.newPassword : t.password}
+              <span
+                className="passwordField"
+                onBlur={event => {
+                  if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setShowPassword(false);
+                }}
+              >
+                <input
+                  id="auth-password"
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={event => setPassword(event.target.value)}
+                  onBlur={() => touchField('password')}
+                  aria-invalid={Boolean(fieldError('password'))}
+                  aria-describedby={fieldError('password') ? 'auth-password-error' : undefined}
+                  placeholder={page === 'login' ? '' : t.passwordHint}
+                  required
+                  minLength={page === 'login' ? 1 : 8}
+                  maxLength={128}
+                  autoComplete={page === 'login' ? 'current-password' : 'new-password'}
+                />
+                <button
+                  type="button"
+                  disabled={busy}
+                  aria-pressed={showPassword}
+                  onClick={() => setShowPassword(current => !current)}
+                  aria-label={showPassword ? t.hide : t.show}
+                >{showPassword ? t.hideShort : t.showShort}</button>
+              </span>
+              {fieldError('password') && <span id="auth-password-error" className="fieldError" aria-live="polite">{fieldError('password')}</span>}
+            </label>}
+
+            {(page === 'verify' || page === 'reset') && <label>
+              {t.confirm}
+              <span
+                className="passwordField"
+                onBlur={event => {
+                  if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setShowConfirmPassword(false);
+                }}
+              >
+                <input
+                  id="auth-confirm"
+                  type={showConfirmPassword ? 'text' : 'password'}
+                  value={confirm}
+                  onChange={event => setConfirm(event.target.value)}
+                  onBlur={() => touchField('confirm')}
+                  aria-invalid={Boolean(fieldError('confirm'))}
+                  aria-describedby={fieldError('confirm') ? 'auth-confirm-error' : undefined}
+                  required
+                  minLength={8}
+                  maxLength={128}
+                  autoComplete="new-password"
+                />
+                <button
+                  type="button"
+                  disabled={busy}
+                  aria-pressed={showConfirmPassword}
+                  onClick={() => setShowConfirmPassword(current => !current)}
+                  aria-label={showConfirmPassword ? t.hide : t.show}
+                >{showConfirmPassword ? t.hideShort : t.showShort}</button>
+              </span>
+              {fieldError('confirm') && <span id="auth-confirm-error" className="fieldError" aria-live="polite">{fieldError('confirm')}</span>}
+            </label>}
+
+            {page === 'login' && <label className="checkLabel">
+              <input type="checkbox" checked={remember} onChange={event => setRemember(event.target.checked)} />
+              {t.remember}
+            </label>}
+          </fieldset>
+          <button type="submit" className="primaryButton" disabled={busy}>{busy ? t.wait : buttonText}</button>
         </form>
 
         {(page === 'verify' || page === 'reset') && <button className="textButton" disabled={busy} onClick={resend}>{t.resend}</button>}

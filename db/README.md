@@ -34,7 +34,7 @@ npm run db:migrate    # apply migration chưa chạy (GET_LOCK chống chạy so
 npm run db:datatest   # test SQL trên database tạm (xem datatest/README.md)
 ```
 
-Test gated cần MySQL thật (Day-1 gate): `CAMPUS_COIN_TEST_DB=1` + `CAMPUS_COIN_DB_*`, chạy `npm test`. Gồm:
+Test gated cần MySQL thật (Day-1 gate): `CAMPUS_COIN_TEST_DB=1` + `CAMPUS_COIN_DB_*`, với `CAMPUS_COIN_DB_NAME` bắt đầu `campus_coin_test_`. Harness tạo/xóa schema ngẫu nhiên, vì vậy chỉ dùng local/CI/test service đã cô lập. Không dùng `defaultdb` hoặc DB có dữ liệu dùng chung. Lệnh và checklist đầy đủ ở [`docs/DB-STAGING-TESTING.md`](../docs/DB-STAGING-TESTING.md). Gồm:
 
 - `test/mysql.integration.test.ts` — invariant nghiệp vụ qua services trên DB tạm (wallet, insufficient, concurrent payment, idempotency, correction, savings, budget, report, pagination, owner isolation, append-only).
 - `test/e2e.contract.smoke.test.ts` — critical flow + validate từng response theo `artifacts/openapi.json` (schema frontend tiêu thụ). Khi HTTP lane A và UI lane C được thêm, smoke này thành true e2e qua HTTP.

@@ -20,6 +20,10 @@ docs/
 ├── ROADMAP.md                # Lộ trình và các phần để sau
 ├── DELIVERY-PLAN.md          # Kế hoạch giao hàng Day 0–5
 ├── TEAM-BOARD.md             # Bảng triển khai human team
+├── CURRENT-STATUS.md         # Quyết định, commits đã push, evidence và gate còn chờ
+├── QUALITY-AND-SCORING.md    # Rubric chấm điểm và evidence cần chuẩn bị
+├── DB-STAGING-TESTING.md     # Kiểm tra DB riêng, auth staging và owner scope
+├── ENGINEERING-PRINCIPLES-APPLICATION.md # Câu hỏi nguyên lý và cách áp dụng vào project
 ├── adr/                      # Lịch sử quyết định kiến trúc, ổn định
 └── working/                  # Handoff, replan và bằng chứng tạm thời
     ├── README.md             # Quy tắc và phân loại working docs
@@ -54,6 +58,10 @@ Root `docs/` là canonical product docs; `adr/` là canonical history; `working/
 | [`DELIVERY-PLAN.md`](./DELIVERY-PLAN.md) | Kế hoạch Day 0–5, owner, checklist và rollback |
 | [`DECISIONS.md`](./DECISIONS.md) | Chỉ mục quyết định tương thích ADR; chi tiết chuẩn ở `docs/adr/` |
 | [`TEAM-BOARD.md`](./TEAM-BOARD.md) | Bảng sở hữu và trạng thái triển khai của human team |
+| [`CURRENT-STATUS.md`](./CURRENT-STATUS.md) | Quyết định hiện hành, commits đã push, evidence và gate còn chờ |
+| [`QUALITY-AND-SCORING.md`](./QUALITY-AND-SCORING.md) | Trọng số chấm điểm, thứ tự ưu tiên và evidence |
+| [`DB-STAGING-TESTING.md`](./DB-STAGING-TESTING.md) | Quy trình DB test an toàn, auth/email staging và owner checks |
+| [`ENGINEERING-PRINCIPLES-APPLICATION.md`](./ENGINEERING-PRINCIPLES-APPLICATION.md) | Câu hỏi–trả lời kỹ thuật và thay đổi áp dụng vào code |
 
 ## 4. Thứ tự ưu tiên khi mâu thuẫn
 
@@ -80,6 +88,9 @@ Root `docs/` là canonical product docs; `adr/` là canonical history; `working/
 | Bất biến và công thức tiền | [`DOMAIN-MODEL.md`](./DOMAIN-MODEL.md) | UI/handoff |
 | Auth/session/owner scope | [`AUTHENTICATION.md`](./AUTHENTICATION.md) | Handoff cũ |
 | Trạng thái/gate hiện tại | [`DELIVERY-PLAN.md`](./DELIVERY-PLAN.md) | ADR |
+| Rubric và evidence chấm điểm | [`QUALITY-AND-SCORING.md`](./QUALITY-AND-SCORING.md) | ADR |
+| DB/staging test procedure | [`DB-STAGING-TESTING.md`](./DB-STAGING-TESTING.md) | `.env`/handoff chứa secret |
+| Nguyên lý giao diện, API, React và dữ liệu | [`ENGINEERING-PRINCIPLES-APPLICATION.md`](./ENGINEERING-PRINCIPLES-APPLICATION.md) | Quyết định nghiệp vụ chuẩn ở ADR/domain docs |
 | Bằng chứng quy trình | [`working/`](./working/) | Canonical decision |
 
 Thay đổi auth phải cập nhật ADR-0008/0009/0002, `AUTHENTICATION.md`, `ARCHITECTURE.md` và acceptance liên quan. ADR-0001/0007 được giữ nguyên làm lịch sử. Thay đổi money invariant phải cập nhật ADR-0005, `DOMAIN-MODEL.md`, `PRD.md` và delivery gate. Thay đổi JEV phải cập nhật ADR-0006 và `AI-JEV.md`. Không ghi secret, token, raw PII hoặc claim provider chưa kiểm chứng.

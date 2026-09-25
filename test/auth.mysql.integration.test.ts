@@ -107,7 +107,7 @@ if (!ENABLED) {
   }
 
   async function registerSession(name: string, ip: string) {
-    const email = `${name}-${randomUUID()}@example.test`;
+    const email = `owner-${randomUUID()}@example.test`;
     assert.equal((await call('POST', '/api/v1/auth/register', { body: { email }, ip })).status, 201);
     const otp = sentOtp(email, 'registration');
     assert.equal((await call('POST', '/api/v1/auth/verify-registration', {
