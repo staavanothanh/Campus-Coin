@@ -21,11 +21,11 @@ Specialist chỉ cung cấp phân tích; không thay thế bốn developer và k
 
 | ID | Owner | Trạng thái | Acceptance/gate |
 |---|---|---|---|
-| HUMAN-A | Developer A | Auth implementation và HTTP tests đã push | OTP/login/reset, rate-limit/session/CSRF/IDOR, auth UI và API contract; Team Leader báo register qua email đã thành công; SMTP reset/timeout/retry và staging flow còn chờ evidence |
-| HUMAN-B | Developer B | CI MySQL disposable đã pass; chờ xác nhận DB target và migration chain trước khi port chọn lọc | Xác nhận DB/schema test riêng, quyền create/drop cho test role, migration đã apply trên từng target, backup/restore, CA và least-privilege runtime grants; review domain routes |
+| HUMAN-A | Developer A | Auth implementation và HTTP tests đã push; Team Leader xác nhận auth staging Phần 2 hoàn tất và báo Google OAuth đã kết nối; test CSRF/Origin tự động đã thêm | SMTP/provider failure timeout/retry và CSRF/Origin staging còn chờ evidence; môi trường Google OAuth và việc thử riêng login/connect account chưa nêu; CI cho commit mới đang pending |
+| HUMAN-B | Developer B | CI MySQL disposable đã pass; schema `campus_coin` có migrations `0001`–`0005`; clone `campus_coin_done` chưa truy cập được bằng app config | Xác nhận đúng DB/service/grants và migration chain; cho phép test role tạo/xóa schema tạm, xác nhận backup/restore, CA và least-privilege runtime grants; review domain routes |
 | HUMAN-C | Developer C | Auth UI đã có; domain UI còn thiếu | Wallet/dashboard, income/payment/history, savings, category/budget, report/issue; hai ngôn ngữ, responsive và accessible |
 | HUMAN-D | Developer D | JEV giữ default-off; smoke/release QA còn chờ evidence | Chỉ làm typed JEV probe/fallback nếu feature được bật; phối hợp redacted logs, smoke và rollback theo release scope |
-| LEADER-INT | Team Leader | Commit `dd90c11` đã push; [run #10](https://github.com/staavanothanh/Campus-Coin/actions/runs/36117665453) pass toàn workflow; run #6 pass code và ba MySQL suites | Email auth theo ADR-0008, Google tùy chọn theo ADR-0009; owner integration pass trên MySQL CI cô lập; staging SMTP reset/session và production gates vẫn chờ evidence; register email đã được Team Leader xác nhận |
+| LEADER-INT | Team Leader | Commit `dd90c11` đã push; [run #10](https://github.com/staavanothanh/Campus-Coin/actions/runs/36117665453) pass toàn workflow; run #6 pass code và ba MySQL suites | Email auth theo ADR-0008, Google tùy chọn theo ADR-0009; owner integration pass trên MySQL CI cô lập; Team Leader xác nhận staging Phần 2 hoàn tất; SMTP/provider failure và production gates vẫn chờ evidence |
 | LEADER-REV | Team Leader | Chờ evidence | GO/NO-GO sau auth/DB/email/API/UI/CI/restore gates |
 
 ## Đường găng
@@ -39,7 +39,7 @@ Specialist chỉ cung cấp phân tích; không thay thế bốn developer và k
 
 ## Chặn và giả định
 
-Launch blockers: xác minh auth brute-force/OTP/session bằng MySQL cô lập, SMTP delivery evidence, CSRF/IDOR review, Vercel env/connectivity, DB migration/restore/role, API/domain owner-isolation integration evidence, ledger/savings invariant, secret/PII leak, accessibility review, remote CI hoặc rollback failure. OpenRouter model/quota/policy chưa được claim; JEV có thể off. Custom email domain chưa phải dependency; provider gửi OTP vẫn phải được chọn và kiểm chứng.
+Launch blockers: xác minh auth brute-force/OTP/session bằng MySQL cô lập, kiểm tra SMTP/provider failure timeout/retry, CSRF/IDOR review, Vercel runtime/env/connectivity, DB migration/restore/role, API/domain owner-isolation integration evidence, ledger/savings invariant, secret/PII leak, accessibility review, remote CI hoặc rollback failure. OpenRouter model/quota/policy chưa được claim; JEV có thể off. Custom email domain chưa phải dependency.
 
 ## Chỉ mục bằng chứng
 

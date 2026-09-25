@@ -11,6 +11,7 @@ import mysql, { type Connection } from "mysql2/promise";
 import { DbEnvError, migrationCreds, readDbEnv, sslOption } from "../src/infrastructure/db/env.ts";
 import { applyMigration, scanMigrationDir, type MigrationConnection } from "../src/infrastructure/db/migration-engine.ts";
 import { assertIsolatedTestDatabase } from "../test/helpers/db-test-guard.ts";
+import { parseSqlFile } from "./sql-file.ts";
 
 const SQL_DIR =
   process.env["CAMPUS_COIN_DATATEST_DIR"] ?? path.resolve(import.meta.dirname, "sql");
@@ -32,26 +33,13 @@ function splitStatements(sql: string): string[] {
     .filter((s) => s.length > 0);
 }
 
-function parseFile(content: string): { expectError: string | null; sql: string } {
-  let expectError: string | null = null;
-  for (const line of content.split("\n")) {
-    const trimmed = line.trimStart();
-    if (!trimmed.startsWith("--")) break;
-    const match = /^--\s*expect-error(?::\s*(.*))?$/.exec(trimmed);
-    if (match !== null) {
-      expectError = (match[1] ?? "").trim().length > 0 ? match[1]!.trim() : "error";
-    }
-  }
-  return { expectError, sql: content };
-}
-
 async function collectFiles(dir: string): Promise<SqlFile[]> {
   const entries = await readdir(dir);
   const files: SqlFile[] = [];
   for (const entry of entries.sort()) {
     if (!entry.endsWith(".sql")) continue;
     const content = await readFile(path.join(dir, entry), "utf8");
-    const { expectError, sql } = parseFile(content);
+    const { expectError, sql } = parseSqlFile(content);
     files.push({ name: entry, sql, expectError });
   }
   return files;

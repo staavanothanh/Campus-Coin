@@ -26,7 +26,7 @@
 
 | Hạng mục | Trạng thái hiện tại | Việc còn thiếu để có bằng chứng nộp bài |
 |---|---|---|
-| Functionality Testing — 35 | Auth và API domain có unit/integration coverage; owner isolation đã pass trên MySQL CI cô lập. | Giao diện domain sau đăng nhập còn thiếu. Checkout chưa có bản SRS nên cần ma trận yêu cầu SRS → tính năng/API → test/evidence; chạy staging SMTP/reset/session và demo luồng hoàn chỉnh. |
+| Functionality Testing — 35 | Auth và API domain có unit/integration coverage; owner isolation đã pass trên MySQL CI cô lập. Team Leader báo Phần 2 auth staging đã hoàn tất. | Giao diện domain sau đăng nhập còn thiếu. Checkout chưa có bản SRS nên cần ma trận yêu cầu SRS → tính năng/API → test/evidence; giữ lại evidence staging do nhóm cung cấp và demo luồng sản phẩm hoàn chỉnh. |
 | UI & Accessibility Testing — 15 | Auth UI có validation, hai ngôn ngữ và keyboard semantics cơ bản. | Làm màn hình domain; kiểm tra responsive, keyboard/focus/screen reader và trạng thái lỗi/loading trên toàn app. |
 | Source Code — 10 | Typecheck/build và cấu trúc phân lớp đã được chạy trong CI. | Nhóm rà soát code, giải thích module/boundary và giữ thay đổi đơn giản, đúng convention. |
 | Database Testing — 10 | CI disposable MySQL đã chạy migration, seed/test-data và integration suites. | DevB xác nhận chain của từng DB, least-privilege grants, TLS/CA và backup/restore trên môi trường tách biệt. |
@@ -36,6 +36,12 @@
 | Ontime Submission — 5 | Chưa có evidence gói nộp/demo cuối. | Khóa phạm vi, build sạch, kiểm tra demo, lưu commit/tag và chuẩn bị gói nộp trước hạn. |
 
 Các trạng thái “chưa có evidence” nghĩa là chưa được kiểm chứng hoặc ghi lại; không kết luận thay kết quả kiểm tra thực tế.
+
+## Benchmark hiệu năng
+
+Benchmark không phải hạng mục chấm điểm có trọng số riêng trong rubric BTC; số đo có thể hỗ trợ đánh giá chất lượng source và trải nghiệm chức năng. `db/README.md` đang lưu số đo tham chiếu cũ trên MySQL local 8.0.41 với khoảng 101.000 ledger rows/21 owner. Số này không chứng minh latency của Aiven/Vercel và chưa có harness trong repo để tái chạy cùng phép đo.
+
+Khi có MySQL clone và runtime triển khai được xác nhận, đo lại các luồng report/dashboard/list và payment; ghi commit, MySQL version, số dòng/owner, concurrency, warm-up, số lần chạy, p50/p95 và query plan. Không dùng dữ liệu người dùng thật. Hiện trạng: cloud benchmark chưa chạy.
 
 ## Bằng chứng cần giữ
 

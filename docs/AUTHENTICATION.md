@@ -35,7 +35,7 @@ ADR-0009 là quyết định mới nhất khi tài liệu cũ mâu thuẫn về 
 
 Google Sign-In dùng Authorization Code phía server, PKCE S256, `state`, `nonce` và scope `openid email profile`. Server kiểm tra ID token theo client audience, nonce, `sub` và `email_verified=true`. Google account mới chỉ được tạo khi email chưa có account; email trùng cần người dùng đăng nhập phương thức hiện tại và kết nối Google rõ ràng. Kết nối chỉ được bắt đầu từ session hợp lệ và callback xác nhận cùng user.
 
-OAuth đọc `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`, `GOOGLE_OAUTH_REDIRECT_URI` và `SESSION_SECRET` từ environment. Khi chưa đủ cấu hình, provider bị tắt, nút không hiển thị, luồng email không bị ảnh hưởng. Callback thật chưa được xác minh cho đến khi OAuth client và callback URI được cấu hình.
+OAuth đọc `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`, `GOOGLE_OAUTH_REDIRECT_URI` và `SESSION_SECRET` từ environment. Khi chưa đủ cấu hình, provider bị tắt, nút không hiển thị, luồng email không bị ảnh hưởng. Ngày 2026-09-25, Team Leader báo flow kết nối Google OAuth đã thành công; môi trường và phạm vi login riêng chưa được ghi nhận trong evidence hiện có.
 
 Database/provider failure phải fail closed. Email send failure trả lỗi ổn định, không để lại OTP dùng được nếu mail không được chấp nhận. SMTP có timeout và số retry hữu hạn; retry dùng cùng OTP để tránh nhiều mã khác nhau đang hiệu lực.
 
@@ -45,7 +45,7 @@ Cooldown OTP được kiểm tra trước quota gửi; yêu cầu bị từ ch�
 
 Session ID là random opaque; DB chỉ lưu hash ID, user, issued/expires, revoked, last_seen và metadata tối thiểu. Session có expiry và logout/recovery revoke. Cookie phải `HttpOnly`, `Secure` trong production, `SameSite=Lax` hoặc chặt hơn sau kiểm thử, `Path=/`, và không có `Domain` rộng. Không lưu session trong localStorage/sessionStorage.
 
-Public auth mutation bắt buộc kiểm tra Origin; mutation của session đã xác thực kiểm tra cả Origin và CSRF token, kể cả logout. Ở development, API cho phép thêm hai origin local `http://127.0.0.1:5173` và `http://localhost:5173` để khớp Vite; production chỉ nhận đúng `CLIENT_ORIGIN`. Money mutation có idempotency khi có thể retry. 401 là thiếu/hết session; 403 là đã xác thực nhưng không có quyền; lỗi không trả stack hoặc nội dung nội bộ.
+Public auth mutation bắt buộc kiểm tra Origin; mutation của session đã xác thực kiểm tra cả Origin và CSRF token, kể cả logout. Logout với session còn hiệu lực và CSRF token sai trả `403` mà không thu hồi session; nếu session đã hết hạn/bị thu hồi hoặc không tồn tại, logout trả thành công và xóa cookie để hỗ trợ gọi lặp. Ở development, API cho phép thêm hai origin local `http://127.0.0.1:5173` và `http://localhost:5173` để khớp Vite; production chỉ nhận đúng `CLIENT_ORIGIN`. Money mutation có idempotency khi có thể retry. 401 là thiếu/hết session; 403 là đã xác thực nhưng không có quyền; lỗi không trả stack hoặc nội dung nội bộ. `npm run test:auth-security` kiểm tra Origin sai, thiếu CSRF và mutation hợp lệ trên MySQL tạm; các bước live trên staging nằm trong [DB-STAGING-TESTING.md](./DB-STAGING-TESTING.md).
 
 ## 5. Phân quyền và owner scope
 
@@ -82,7 +82,7 @@ Public auth mutation bắt buộc kiểm tra Origin; mutation của session đã
 6. SMTP timeout/retry có giới hạn; không có OTP trong log/dev fallback.
 7. en/vi, loading/error/success/expired/locked states, keyboard/focus và aria/live-region đạt.
 8. Không có secret/password/OTP/reset token/raw credential trong repo, response hoặc log.
-9. Google live login/link chỉ được ghi đạt sau callback thật; nếu OAuth secrets chưa cấu hình thì email login vẫn chạy và provider discovery báo Google tắt.
+9. Google live login/link chỉ được ghi đạt sau callback thật; nếu OAuth secrets chưa cấu hình thì email login vẫn chạy và provider discovery báo Google tắt. Biến môi trường và callback cần thiết được ghi trong [DB-STAGING-TESTING.md](./DB-STAGING-TESTING.md).
 
 Các tiêu chí trên là gate; ghi quyết định trong ADR-0008 không chứng minh chúng đã đạt.
 

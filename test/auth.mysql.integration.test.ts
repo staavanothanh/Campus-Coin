@@ -168,15 +168,6 @@ if (!ENABLED) {
     const user = (await session.json()).data.user;
     assert.equal(user.email, email);
     assert.equal((await call('GET', `/api/v1/users/${Number(user.id) + 1}`, { cookie, ip })).status, 403);
-    const badOrigin = await call('POST', '/api/v1/wallet/baseline', {
-      body: { initialBalanceVnd: 10_000 }, cookie, csrf: sessionData.csrfToken, ip, origin: 'https://example.invalid',
-    });
-    assert.equal(badOrigin.status, 403);
-    const missingCsrf = await call('POST', '/api/v1/wallet/baseline', {
-      body: { initialBalanceVnd: 10_000 }, cookie, ip,
-    });
-    assert.equal(missingCsrf.status, 403);
-
     const baseline = await call('POST', '/api/v1/wallet/baseline', {
       body: { initialBalanceVnd: 10_000 }, cookie, csrf: sessionData.csrfToken, key: randomUUID(), ip,
     });
@@ -211,9 +202,9 @@ if (!ENABLED) {
     });
     assert.equal(reusedResetOtp.status, 422);
     assert.equal((await call('GET', '/api/v1/auth/session', { cookie, ip })).status, 401);
-    const staleLogout = await call('POST', '/api/v1/auth/logout', { cookie, ip });
-    assert.equal(staleLogout.status, 200);
-    assert.match(staleLogout.headers.get('set-cookie') ?? '', /Max-Age=0/);
+    const revokedSessionLogout = await call('POST', '/api/v1/auth/logout', { cookie, ip });
+    assert.equal(revokedSessionLogout.status, 200);
+    assert.match(revokedSessionLogout.headers.get('set-cookie') ?? '', /Max-Age=0/);
 
     const newLogin = await call('POST', '/api/v1/auth/login', {
       body: { email, password: 'ChangedPassword123' }, ip,
@@ -236,6 +227,48 @@ if (!ENABLED) {
       [hashSession(expiryCookie.slice('cc_session='.length))],
     );
     assert.equal((await call('GET', '/api/v1/auth/session', { cookie: expiryCookie, ip })).status, 401);
+  });
+
+  test('auth-security: reject invalid Origin and missing CSRF', async () => {
+    const user = await registerSession('CSRF test', '198.51.100.13');
+
+    const badOrigin = await call('POST', '/api/v1/wallet/baseline', {
+      body: { initialBalanceVnd: 10_000 },
+      cookie: user.cookie,
+      csrf: user.csrf,
+      key: randomUUID(),
+      origin: 'https://attacker.invalid',
+    });
+    assert.equal(badOrigin.status, 403);
+    assert.equal((await badOrigin.json()).error.code, 'ORIGIN_INVALID');
+
+    const staleCsrfLogout = await call('POST', '/api/v1/auth/logout', {
+      cookie: user.cookie,
+      csrf: 'stale-csrf-token',
+    });
+    assert.equal(staleCsrfLogout.status, 403);
+    assert.equal((await staleCsrfLogout.json()).error.code, 'CSRF_INVALID');
+    assert.equal((await call('GET', '/api/v1/auth/session', { cookie: user.cookie })).status, 200);
+
+    const missingCsrf = await call('POST', '/api/v1/wallet/baseline', {
+      body: { initialBalanceVnd: 10_000 },
+      cookie: user.cookie,
+      key: randomUUID(),
+    });
+    assert.equal(missingCsrf.status, 403);
+    assert.equal((await missingCsrf.json()).error.code, 'CSRF_INVALID');
+
+    const accepted = await call('POST', '/api/v1/wallet/baseline', {
+      body: { initialBalanceVnd: 10_000 },
+      cookie: user.cookie,
+      csrf: user.csrf,
+      key: randomUUID(),
+    });
+    assert.equal(accepted.status, 201);
+
+    const wallet = await call('GET', '/api/v1/wallet', { cookie: user.cookie });
+    assert.equal(wallet.status, 200);
+    assert.equal((await wallet.json()).data.availableBalanceVnd, 10_000);
   });
 
   test('domain API chỉ trả dữ liệu của owner trong session', async () => {

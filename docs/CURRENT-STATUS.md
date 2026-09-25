@@ -25,7 +25,7 @@ Tài liệu này giúp thành viên mới nắm quyết định hiện hành, ph
 - `be7aac6` — tách MySQL suites để CI cô lập lỗi.
 - Chốt DB test không chạy trên `defaultdb`. CI tạo MySQL riêng cho job; test harness tạo schema tạm có tên rõ ràng rồi xóa schema đó sau khi chạy.
 - Câu hỏi nguyên lý và cách áp dụng được ghi tại [ENGINEERING-PRINCIPLES-APPLICATION.md](./ENGINEERING-PRINCIPLES-APPLICATION.md); nội dung không khẳng định các gate staging hoặc sản phẩm còn thiếu đã pass.
-- SMTP register đã được Team Leader báo gửi/nhận thành công. Đây là evidence cho đăng ký; reset-password và tình huống provider lỗi chưa được xác nhận bằng SMTP thật.
+- Team Leader xác nhận Phần 2 auth staging hoàn tất: đăng ký/reset email, OTP sai/hết hạn/resend và logout/session. Đây là báo cáo của Team Leader, không phải lần chạy live từ task này; SMTP/provider failure timeout/retry vẫn cần kiểm tra riêng.
 
 ## Evidence kiểm tra gần nhất
 
@@ -40,6 +40,19 @@ Tài liệu này giúp thành viên mới nắm quyết định hiện hành, ph
 - [Workflow run #7](https://github.com/staavanothanh/Campus-Coin/actions/runs/36113725073) trên commit `3bf6c0c` pass toàn workflow trước lần cập nhật hiện tại.
 - [Workflow run #6](https://github.com/staavanothanh/Campus-Coin/actions/runs/36113454931) trên commit code `5ee8858` pass typecheck, build, API validation/artifacts, unit tests, `db:datatest`, MySQL domain integration, HTTP contract smoke và Auth MySQL integration trên MySQL cô lập. Run #7 xác nhận lại toàn workflow sau cập nhật docs.
 - Trước đó CI tìm ra budget của category ngoài owner trả `422` thay vì `404` và Google integration test tự theo redirect đến hostname giả. Đã sửa budget thành `404 NOT_FOUND`, giữ redirect ở response trong test; run #6 xác nhận auth/owner integration pass.
+
+## Cập nhật từ kết quả test ngoài CI ngày 2026-09-25
+
+- Team Leader chạy `db:status` và `db:preflight`: target mà `.env` đang chọn là `campus_coin`; migration `0001`–`0005` đã apply, MySQL `8.4.8`, TLS pass, `applied=5 pending=0`.
+- Service URI Aiven được cung cấp dùng cùng host/port đã kiểm tra nhưng có suffix `/defaultdb`; biến `CAMPUS_COIN_DB_NAME` chỉ chọn schema trên host đó, không tự xác nhận hoặc tạo `campus_coin_done`.
+- Chạy read-only với `CAMPUS_COIN_DB_NAME=campus_coin_done` bằng credential/config hiện tại trả `Unknown database`. Lần chạy `npm run db:verify-clone` cũng dừng đúng tại preflight; không chạy `db:datatest` hay MySQL integration và không ghi/xóa schema nào.
+- Lần `db:datatest` đầu đạt `3/15`; các file `expect-error` dùng CRLF bị parser hiểu như file phải thành công. Đã sửa parser và thêm regression test CRLF; bộ database test trên service clone cần được chạy lại sau khi target được xác nhận.
+- Ngày 2026-09-25, Team Leader báo kết nối Google OAuth thành công; môi trường thực hiện chưa được nêu. Cần ghi rõ Google login và connect account có cả hai được thử hay chỉ một flow trước khi đánh dấu cả hai gate hoàn tất.
+- CSRF/Origin được tách thành test chạy riêng `npm run test:auth-security`; test kiểm tra `ORIGIN_INVALID`, `CSRF_INVALID`, logout với CSRF sai và mutation hợp lệ. Kết quả CI cho commit đang chuẩn bị push còn pending; kiểm tra thủ công trên staging cũng pending.
+- Logout với CSRF token sai khi session còn hiệu lực bị chặn bằng `403 CSRF_INVALID`; test MySQL integration đã bổ sung regression case. Logout khi session đã hết hạn/bị thu hồi vẫn clear cookie và trả thành công, đây là semantics gọi lặp.
+- Snapshot repository chưa có `vercel.json`, Vercel function handler/runtime adapter hoặc deploy workflow; hiện chỉ có Node HTTP server chạy dài qua `npm start`. Vercel project settings ngoài repository chưa được kiểm tra, nên triển khai production trên Vercel chưa được xác nhận.
+- Sau thay đổi: `npm run typecheck`, `npm run build` pass; 33 auth/schema/client-IP/DB-safety unit tests pass; `node --check scripts/verify-db-clone.js` và `git diff --check` pass.
+- Bộ `db:datatest` đầy đủ trên Aiven clone vẫn `pending` đến khi preflight clone pass và DevB xác nhận quyền tạo/xóa schema tạm trên đúng MySQL server. Test CSRF/Origin riêng đã được thêm vào CI nhưng chưa chạy trên DB thật từ máy local.
 
 ## Kiểm tra nhánh và quyết định hợp nhất
 
@@ -63,11 +76,12 @@ Tài liệu này giúp thành viên mới nắm quyết định hiện hành, ph
 
 1. **Làm lát cắt giao diện domain đầu tiên**: wallet/dashboard, income/payment và lịch sử; sau đó savings, category/budget, report và issue/admin. Nối API hiện có, owner luôn lấy từ session. DevB có thể chuẩn bị DB song song.
 2. **Đối chiếu SRS với tính năng và test**: tạo bảng yêu cầu → màn/API → test → kết quả. Checkout hiện không có bản SRS; dùng bản có thẩm quyền của nhóm và không sửa bản gốc.
-3. **Kiểm chứng staging auth**: đăng ký/OTP, reset password, mã sai/hết hạn/resend, logout/session revoke và lỗi SMTP; cấu hình và thử Google Sign-In/link thật theo ADR-0009. Chưa có staging URL hoặc mailbox test được cung cấp trong handoff này, nên chưa thể chạy các bước live.
+3. **Auth staging**: Team Leader xác nhận Phần 2 đã hoàn tất (register/reset email, OTP sai/hết hạn/resend, logout/session); SMTP/provider failure timeout/retry vẫn riêng. Team Leader báo Google OAuth đã kết nối, nhưng môi trường và việc thử cả login/connect account chưa được nêu.
 4. **Chốt DB với DevB/DB owner**: xác nhận test DB riêng, migration/checksum/schema state từng target, quyền create/drop, TLS/CA, runtime role least-privilege và backup/restore. Không dùng Aiven `defaultdb` cho test destructive.
 5. **Kiểm tra UI/accessibility/compatibility**: bàn phím, focus, screen reader cơ bản, màn hình nhỏ và Chrome/Firefox/Edge/Opera; ghi phiên bản, viewport, ngày và kết quả.
 6. **Hoàn thiện Project Report và evidence originality**: problem statement, sơ đồ, module/logic, phân công, hướng dẫn cài/chạy/kiểm tra, giới hạn, test evidence và nguồn tham khảo; thành viên cần giải thích được phần mình làm.
 7. **Đóng gói cuối**: chạy CI trên commit chốt, kiểm tra demo/build, lưu commit/tag và chuẩn bị gói nộp.
+8. **Chốt triển khai Vercel**: thêm/xác minh Node runtime adapter và cấu hình deploy cho API server; snapshot repo hiện chưa có config/handler này, Vercel project settings ngoài repo chưa được kiểm tra.
 
 Checklist theo từng trọng số và thứ tự thực hiện nằm trong [QUALITY-AND-SCORING.md](./QUALITY-AND-SCORING.md). Các câu hỏi nguyên lý đã có câu trả lời và trạng thái áp dụng trong [ENGINEERING-PRINCIPLES-APPLICATION.md](./ENGINEERING-PRINCIPLES-APPLICATION.md); phần ghi trong tài liệu không đồng nghĩa mọi hạng mục đã được kiểm thử.
 

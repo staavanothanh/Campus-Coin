@@ -18,7 +18,9 @@
     "db:status": "cross-env node --env-file-if-exists=.env src/infrastructure/db/migrate.ts status",
     "db:preflight": "cross-env node --env-file-if-exists=.env src/infrastructure/db/migrate.ts preflight",
     "db:datatest": "cross-env node --env-file-if-exists=.env datatest/run.ts",
-    "db:migrate": "cross-env node --env-file-if-exists=.env src/infrastructure/db/migrate.ts up"
+    "db:migrate": "cross-env node --env-file-if-exists=.env src/infrastructure/db/migrate.ts up",
+    "db:verify-clone": "cross-env node --env-file-if-exists=.env scripts/verify-db-clone.js",
+    "test:auth-security": "cross-env CAMPUS_COIN_TEST_DB=1 CAMPUS_COIN_DB_NAME=campus_coin_test_auth node --env-file-if-exists=.env --import tsx --test --test-name-pattern=auth-security test/auth.mysql.integration.test.ts"
   },
   "devDependencies": {
     "@redocly/cli": "^2.54.2",

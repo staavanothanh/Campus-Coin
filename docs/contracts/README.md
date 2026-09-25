@@ -25,7 +25,7 @@ npm run api:types
 - Browser dùng opaque server session cookie cho email/password/OTP và Google Sign-In tùy chọn theo ADR-0009.
 - Google OIDC chạy phía server với `openid email profile`, PKCE/state/nonce; không Gmail API/token storage và không auto-link theo email.
 - Email OTP đi qua SMTP server adapter; không dùng Gmail credential cá nhân, inbox hoặc API.
-- State-changing request cần Origin/CSRF policy; endpoint logout phải idempotent và clear cookie kể cả khi token stale.
+- State-changing request cần Origin/CSRF policy. Logout của session còn hiệu lực cần Origin hợp lệ và CSRF token hiện tại; nếu session đã hết hạn/bị thu hồi hoặc không có session, endpoint vẫn trả thành công và xóa cookie để hỗ trợ gọi lặp.
 - Money mutation cần `Idempotency-Key`; retry cùng body trả kết quả cũ, body khác trả conflict.
 - Money là integer VND; ledger type chỉ `income`/`payment`; savings transfer tách riêng.
 - List lớn dùng opaque keyset cursor, không yêu cầu exact `total`.

@@ -53,8 +53,10 @@ jobs:
       - run: npm run api:types
       - run: git diff --exit-code -- artifacts/openapi.json artifacts/api.d.ts
       - run: node --import tsx --test tests/auth.test.ts test/schema-readiness.test.ts tests/google-oauth.test.ts tests/client-ip.test.ts
-      - run: node --import tsx --test tests/db-test-guard.test.ts
+      - run: node --import tsx --test tests/db-test-guard.test.ts tests/datatest-sql-file.test.ts tests/db-clone-script.test.ts
       - run: npm run db:datatest
+      - name: Auth CSRF and Origin integration
+        run: npm run test:auth-security
       - name: MySQL domain integration
         run: node --import tsx --test test/mysql.integration.test.ts
       - name: HTTP contract smoke
