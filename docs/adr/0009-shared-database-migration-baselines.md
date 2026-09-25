@@ -1,7 +1,7 @@
 # ADR-0009: Baseline hội tụ migration trên database shared
 
 - **Ngày:** 2026-09-25
-- **Trạng thái:** Đề xuất (chờ Team Leader chấp nhận trước khi apply lên Aiven)
+- **Trạng thái:** Đã chấp nhận
 - **Người quyết định:** Team Leader
 
 ## Bối cảnh
