@@ -16,7 +16,7 @@ Các giá trị provider phải được lấy lại từ Aiven console tại th
 
 ## Status
 
-- Cần xác minh trực tiếp trên provider sau mỗi thay đổi: migration `0001`–`0027`, seed category, connectivity và readiness.
+- Cần xác minh trực tiếp trên provider sau mỗi thay đổi: migration `0001`–`0030` (kèm repair `0011` đã duyệt theo DELIVERY-PLAN BLK-MIG-02), seed category, connectivity và readiness.
 - Chưa có evidence trong working docs để claim database đã sẵn sàng cho production.
 - Không tạo PR hoặc chạy migration production khi endpoint, role, CA và grant chưa được Team Leader xác nhận.
 
