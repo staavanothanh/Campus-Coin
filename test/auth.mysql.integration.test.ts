@@ -96,6 +96,7 @@ if (!ENABLED) {
     return fetch(`${baseUrl}${path}`, {
       method,
       headers,
+      redirect: 'manual',
       ...(options.body === undefined ? {} : { body: JSON.stringify(options.body) }),
     });
   }
@@ -289,10 +290,12 @@ if (!ENABLED) {
       body: { month, limitVnd: 5_000 },
       cookie: userA.cookie, csrf: userA.csrf, key: randomUUID(),
     })).status, 200);
-    assert.equal((await call('PUT', `/api/v1/budgets/${categoryId}`, {
+    const foreignBudget = await call('PUT', `/api/v1/budgets/${categoryId}`, {
       body: { month, limitVnd: 1_000 },
       cookie: userB.cookie, csrf: userB.csrf, key: randomUUID(),
-    })).status, 404);
+    });
+    assert.equal(foreignBudget.status, 404);
+    assert.equal((await foreignBudget.json()).error.code, 'NOT_FOUND');
 
     const walletA = (await (await call('GET', '/api/v1/wallet', { cookie: userA.cookie })).json()).data;
     const walletB = (await (await call('GET', '/api/v1/wallet', { cookie: userB.cookie })).json()).data;
@@ -437,6 +440,7 @@ if (!ENABLED) {
 
     nextGoogleIdentity = { subject: `google-${randomUUID()}`, email, displayName: 'Existing User' };
     const googleStart = await call('GET', '/api/v1/auth/google/start', { ip });
+    assert.equal(googleStart.status, 302);
     const googleState = new URL(googleStart.headers.get('location') || 'https://accounts.example.test').searchParams.get('state');
     const googleFlowCookie = googleStart.headers.get('set-cookie')?.split(';', 1)[0] || '';
     const collision = await call('GET', `/api/v1/auth/google/callback?state=${googleState}&code=test-code`, {
@@ -459,6 +463,7 @@ if (!ENABLED) {
     assert.match(linked.headers.get('location') || '', /auth=google_linked/);
 
     const googleLoginStart = await call('GET', '/api/v1/auth/google/start', { ip });
+    assert.equal(googleLoginStart.status, 302);
     const googleLoginState = new URL(googleLoginStart.headers.get('location') || 'https://accounts.example.test').searchParams.get('state');
     const googleLoginFlowCookie = googleLoginStart.headers.get('set-cookie')?.split(';', 1)[0] || '';
     const googleLogin = await call('GET', `/api/v1/auth/google/callback?state=${googleLoginState}&code=test-code`, {

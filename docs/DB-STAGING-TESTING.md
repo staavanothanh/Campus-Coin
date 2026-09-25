@@ -81,7 +81,7 @@ Ghi kết quả theo thời điểm, staging release/commit, luồng và pass/fa
 
 CI chạy test này cùng MySQL integration trên schema tạm. Các endpoint được kiểm tra gồm wallet, ledger, savings, categories, budgets, monthly report và dashboard. Test issue/IDOR hiện có tiếp tục kiểm tra riêng.
 
-Workflow #4 của commit `e9a40d4` đã chạy qua `db:datatest`, nhưng command gộp MySQL integration/E2E tiếp tục kết thúc với exit code 1. Annotation công khai không chỉ ra test lỗi. Email trong helper owner test có dấu cách đã được sửa thành email ngẫu nhiên hợp lệ; run mới vẫn fail nên còn lỗi khác cần cô lập. Workflow đã tách ba suite MySQL thành ba bước để xác định chính xác suite lỗi. Chỉ khi bước owner/auth integration pass mới xác nhận test owner-isolation.
+Workflow #5 của commit `be7aac6` đã tách suite và tìm thấy auth integration fail ở hai chỗ: cập nhật budget của category ngoài owner trả `422` thay vì `404`; Google test tự theo redirect đến hostname giả `accounts.example.test`. Code budget đã đổi sang `NOT_FOUND`; helper test dùng `redirect: 'manual'` và xác nhận response `302`. Đây mới là sửa đổi đang chờ CI chạy lại, chưa phải evidence pass.
 
 ### Bằng chứng hoàn tất
 

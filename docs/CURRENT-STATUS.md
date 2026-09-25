@@ -29,12 +29,12 @@ Tài liệu này giúp thành viên mới nắm quyết định hiện hành, ph
 - `node --import tsx --test tests/db-test-guard.test.ts`: 3/3 pass.
 - `node --import tsx --test tests/auth.test.ts tests/client-ip.test.ts`: 19/19 pass.
 - `npm run api:validate`: pass; còn 5 lint warnings về response 4xx ở endpoint discovery, redirect/callback và health.
-- `db:datatest` đã qua trong run #3 trên MySQL CI cô lập. MySQL integration/E2E chưa pass: command của run #3 thất bại và chưa có log nêu test cụ thể.
-- CI gần nhất cho commit `e9a40d4` là [workflow run #4](https://github.com/staavanothanh/Campus-Coin/actions/runs/36112823101): typecheck, build, API checks, unit tests và `db:datatest` chạy trước đó thành công; command gộp MySQL integration/E2E vẫn thất bại. Email test owner có dấu cách đã được sửa nhưng không phải nguyên nhân duy nhất. Workflow hiện được tách thành ba bước để lần chạy tiếp theo chỉ ra suite lỗi.
+- CI trên commit `be7aac6` là [workflow run #5](https://github.com/staavanothanh/Campus-Coin/actions/runs/36113178742): các bước trước auth integration đã qua; suite auth tìm ra hai lỗi. Budget của category không thuộc owner trả `422` thay vì `404` như OpenAPI; Google integration test tự theo redirect đến hostname giả `accounts.example.test`.
+- Đã sửa budget không tìm thấy trong owner scope trả `404 NOT_FOUND` và cấu hình test giữ redirect ở response để không gọi mạng. Các assertion xác nhận status/error code và redirect được bổ sung; cần workflow kế tiếp xác nhận trên MySQL disposable.
 
 ## Còn cần hoàn tất
 
-1. Kiểm tra workflow mới sau khi push; xác định suite MySQL fail từ bước riêng rồi sửa test/behavior. Chỉ gắn pass khi suite chạy thành công trên MySQL disposable.
+1. Chạy lại CI sau hai sửa đổi; chỉ gắn pass khi các MySQL suite thực sự thành công trên MySQL disposable.
 2. Trên staging đã cấu hình SMTP, xác minh register và reset-password gửi thư thật; thử OTP sai/hết hạn/resend, logout và session bị thu hồi. Không ghi mã OTP/token/email đầy đủ vào log hoặc tài liệu evidence.
 3. DevB/DB owner xác nhận DB thử nghiệm tách biệt, quyền create/drop schema, TLS/CA và role runtime least-privilege. Không chạy test destructive trên Aiven `defaultdb` hoặc DB dữ liệu chung.
 4. Nếu CI phát hiện route/domain lỗi, sửa theo contract rồi chạy lại workflow. Nếu staging chưa có hostname hoặc SMTP test mailbox, ghi gate là đang chờ cấu hình staging, không gọi đó là pass.

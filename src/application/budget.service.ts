@@ -10,7 +10,7 @@ import { paymentTotalForCategory, paymentTotalsByCategory } from "../infrastruct
 import { insertAuditEvent } from "../infrastructure/persistence/audit.repository.ts";
 import { isMonthKey, monthRangeUtc } from "../domain/period.ts";
 import { isNonNegativeVnd } from "../domain/money.ts";
-import { categoryNotFound, categoryTypeMismatch, invalidInput } from "../domain/errors.ts";
+import { categoryTypeMismatch, invalidInput, notFound } from "../domain/errors.ts";
 import { toBudget, type BudgetView } from "./map.ts";
 
 export interface UpsertBudgetInput {
@@ -32,7 +32,7 @@ export async function upsertUserBudget(_db: Db, input: UpsertBudgetInput): Promi
     requestHash: input.requestHash,
     mutate: async (conn) => {
     const category = await findCategoryById(conn, input.userId, input.categoryId);
-    if (category === null) throw categoryNotFound();
+    if (category === null) throw notFound();
     if (category.appliesTo !== "payment") throw categoryTypeMismatch();
     await upsertBudget(conn, input.userId, input.categoryId, input.month, input.limitVnd);
     await insertAuditEvent(conn, {
