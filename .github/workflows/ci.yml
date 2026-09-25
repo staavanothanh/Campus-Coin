@@ -52,7 +52,8 @@ jobs:
       - run: npm run api:bundle
       - run: npm run api:types
       - run: git diff --exit-code -- artifacts/openapi.json artifacts/api.d.ts
-      - run: node --import tsx --test tests/auth.test.ts test/schema-readiness.test.ts tests/google-oauth.test.ts tests/client-ip.test.ts
+      - run: node --import tsx --test tests/auth.test.ts test/schema-readiness.test.ts tests/google-oauth.test.ts tests/client-ip.test.ts test/env.test.ts tests/api-cache-header.test.ts
+      - run: node --import tsx --test tests/vercel-adapter.test.ts tests/mail.test.ts
       - run: node --import tsx --test tests/db-test-guard.test.ts tests/datatest-sql-file.test.ts tests/db-clone-script.test.ts
       - run: npm run db:datatest
       - name: Auth CSRF and Origin integration

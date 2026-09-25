@@ -6,6 +6,7 @@ info:
   description: |
     Hợp đồng HTTP canonical cho Campus Coin MVP; auth email là register → verify OTP → login → session và forgot password → reset password.
     Google Sign-In là lựa chọn bổ sung qua OIDC; không dùng Gmail credential cá nhân, inbox hoặc Gmail API.
+    Mutation cần Origin thuộc allowlist; Referer không thay thế Origin. API response và redirect dùng Cache-Control: no-store, private.
     API không trao quyền tính số dư, authorize payment hoặc ghi tiền cho client/JEV.
 servers:
   - url: https://{host}/api/v1
@@ -54,6 +55,9 @@ paths:
               $ref: '#/components/schemas/RegisterRequest'
       responses:
         '201':
+          headers:
+            Cache-Control:
+              $ref: '#/components/headers/PrivateNoStore'
           description: Mã OTP đã gửi; tài khoản chưa được tạo
           content:
             application/json:
@@ -82,6 +86,9 @@ paths:
               $ref: '#/components/schemas/VerifyRegistrationRequest'
       responses:
         '200':
+          headers:
+            Cache-Control:
+              $ref: '#/components/headers/PrivateNoStore'
           description: Xác minh thành công
           content:
             application/json:
@@ -109,6 +116,9 @@ paths:
               $ref: '#/components/schemas/ResendOtpRequest'
       responses:
         '200':
+          headers:
+            Cache-Control:
+              $ref: '#/components/headers/PrivateNoStore'
           description: OTP đã gửi lại
           content:
             application/json:
@@ -137,6 +147,9 @@ paths:
               $ref: '#/components/schemas/LoginRequest'
       responses:
         '200':
+          headers:
+            Cache-Control:
+              $ref: '#/components/headers/PrivateNoStore'
           description: Đăng nhập thành công, thiết lập session cookie
           content:
             application/json:
@@ -157,7 +170,7 @@ paths:
       security: []
       summary: Lấy các phương thức đăng nhập đang được cấu hình
       responses:
-        '200': {description: Phương thức hiện có, content: {application/json: {schema: {$ref: '#/components/schemas/AuthProvidersResponse'}}}}
+        '200': {description: Phương thức hiện có, headers: {Cache-Control: {$ref: '#/components/headers/PrivateNoStore'}}, content: {application/json: {schema: {$ref: '#/components/schemas/AuthProvidersResponse'}}}}
         '500': {$ref: '#/components/responses/InternalError'}
         default: {$ref: '#/components/responses/InternalError'}
   /auth/google/start:
@@ -167,8 +180,8 @@ paths:
       security: []
       summary: Bắt đầu Google Sign-In bằng OAuth Authorization Code và PKCE
       responses:
-        '302': {description: Chuyển trình duyệt đến Google; cookie flow ngắn hạn được thiết lập, headers: {Location: {schema: {type: string, format: uri}}, Set-Cookie: {schema: {type: string}}}}
-        default: {description: Lỗi chuyển hướng đã được xử lý an toàn}
+        '302': {description: Chuyển trình duyệt đến Google; cookie flow ngắn hạn được thiết lập, headers: {Cache-Control: {$ref: '#/components/headers/PrivateNoStore'}, Location: {schema: {type: string, format: uri}}, Set-Cookie: {schema: {type: string}}}}
+        default: {description: Lỗi chuyển hướng đã được xử lý an toàn, headers: {Cache-Control: {$ref: '#/components/headers/PrivateNoStore'}}}
   /auth/google/link:
     post:
       operationId: postAuthGoogleLink
@@ -176,7 +189,7 @@ paths:
       summary: Bắt đầu kết nối Google từ tài khoản đã đăng nhập
       x-csrf-required: true
       responses:
-        '200': {description: URL xác thực Google và cookie flow, headers: {Set-Cookie: {schema: {type: string}}}, content: {application/json: {schema: {$ref: '#/components/schemas/GoogleLinkStartResponse'}}}}
+        '200': {description: URL xác thực Google và cookie flow, headers: {Cache-Control: {$ref: '#/components/headers/PrivateNoStore'}, Set-Cookie: {schema: {type: string}}}, content: {application/json: {schema: {$ref: '#/components/schemas/GoogleLinkStartResponse'}}}}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/CsrfInvalid'}
         '409': {$ref: '#/components/responses/Conflict'}
@@ -194,8 +207,8 @@ paths:
         - {name: code, in: query, schema: {type: string}}
         - {name: error, in: query, schema: {type: string}}
       responses:
-        '302': {description: Chuyển về ứng dụng; thiết lập session khi đăng nhập thành công, headers: {Location: {schema: {type: string, format: uri}}, Set-Cookie: {schema: {type: string}}}}
-        default: {description: Lỗi callback được chuyển về ứng dụng bằng mã lỗi an toàn}
+        '302': {description: Chuyển về ứng dụng; thiết lập session khi đăng nhập thành công, headers: {Cache-Control: {$ref: '#/components/headers/PrivateNoStore'}, Location: {schema: {type: string, format: uri}}, Set-Cookie: {schema: {type: string}}}}
+        default: {description: Lỗi callback được chuyển về ứng dụng bằng mã lỗi an toàn, headers: {Cache-Control: {$ref: '#/components/headers/PrivateNoStore'}}}
   /auth/forgot-password:
     post:
       operationId: postAuthForgotPassword
@@ -210,6 +223,9 @@ paths:
               $ref: '#/components/schemas/ForgotPasswordRequest'
       responses:
         '200':
+          headers:
+            Cache-Control:
+              $ref: '#/components/headers/PrivateNoStore'
           description: Phản hồi tiêu chuẩn không để lộ sự tồn tại của email
           content:
             application/json:
@@ -235,6 +251,9 @@ paths:
               $ref: '#/components/schemas/ResetPasswordRequest'
       responses:
         '200':
+          headers:
+            Cache-Control:
+              $ref: '#/components/headers/PrivateNoStore'
           description: Đặt lại mật khẩu thành công
           content:
             application/json:
@@ -254,6 +273,9 @@ paths:
       summary: Lấy CSRF token
       responses:
         '200':
+          headers:
+            Cache-Control:
+              $ref: '#/components/headers/PrivateNoStore'
           description: Token CSRF
           content:
             application/json:
@@ -269,6 +291,9 @@ paths:
       summary: Lấy thông tin user hiện tại (owner scope)
       responses:
         '200':
+          headers:
+            Cache-Control:
+              $ref: '#/components/headers/PrivateNoStore'
           description: Thông tin user
           content:
             application/json:
@@ -290,6 +315,9 @@ paths:
             type: string
       responses:
         '200':
+          headers:
+            Cache-Control:
+              $ref: '#/components/headers/PrivateNoStore'
           description: Thông tin user
           content:
             application/json:
@@ -308,6 +336,9 @@ paths:
       responses:
         '200':
           description: Session hợp lệ
+          headers:
+            Cache-Control:
+              $ref: '#/components/headers/PrivateNoStore'
           content: {application/json: {schema: {$ref: '#/components/schemas/SessionResponse'}}}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '500': {$ref: '#/components/responses/InternalError'}
@@ -319,7 +350,7 @@ paths:
       summary: Revoke session hiện tại; yêu cầu CSRF khi phiên còn hiệu lực, thao tác lặp là idempotent
       x-csrf-required: true
       responses:
-        '200': {description: Session đã revoke và cookie được clear, content: {application/json: {schema: {$ref: '#/components/schemas/MessageResponse'}}}}
+        '200': {description: Session đã revoke và cookie được clear, headers: {Cache-Control: {$ref: '#/components/headers/PrivateNoStore'}}, content: {application/json: {schema: {$ref: '#/components/schemas/MessageResponse'}}}}
         '403': {$ref: '#/components/responses/CsrfInvalid'}
         '500': {$ref: '#/components/responses/InternalError'}
         '400': {$ref: '#/components/responses/BadRequest'}
@@ -333,7 +364,7 @@ paths:
       x-csrf-required: true
       requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/UpdatePreferencesRequest'}}}}
       responses:
-        '200': {description: Preference đã cập nhật, content: {application/json: {schema: {$ref: '#/components/schemas/UserResponse'}}}}
+        '200': {description: Preference đã cập nhật, headers: {Cache-Control: {$ref: '#/components/headers/PrivateNoStore'}}, content: {application/json: {schema: {$ref: '#/components/schemas/UserResponse'}}}}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/CsrfInvalid'}
         '404': {$ref: '#/components/responses/NotFound'}
@@ -348,7 +379,7 @@ paths:
       tags: [Wallet]
       summary: Lấy wallet authoritative của user hiện tại
       responses:
-        '200': {description: Wallet, content: {application/json: {schema: {$ref: '#/components/schemas/WalletResponse'}}}}
+        '200': {description: Wallet, headers: {Cache-Control: {$ref: '#/components/headers/PrivateNoStore'}}, content: {application/json: {schema: {$ref: '#/components/schemas/WalletResponse'}}}}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '404': {$ref: '#/components/responses/NotFound'}
         '500': {$ref: '#/components/responses/InternalError'}
@@ -362,7 +393,7 @@ paths:
       x-idempotency-required: true
       requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/WalletBaselineRequest'}}}}
       responses:
-        '201': {description: Wallet đã khởi tạo, content: {application/json: {schema: {$ref: '#/components/schemas/WalletResponse'}}}}
+        '201': {description: Wallet đã khởi tạo, headers: {Cache-Control: {$ref: '#/components/headers/PrivateNoStore'}}, content: {application/json: {schema: {$ref: '#/components/schemas/WalletResponse'}}}}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/CsrfInvalid'}
         '409': {$ref: '#/components/responses/WalletAlreadyInitialized'}
@@ -384,7 +415,7 @@ paths:
         - {name: from, in: query, schema: {type: string, format: date-time}}
         - {name: to, in: query, schema: {type: string, format: date-time}}
       responses:
-        '200': {description: Ledger page, content: {application/json: {schema: {$ref: '#/components/schemas/TransactionPageResponse'}}}}
+        '200': {description: Ledger page, headers: {Cache-Control: {$ref: '#/components/headers/PrivateNoStore'}}, content: {application/json: {schema: {$ref: '#/components/schemas/TransactionPageResponse'}}}}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '422': {$ref: '#/components/responses/ValidationError'}
         '500': {$ref: '#/components/responses/InternalError'}
@@ -397,7 +428,7 @@ paths:
       x-idempotency-required: true
       requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/CreateTransactionRequest'}}}}
       responses:
-        '201': {description: Transaction đã commit, content: {application/json: {schema: {$ref: '#/components/schemas/TransactionResponse'}}}}
+        '201': {description: Transaction đã commit, headers: {Cache-Control: {$ref: '#/components/headers/PrivateNoStore'}}, content: {application/json: {schema: {$ref: '#/components/schemas/TransactionResponse'}}}}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/CsrfInvalid'}
         '409': {$ref: '#/components/responses/IdempotencyConflict'}
@@ -413,7 +444,7 @@ paths:
       summary: Lấy một transaction
       parameters: [{$ref: '#/components/parameters/TransactionId'}]
       responses:
-        '200': {description: Transaction, content: {application/json: {schema: {$ref: '#/components/schemas/TransactionResponse'}}}}
+        '200': {description: Transaction, headers: {Cache-Control: {$ref: '#/components/headers/PrivateNoStore'}}, content: {application/json: {schema: {$ref: '#/components/schemas/TransactionResponse'}}}}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '404': {$ref: '#/components/responses/NotFound'}
         '500': {$ref: '#/components/responses/InternalError'}
@@ -428,7 +459,7 @@ paths:
       parameters: [{$ref: '#/components/parameters/TransactionId'}]
       requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/CreateCorrectionRequest'}}}}
       responses:
-        '201': {description: Correction đã commit, content: {application/json: {schema: {$ref: '#/components/schemas/TransactionResponse'}}}}
+        '201': {description: Correction đã commit, headers: {Cache-Control: {$ref: '#/components/headers/PrivateNoStore'}}, content: {application/json: {schema: {$ref: '#/components/schemas/TransactionResponse'}}}}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/CsrfInvalid'}
         '404': {$ref: '#/components/responses/NotFound'}
@@ -444,7 +475,7 @@ paths:
       tags: [Savings]
       summary: Lấy savings aggregate
       responses:
-        '200': {description: Savings, content: {application/json: {schema: {$ref: '#/components/schemas/SavingsResponse'}}}}
+        '200': {description: Savings, headers: {Cache-Control: {$ref: '#/components/headers/PrivateNoStore'}}, content: {application/json: {schema: {$ref: '#/components/schemas/SavingsResponse'}}}}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '404': {$ref: '#/components/responses/NotFound'}
         '500': {$ref: '#/components/responses/InternalError'}
@@ -456,7 +487,7 @@ paths:
       summary: Liệt kê savings transfer
       parameters: [{$ref: '#/components/parameters/Cursor'}, {$ref: '#/components/parameters/Limit'}]
       responses:
-        '200': {description: Savings transfer page, content: {application/json: {schema: {$ref: '#/components/schemas/SavingsTransferPageResponse'}}}}
+        '200': {description: Savings transfer page, headers: {Cache-Control: {$ref: '#/components/headers/PrivateNoStore'}}, content: {application/json: {schema: {$ref: '#/components/schemas/SavingsTransferPageResponse'}}}}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '422': {$ref: '#/components/responses/ValidationError'}
         '500': {$ref: '#/components/responses/InternalError'}
@@ -469,7 +500,7 @@ paths:
       x-idempotency-required: true
       requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/CreateSavingsTransferRequest'}}}}
       responses:
-        '201': {description: Transfer đã commit, content: {application/json: {schema: {$ref: '#/components/schemas/SavingsTransferResponse'}}}}
+        '201': {description: Transfer đã commit, headers: {Cache-Control: {$ref: '#/components/headers/PrivateNoStore'}}, content: {application/json: {schema: {$ref: '#/components/schemas/SavingsTransferResponse'}}}}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/CsrfInvalid'}
         '409': {$ref: '#/components/responses/IdempotencyConflict'}
@@ -487,7 +518,7 @@ paths:
         - {name: appliesTo, in: query, schema: {$ref: '#/components/schemas/TransactionType'}}
         - {name: includeDisabled, in: query, schema: {type: boolean, default: false}}
       responses:
-        '200': {description: Categories, content: {application/json: {schema: {$ref: '#/components/schemas/CategoryListResponse'}}}}
+        '200': {description: Categories, headers: {Cache-Control: {$ref: '#/components/headers/PrivateNoStore'}}, content: {application/json: {schema: {$ref: '#/components/schemas/CategoryListResponse'}}}}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '422': {$ref: '#/components/responses/ValidationError'}
         '500': {$ref: '#/components/responses/InternalError'}
@@ -500,7 +531,7 @@ paths:
       x-idempotency-required: true
       requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/CreateCategoryRequest'}}}}
       responses:
-        '201': {description: Category đã tạo, content: {application/json: {schema: {$ref: '#/components/schemas/CategoryResponse'}}}}
+        '201': {description: Category đã tạo, headers: {Cache-Control: {$ref: '#/components/headers/PrivateNoStore'}}, content: {application/json: {schema: {$ref: '#/components/schemas/CategoryResponse'}}}}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/CsrfInvalid'}
         '409': {$ref: '#/components/responses/Conflict'}
@@ -518,7 +549,7 @@ paths:
       parameters: [{$ref: '#/components/parameters/CategoryId'}]
       requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/UpdateCategoryRequest'}}}}
       responses:
-        '200': {description: Category đã cập nhật, content: {application/json: {schema: {$ref: '#/components/schemas/CategoryResponse'}}}}
+        '200': {description: Category đã cập nhật, headers: {Cache-Control: {$ref: '#/components/headers/PrivateNoStore'}}, content: {application/json: {schema: {$ref: '#/components/schemas/CategoryResponse'}}}}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
         '404': {$ref: '#/components/responses/NotFound'}
@@ -534,7 +565,7 @@ paths:
       summary: Lấy budget theo tháng HCMC
       parameters: [{$ref: '#/components/parameters/Month'}]
       responses:
-        '200': {description: Budget list, content: {application/json: {schema: {$ref: '#/components/schemas/BudgetListResponse'}}}}
+        '200': {description: Budget list, headers: {Cache-Control: {$ref: '#/components/headers/PrivateNoStore'}}, content: {application/json: {schema: {$ref: '#/components/schemas/BudgetListResponse'}}}}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '422': {$ref: '#/components/responses/ValidationError'}
         '500': {$ref: '#/components/responses/InternalError'}
@@ -549,7 +580,7 @@ paths:
       parameters: [{$ref: '#/components/parameters/CategoryId'}]
       requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/UpsertBudgetRequest'}}}}
       responses:
-        '200': {description: Budget đã cập nhật, content: {application/json: {schema: {$ref: '#/components/schemas/BudgetResponse'}}}}
+        '200': {description: Budget đã cập nhật, headers: {Cache-Control: {$ref: '#/components/headers/PrivateNoStore'}}, content: {application/json: {schema: {$ref: '#/components/schemas/BudgetResponse'}}}}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/CsrfInvalid'}
         '404': {$ref: '#/components/responses/NotFound'}
@@ -566,7 +597,7 @@ paths:
       summary: Lấy tổng quan budget theo tháng
       parameters: [{$ref: '#/components/parameters/Month'}]
       responses:
-        '200': {description: Budget summary, content: {application/json: {schema: {$ref: '#/components/schemas/BudgetSummaryResponse'}}}}
+        '200': {description: Budget summary, headers: {Cache-Control: {$ref: '#/components/headers/PrivateNoStore'}}, content: {application/json: {schema: {$ref: '#/components/schemas/BudgetSummaryResponse'}}}}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '422': {$ref: '#/components/responses/ValidationError'}
         '500': {$ref: '#/components/responses/InternalError'}
@@ -578,7 +609,7 @@ paths:
       summary: Báo cáo deterministic theo tháng HCMC
       parameters: [{$ref: '#/components/parameters/Month'}]
       responses:
-        '200': {description: Monthly report, content: {application/json: {schema: {$ref: '#/components/schemas/MonthlyReportResponse'}}}}
+        '200': {description: Monthly report, headers: {Cache-Control: {$ref: '#/components/headers/PrivateNoStore'}}, content: {application/json: {schema: {$ref: '#/components/schemas/MonthlyReportResponse'}}}}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '422': {$ref: '#/components/responses/ValidationError'}
         '500': {$ref: '#/components/responses/InternalError'}
@@ -589,7 +620,7 @@ paths:
       tags: [Reports]
       summary: Snapshot dashboard authoritative
       responses:
-        '200': {description: Dashboard, content: {application/json: {schema: {$ref: '#/components/schemas/DashboardResponse'}}}}
+        '200': {description: Dashboard, headers: {Cache-Control: {$ref: '#/components/headers/PrivateNoStore'}}, content: {application/json: {schema: {$ref: '#/components/schemas/DashboardResponse'}}}}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '500': {$ref: '#/components/responses/InternalError'}
         default: {$ref: '#/components/responses/InternalError'}
@@ -602,7 +633,7 @@ paths:
       x-idempotency-required: true
       requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/CreateIssueRequest'}}}}
       responses:
-        '201': {description: Issue đã tạo, content: {application/json: {schema: {$ref: '#/components/schemas/IssueResponse'}}}}
+        '201': {description: Issue đã tạo, headers: {Cache-Control: {$ref: '#/components/headers/PrivateNoStore'}}, content: {application/json: {schema: {$ref: '#/components/schemas/IssueResponse'}}}}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/CsrfInvalid'}
         '404': {$ref: '#/components/responses/NotFound'}
@@ -619,7 +650,7 @@ paths:
       summary: Liệt kê issue của user hiện tại
       parameters: [{$ref: '#/components/parameters/Cursor'}, {$ref: '#/components/parameters/Limit'}]
       responses:
-        '200': {description: Issue page, content: {application/json: {schema: {$ref: '#/components/schemas/IssuePageResponse'}}}}
+        '200': {description: Issue page, headers: {Cache-Control: {$ref: '#/components/headers/PrivateNoStore'}}, content: {application/json: {schema: {$ref: '#/components/schemas/IssuePageResponse'}}}}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '422': {$ref: '#/components/responses/ValidationError'}
         '500': {$ref: '#/components/responses/InternalError'}
@@ -635,7 +666,7 @@ paths:
         - {name: status, in: query, schema: {$ref: '#/components/schemas/IssueStatus'}}
         - {name: priority, in: query, schema: {$ref: '#/components/schemas/IssuePriority'}}
       responses:
-        '200': {description: Admin issue page, content: {application/json: {schema: {$ref: '#/components/schemas/IssuePageResponse'}}}}
+        '200': {description: Admin issue page, headers: {Cache-Control: {$ref: '#/components/headers/PrivateNoStore'}}, content: {application/json: {schema: {$ref: '#/components/schemas/IssuePageResponse'}}}}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
         '422': {$ref: '#/components/responses/ValidationError'}
@@ -648,7 +679,7 @@ paths:
       summary: Lấy issue và timeline đã mask
       parameters: [{$ref: '#/components/parameters/IssueId'}]
       responses:
-        '200': {description: Issue detail, content: {application/json: {schema: {$ref: '#/components/schemas/IssueResponse'}}}}
+        '200': {description: Issue detail, headers: {Cache-Control: {$ref: '#/components/headers/PrivateNoStore'}}, content: {application/json: {schema: {$ref: '#/components/schemas/IssueResponse'}}}}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
         '404': {$ref: '#/components/responses/NotFound'}
@@ -662,7 +693,7 @@ paths:
       parameters: [{$ref: '#/components/parameters/IssueId'}]
       requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/UpdateIssueRequest'}}}}
       responses:
-        '200': {description: Issue đã cập nhật, content: {application/json: {schema: {$ref: '#/components/schemas/IssueResponse'}}}}
+        '200': {description: Issue đã cập nhật, headers: {Cache-Control: {$ref: '#/components/headers/PrivateNoStore'}}, content: {application/json: {schema: {$ref: '#/components/schemas/IssueResponse'}}}}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
         '404': {$ref: '#/components/responses/NotFound'}
@@ -680,7 +711,7 @@ paths:
       parameters: [{$ref: '#/components/parameters/IssueId'}]
       requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/CreateAdminNoteRequest'}}}}
       responses:
-        '201': {description: Note đã tạo, content: {application/json: {schema: {$ref: '#/components/schemas/AdminNoteResponse'}}}}
+        '201': {description: Note đã tạo, headers: {Cache-Control: {$ref: '#/components/headers/PrivateNoStore'}}, content: {application/json: {schema: {$ref: '#/components/schemas/AdminNoteResponse'}}}}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
         '404': {$ref: '#/components/responses/NotFound'}
@@ -697,7 +728,7 @@ paths:
       summary: Truy vấn audit đã redact
       parameters: [{$ref: '#/components/parameters/Cursor'}, {$ref: '#/components/parameters/Limit'}]
       responses:
-        '200': {description: Audit page, content: {application/json: {schema: {$ref: '#/components/schemas/AuditPageResponse'}}}}
+        '200': {description: Audit page, headers: {Cache-Control: {$ref: '#/components/headers/PrivateNoStore'}}, content: {application/json: {schema: {$ref: '#/components/schemas/AuditPageResponse'}}}}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
         '422': {$ref: '#/components/responses/ValidationError'}
@@ -709,7 +740,7 @@ paths:
       tags: [Admin]
       summary: Thống kê số lượng user đã xác minh
       responses:
-        '200': {description: User statistics, content: {application/json: {schema: {$ref: '#/components/schemas/AdminStatsResponse'}}}}
+        '200': {description: User statistics, headers: {Cache-Control: {$ref: '#/components/headers/PrivateNoStore'}}, content: {application/json: {schema: {$ref: '#/components/schemas/AdminStatsResponse'}}}}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
         '500': {$ref: '#/components/responses/InternalError'}
@@ -721,7 +752,7 @@ paths:
       security: []
       summary: Liveness không chạm database
       responses:
-        '200': {description: API đang chạy, content: {application/json: {schema: {$ref: '#/components/schemas/HealthResponse'}}}}
+        '200': {description: API đang chạy, headers: {Cache-Control: {$ref: '#/components/headers/PrivateNoStore'}}, content: {application/json: {schema: {$ref: '#/components/schemas/HealthResponse'}}}}
         '500': {$ref: '#/components/responses/InternalError'}
         default: {$ref: '#/components/responses/InternalError'}
   /health/ready:
@@ -730,11 +761,17 @@ paths:
       tags: [Health]
       summary: Readiness có kiểm tra dependency
       responses:
-        '200': {description: Dependency sẵn sàng, content: {application/json: {schema: {$ref: '#/components/schemas/ReadinessResponse'}}}}
+        '200': {description: Dependency sẵn sàng, headers: {Cache-Control: {$ref: '#/components/headers/PrivateNoStore'}}, content: {application/json: {schema: {$ref: '#/components/schemas/ReadinessResponse'}}}}
         '503': {$ref: '#/components/responses/ServiceUnavailable'}
         '500': {$ref: '#/components/responses/InternalError'}
         default: {$ref: '#/components/responses/InternalError'}
 components:
+  headers:
+    PrivateNoStore:
+      description: Không lưu response riêng tư trong browser hoặc shared cache.
+      schema:
+        type: string
+        example: no-store, private
   securitySchemes:
     sessionCookie:
       type: apiKey
@@ -749,22 +786,22 @@ components:
     CategoryId: {name: categoryId, in: path, required: true, schema: {type: string}}
     IssueId: {name: issueId, in: path, required: true, schema: {type: string}}
   responses:
-    BadRequest: {description: Request body JSON không hợp lệ, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorResponse'}}}}
-    PayloadTooLarge: {description: Request vượt giới hạn kích thước, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorResponse'}}}}
-    Unauthorized: {description: "Thiếu, hết hạn hoặc bị revoke session", content: {application/json: {schema: {$ref: '#/components/schemas/ErrorResponse'}}}}
-    LoginForbidden: {description: "Origin không hợp lệ, tài khoản bị vô hiệu hoặc email chưa xác minh", content: {application/json: {schema: {$ref: '#/components/schemas/ErrorResponse'}}}}
-    OriginInvalid: {description: Origin của request không được phép, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorResponse'}}}}
-    CsrfInvalid: {description: Origin không hợp lệ hoặc CSRF token thiếu/sai; error code trong body phân biệt hai trường hợp, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorResponse'}}}}
-    Forbidden: {description: Không đủ quyền, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorResponse'}}}}
-    NotFound: {description: Không tìm thấy resource hoặc resource ngoài owner scope, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorResponse'}}}}
-    Conflict: {description: Xung đột state hoặc uniqueness, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorResponse'}}}}
-    IdempotencyConflict: {description: Idempotency key đã dùng với body khác, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorResponse'}}}}
-    ValidationError: {description: Input không hợp lệ, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorResponse'}}}}
-    DomainValidationError: {description: Vi phạm domain hoặc invariant, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorResponse'}}}}
-    RateLimited: {description: Vượt rate limit, headers: {Retry-After: {schema: {type: integer}}}, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorResponse'}}}}
-    InternalError: {description: Lỗi server đã được sanitize, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorResponse'}}}}
-    WalletAlreadyInitialized: {description: Wallet đã khởi tạo, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorResponse'}}}}
-    ServiceUnavailable: {description: Dependency chưa sẵn sàng, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorResponse'}}}}
+    BadRequest: {description: Request body JSON không hợp lệ, headers: {Cache-Control: {$ref: '#/components/headers/PrivateNoStore'}}, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorResponse'}}}}
+    PayloadTooLarge: {description: Request vượt giới hạn kích thước, headers: {Cache-Control: {$ref: '#/components/headers/PrivateNoStore'}}, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorResponse'}}}}
+    Unauthorized: {description: "Thiếu, hết hạn hoặc bị revoke session", headers: {Cache-Control: {$ref: '#/components/headers/PrivateNoStore'}}, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorResponse'}}}}
+    LoginForbidden: {description: "Origin không hợp lệ, tài khoản bị vô hiệu hoặc email chưa xác minh", headers: {Cache-Control: {$ref: '#/components/headers/PrivateNoStore'}}, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorResponse'}}}}
+    OriginInvalid: {description: Origin của request không được phép, headers: {Cache-Control: {$ref: '#/components/headers/PrivateNoStore'}}, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorResponse'}}}}
+    CsrfInvalid: {description: Origin không hợp lệ hoặc CSRF token thiếu/sai; error code trong body phân biệt hai trường hợp, headers: {Cache-Control: {$ref: '#/components/headers/PrivateNoStore'}}, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorResponse'}}}}
+    Forbidden: {description: Không đủ quyền, headers: {Cache-Control: {$ref: '#/components/headers/PrivateNoStore'}}, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorResponse'}}}}
+    NotFound: {description: Không tìm thấy resource hoặc resource ngoài owner scope, headers: {Cache-Control: {$ref: '#/components/headers/PrivateNoStore'}}, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorResponse'}}}}
+    Conflict: {description: Xung đột state hoặc uniqueness, headers: {Cache-Control: {$ref: '#/components/headers/PrivateNoStore'}}, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorResponse'}}}}
+    IdempotencyConflict: {description: Idempotency key đã dùng với body khác, headers: {Cache-Control: {$ref: '#/components/headers/PrivateNoStore'}}, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorResponse'}}}}
+    ValidationError: {description: Input không hợp lệ, headers: {Cache-Control: {$ref: '#/components/headers/PrivateNoStore'}}, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorResponse'}}}}
+    DomainValidationError: {description: Vi phạm domain hoặc invariant, headers: {Cache-Control: {$ref: '#/components/headers/PrivateNoStore'}}, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorResponse'}}}}
+    RateLimited: {description: Vượt rate limit, headers: {Cache-Control: {$ref: '#/components/headers/PrivateNoStore'}, Retry-After: {schema: {type: integer}}}, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorResponse'}}}}
+    InternalError: {description: Lỗi server đã được sanitize, headers: {Cache-Control: {$ref: '#/components/headers/PrivateNoStore'}}, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorResponse'}}}}
+    WalletAlreadyInitialized: {description: Wallet đã khởi tạo, headers: {Cache-Control: {$ref: '#/components/headers/PrivateNoStore'}}, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorResponse'}}}}
+    ServiceUnavailable: {description: Dependency chưa sẵn sàng, headers: {Cache-Control: {$ref: '#/components/headers/PrivateNoStore'}}, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorResponse'}}}}
   schemas:
     TransactionType: {type: string, enum: [income, payment]}
     Locale: {type: string, enum: [en, vi]}

@@ -26,6 +26,7 @@ npm run api:types
 - Google OIDC chạy phía server với `openid email profile`, PKCE/state/nonce; không Gmail API/token storage và không auto-link theo email.
 - Email OTP đi qua SMTP server adapter; không dùng Gmail credential cá nhân, inbox hoặc API.
 - State-changing request cần Origin/CSRF policy. Logout của session còn hiệu lực cần Origin hợp lệ và CSRF token hiện tại; nếu session đã hết hạn/bị thu hồi hoặc không có session, endpoint vẫn trả thành công và xóa cookie để hỗ trợ gọi lặp.
+- Mọi mutation cần `Origin` thuộc allowlist; `Referer` không phải fallback. API response và redirect dùng `Cache-Control: no-store, private`.
 - Money mutation cần `Idempotency-Key`; retry cùng body trả kết quả cũ, body khác trả conflict.
 - Money là integer VND; ledger type chỉ `income`/`payment`; savings transfer tách riêng.
 - List lớn dùng opaque keyset cursor, không yêu cầu exact `total`.

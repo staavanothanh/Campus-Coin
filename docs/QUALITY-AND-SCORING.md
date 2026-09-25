@@ -28,8 +28,8 @@
 |---|---|---|
 | Functionality Testing — 35 | Auth và API domain có unit/integration coverage; owner isolation đã pass trên MySQL CI cô lập. Team Leader báo Phần 2 auth staging đã hoàn tất. | Giao diện domain sau đăng nhập còn thiếu. Checkout chưa có bản SRS nên cần ma trận yêu cầu SRS → tính năng/API → test/evidence; giữ lại evidence staging do nhóm cung cấp và demo luồng sản phẩm hoàn chỉnh. |
 | UI & Accessibility Testing — 15 | Auth UI có validation, hai ngôn ngữ và keyboard semantics cơ bản. | Làm màn hình domain; kiểm tra responsive, keyboard/focus/screen reader và trạng thái lỗi/loading trên toàn app. |
-| Source Code — 10 | Typecheck/build và cấu trúc phân lớp đã được chạy trong CI. | Nhóm rà soát code, giải thích module/boundary và giữ thay đổi đơn giản, đúng convention. |
-| Database Testing — 10 | CI disposable MySQL đã chạy migration, seed/test-data và integration suites. | DevB xác nhận chain của từng DB, least-privilege grants, TLS/CA và backup/restore trên môi trường tách biệt. |
+| Source Code — 10 | Typecheck/build và cấu trúc phân lớp đã được chạy trong CI; Vercel adapter gọi lại API handler chung, không tạo route nghiệp vụ trùng lặp. | Chờ CI mới; nhóm rà soát code, giải thích module/boundary và giữ thay đổi đơn giản, đúng convention. |
+| Database Testing — 10 | CI disposable MySQL đã chạy migration, seed/test-data và integration suites; bổ sung regression cho foreign correction/category/related transaction. | Chờ CI mới; DevB xác nhận chain, least-privilege grants, TLS/CA, backup/restore và benchmark bằng clone cô lập. |
 | Compatibility Testing — 5 | Chưa có ma trận kiểm tra trình duyệt được lưu. | Ghi kết quả Chrome, Firefox, Edge, Opera cùng phiên bản, viewport và ngày. |
 | Documentation — 10 | Canonical product/auth/architecture/DB/scoring docs đã có. | Hoàn thiện Project Report với vấn đề, sơ đồ, module/logic, phân công và hướng dẫn chạy/kiểm tra. |
 | Plagiarism Testing — 10 | Chưa có kết quả kiểm tra originality được ghi nhận. | Ghi nguồn tham khảo; nhóm tự review và giải thích được source, thuật toán, schema và quyết định. |
@@ -39,9 +39,9 @@ Các trạng thái “chưa có evidence” nghĩa là chưa được kiểm ch�
 
 ## Benchmark hiệu năng
 
-Benchmark không phải hạng mục chấm điểm có trọng số riêng trong rubric BTC; số đo có thể hỗ trợ đánh giá chất lượng source và trải nghiệm chức năng. `db/README.md` đang lưu số đo tham chiếu cũ trên MySQL local 8.0.41 với khoảng 101.000 ledger rows/21 owner. Số này không chứng minh latency của Aiven/Vercel và chưa có harness trong repo để tái chạy cùng phép đo.
+Benchmark không phải hạng mục chấm điểm có trọng số riêng trong rubric BTC; số đo có thể hỗ trợ đánh giá chất lượng source và trải nghiệm chức năng. `db/README.md` đang lưu số đo tham chiếu cũ trên MySQL local 8.0.41 với khoảng 101.000 ledger rows/21 owner. Số này không chứng minh latency của Aiven/Vercel và chưa có harness trong repo để tái chạy cùng phép đo. Vercel adapter gắn pool lifecycle hook cho MySQL idle connection, nhưng chưa đo p50/p95, connection headroom hoặc tải triển khai.
 
-Khi có MySQL clone và runtime triển khai được xác nhận, đo lại các luồng report/dashboard/list và payment; ghi commit, MySQL version, số dòng/owner, concurrency, warm-up, số lần chạy, p50/p95 và query plan. Không dùng dữ liệu người dùng thật. Hiện trạng: cloud benchmark chưa chạy.
+Khi có MySQL clone và runtime triển khai được xác nhận, DevB đo report/dashboard/list/payment; ghi commit, MySQL version/region, số dòng/owner synthetic, concurrency, warm-up, số lần chạy, p50/p95, query plan và connection headroom. Không dùng dữ liệu người dùng thật. Hiện trạng: cloud benchmark chưa chạy; checklist ở [handoff DevB](./working/team-handoff-2026-09-26/DEV-B-DB-AND-BENCHMARK.md).
 
 ## Bằng chứng cần giữ
 

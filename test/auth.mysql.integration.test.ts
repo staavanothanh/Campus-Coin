@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { after, before, test } from 'node:test';
 import { randomUUID } from 'node:crypto';
+import type { RowDataPacket } from 'mysql2/promise';
 import { createApiServer } from '../src/routes/api.js';
 import { getPool, resetPool } from '../src/infrastructure/db/pool.ts';
 import { hashSession } from '../src/features/auth/security.js';
@@ -167,6 +168,12 @@ if (!ENABLED) {
     assert.equal(session.status, 200);
     const user = (await session.json()).data.user;
     assert.equal(user.email, email);
+    const [sessionRows] = await getPool().execute<(RowDataPacket & { last_seen_at: Date | string | null })[]>(
+      'SELECT last_seen_at FROM sessions WHERE token_hash = ?',
+      [hashSession(token)],
+    );
+    assert.ok(sessionRows[0]);
+    assert.notEqual(sessionRows[0].last_seen_at, null, 'an active session request updates last_seen_at');
     assert.equal((await call('GET', `/api/v1/users/${Number(user.id) + 1}`, { cookie, ip })).status, 403);
     const baseline = await call('POST', '/api/v1/wallet/baseline', {
       body: { initialBalanceVnd: 10_000 }, cookie, csrf: sessionData.csrfToken, key: randomUUID(), ip,
@@ -309,6 +316,29 @@ if (!ENABLED) {
     });
     assert.equal(payment.status, 201);
     const transactionId = String((await payment.json()).data.transaction.id);
+
+    const foreignCorrection = await call('POST', `/api/v1/ledger/transactions/${transactionId}/corrections`, {
+      body: { correctionRole: 'reversal', reason: 'Owner isolation regression' },
+      cookie: userB.cookie, csrf: userB.csrf, key: randomUUID(),
+    });
+    assert.equal(foreignCorrection.status, 404);
+
+    const foreignCategoryPatch = await call('PATCH', `/api/v1/categories/${categoryId}`, {
+      body: { status: 'disabled' },
+      cookie: userB.cookie, csrf: userB.csrf, key: randomUUID(),
+    });
+    assert.equal(foreignCategoryPatch.status, 404);
+
+    const foreignRelatedTransaction = await call('POST', '/api/v1/issues', {
+      body: {
+        relatedTransactionId: Number(transactionId),
+        title: 'Foreign transaction link',
+        description: 'An issue must not reference another owner transaction',
+        category: 'other',
+      },
+      cookie: userB.cookie, csrf: userB.csrf, key: randomUUID(),
+    });
+    assert.equal(foreignRelatedTransaction.status, 404);
 
     assert.equal((await call('POST', '/api/v1/savings/transfers', {
       body: { direction: 'deposit', amountVnd: 20_000, note: 'Savings A', userId: userB.userId },

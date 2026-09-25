@@ -41,6 +41,22 @@ test("readDbEnv: ssl mode không hợp lệ và verify-ca thiếu CA → lỗi",
   assert.equal(ok.caPath, "/tmp/ca.pem");
 });
 
+test("readDbEnv: verify-ca cũng nhận PEM base64 cho môi trường serverless", () => {
+  const pem = "-----BEGIN CERTIFICATE-----\nZmFrZQ==\n-----END CERTIFICATE-----";
+  const caBase64 = Buffer.from(pem).toString("base64");
+  const env = readDbEnv({
+    ...baseEnv(),
+    CAMPUS_COIN_DB_SSL: "verify-ca",
+    CAMPUS_COIN_DB_CA_BASE64: caBase64,
+  });
+  assert.equal(env.caCertificate, pem);
+  assert.throws(() => readDbEnv({
+    ...baseEnv(),
+    CAMPUS_COIN_DB_SSL: "verify-ca",
+    CAMPUS_COIN_DB_CA_BASE64: "not-base64",
+  }), DbEnvError);
+});
+
 test("migrationCreds: ưu tiên migrate role, fallback runtime role", () => {
   const withMigrate = readDbEnv({
     ...baseEnv(),

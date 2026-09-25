@@ -1048,6 +1048,7 @@ export interface components {
         /** @description Request body JSON không hợp lệ */
         BadRequest: {
             headers: {
+                "Cache-Control": components["headers"]["PrivateNoStore"];
                 [name: string]: unknown;
             };
             content: {
@@ -1057,6 +1058,7 @@ export interface components {
         /** @description Request vượt giới hạn kích thước */
         PayloadTooLarge: {
             headers: {
+                "Cache-Control": components["headers"]["PrivateNoStore"];
                 [name: string]: unknown;
             };
             content: {
@@ -1066,6 +1068,7 @@ export interface components {
         /** @description Thiếu, hết hạn hoặc bị revoke session */
         Unauthorized: {
             headers: {
+                "Cache-Control": components["headers"]["PrivateNoStore"];
                 [name: string]: unknown;
             };
             content: {
@@ -1075,6 +1078,7 @@ export interface components {
         /** @description Origin không hợp lệ, tài khoản bị vô hiệu hoặc email chưa xác minh */
         LoginForbidden: {
             headers: {
+                "Cache-Control": components["headers"]["PrivateNoStore"];
                 [name: string]: unknown;
             };
             content: {
@@ -1084,6 +1088,7 @@ export interface components {
         /** @description Origin của request không được phép */
         OriginInvalid: {
             headers: {
+                "Cache-Control": components["headers"]["PrivateNoStore"];
                 [name: string]: unknown;
             };
             content: {
@@ -1093,6 +1098,7 @@ export interface components {
         /** @description Origin không hợp lệ hoặc CSRF token thiếu/sai; error code trong body phân biệt hai trường hợp */
         CsrfInvalid: {
             headers: {
+                "Cache-Control": components["headers"]["PrivateNoStore"];
                 [name: string]: unknown;
             };
             content: {
@@ -1102,6 +1108,7 @@ export interface components {
         /** @description Không đủ quyền */
         Forbidden: {
             headers: {
+                "Cache-Control": components["headers"]["PrivateNoStore"];
                 [name: string]: unknown;
             };
             content: {
@@ -1111,6 +1118,7 @@ export interface components {
         /** @description Không tìm thấy resource hoặc resource ngoài owner scope */
         NotFound: {
             headers: {
+                "Cache-Control": components["headers"]["PrivateNoStore"];
                 [name: string]: unknown;
             };
             content: {
@@ -1120,6 +1128,7 @@ export interface components {
         /** @description Xung đột state hoặc uniqueness */
         Conflict: {
             headers: {
+                "Cache-Control": components["headers"]["PrivateNoStore"];
                 [name: string]: unknown;
             };
             content: {
@@ -1129,6 +1138,7 @@ export interface components {
         /** @description Idempotency key đã dùng với body khác */
         IdempotencyConflict: {
             headers: {
+                "Cache-Control": components["headers"]["PrivateNoStore"];
                 [name: string]: unknown;
             };
             content: {
@@ -1138,6 +1148,7 @@ export interface components {
         /** @description Input không hợp lệ */
         ValidationError: {
             headers: {
+                "Cache-Control": components["headers"]["PrivateNoStore"];
                 [name: string]: unknown;
             };
             content: {
@@ -1147,6 +1158,7 @@ export interface components {
         /** @description Vi phạm domain hoặc invariant */
         DomainValidationError: {
             headers: {
+                "Cache-Control": components["headers"]["PrivateNoStore"];
                 [name: string]: unknown;
             };
             content: {
@@ -1156,6 +1168,7 @@ export interface components {
         /** @description Vượt rate limit */
         RateLimited: {
             headers: {
+                "Cache-Control": components["headers"]["PrivateNoStore"];
                 "Retry-After"?: number;
                 [name: string]: unknown;
             };
@@ -1166,6 +1179,7 @@ export interface components {
         /** @description Lỗi server đã được sanitize */
         InternalError: {
             headers: {
+                "Cache-Control": components["headers"]["PrivateNoStore"];
                 [name: string]: unknown;
             };
             content: {
@@ -1175,6 +1189,7 @@ export interface components {
         /** @description Wallet đã khởi tạo */
         WalletAlreadyInitialized: {
             headers: {
+                "Cache-Control": components["headers"]["PrivateNoStore"];
                 [name: string]: unknown;
             };
             content: {
@@ -1184,6 +1199,7 @@ export interface components {
         /** @description Dependency chưa sẵn sàng */
         ServiceUnavailable: {
             headers: {
+                "Cache-Control": components["headers"]["PrivateNoStore"];
                 [name: string]: unknown;
             };
             content: {
@@ -1201,7 +1217,10 @@ export interface components {
         IssueId: string;
     };
     requestBodies: never;
-    headers: never;
+    headers: {
+        /** @description Không lưu response riêng tư trong browser hoặc shared cache. */
+        PrivateNoStore: string;
+    };
     pathItems: never;
 }
 export type $defs = Record<string, never>;
@@ -1222,6 +1241,7 @@ export interface operations {
             /** @description Mã OTP đã gửi; tài khoản chưa được tạo */
             201: {
                 headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
                     [name: string]: unknown;
                 };
                 content: {
@@ -1255,6 +1275,7 @@ export interface operations {
             /** @description Xác minh thành công */
             200: {
                 headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
                     [name: string]: unknown;
                 };
                 content: {
@@ -1287,6 +1308,7 @@ export interface operations {
             /** @description OTP đã gửi lại */
             200: {
                 headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
                     [name: string]: unknown;
                 };
                 content: {
@@ -1320,6 +1342,7 @@ export interface operations {
             /** @description Đăng nhập thành công, thiết lập session cookie */
             200: {
                 headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
                     [name: string]: unknown;
                 };
                 content: {
@@ -1348,6 +1371,7 @@ export interface operations {
             /** @description Phương thức hiện có */
             200: {
                 headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
                     [name: string]: unknown;
                 };
                 content: {
@@ -1370,6 +1394,7 @@ export interface operations {
             /** @description Chuyển trình duyệt đến Google; cookie flow ngắn hạn được thiết lập */
             302: {
                 headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
                     Location?: string;
                     "Set-Cookie"?: string;
                     [name: string]: unknown;
@@ -1379,6 +1404,7 @@ export interface operations {
             /** @description Lỗi chuyển hướng đã được xử lý an toàn */
             default: {
                 headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
                     [name: string]: unknown;
                 };
                 content?: never;
@@ -1397,6 +1423,7 @@ export interface operations {
             /** @description URL xác thực Google và cookie flow */
             200: {
                 headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
                     "Set-Cookie"?: string;
                     [name: string]: unknown;
                 };
@@ -1428,6 +1455,7 @@ export interface operations {
             /** @description Chuyển về ứng dụng; thiết lập session khi đăng nhập thành công */
             302: {
                 headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
                     Location?: string;
                     "Set-Cookie"?: string;
                     [name: string]: unknown;
@@ -1437,6 +1465,7 @@ export interface operations {
             /** @description Lỗi callback được chuyển về ứng dụng bằng mã lỗi an toàn */
             default: {
                 headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
                     [name: string]: unknown;
                 };
                 content?: never;
@@ -1459,6 +1488,7 @@ export interface operations {
             /** @description Phản hồi tiêu chuẩn không để lộ sự tồn tại của email */
             200: {
                 headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
                     [name: string]: unknown;
                 };
                 content: {
@@ -1489,6 +1519,7 @@ export interface operations {
             /** @description Đặt lại mật khẩu thành công */
             200: {
                 headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
                     [name: string]: unknown;
                 };
                 content: {
@@ -1516,6 +1547,7 @@ export interface operations {
             /** @description Token CSRF */
             200: {
                 headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
                     [name: string]: unknown;
                 };
                 content: {
@@ -1539,6 +1571,7 @@ export interface operations {
             /** @description Thông tin user */
             200: {
                 headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
                     [name: string]: unknown;
                 };
                 content: {
@@ -1564,6 +1597,7 @@ export interface operations {
             /** @description Thông tin user */
             200: {
                 headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
                     [name: string]: unknown;
                 };
                 content: {
@@ -1589,6 +1623,7 @@ export interface operations {
             /** @description Session hợp lệ */
             200: {
                 headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
                     [name: string]: unknown;
                 };
                 content: {
@@ -1612,6 +1647,7 @@ export interface operations {
             /** @description Session đã revoke và cookie được clear */
             200: {
                 headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
                     [name: string]: unknown;
                 };
                 content: {
@@ -1641,6 +1677,7 @@ export interface operations {
             /** @description Preference đã cập nhật */
             200: {
                 headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
                     [name: string]: unknown;
                 };
                 content: {
@@ -1669,6 +1706,7 @@ export interface operations {
             /** @description Wallet */
             200: {
                 headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
                     [name: string]: unknown;
                 };
                 content: {
@@ -1697,6 +1735,7 @@ export interface operations {
             /** @description Wallet đã khởi tạo */
             201: {
                 headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
                     [name: string]: unknown;
                 };
                 content: {
@@ -1732,6 +1771,7 @@ export interface operations {
             /** @description Ledger page */
             200: {
                 headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
                     [name: string]: unknown;
                 };
                 content: {
@@ -1760,6 +1800,7 @@ export interface operations {
             /** @description Transaction đã commit */
             201: {
                 headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
                     [name: string]: unknown;
                 };
                 content: {
@@ -1790,6 +1831,7 @@ export interface operations {
             /** @description Transaction */
             200: {
                 headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
                     [name: string]: unknown;
                 };
                 content: {
@@ -1820,6 +1862,7 @@ export interface operations {
             /** @description Correction đã commit */
             201: {
                 headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
                     [name: string]: unknown;
                 };
                 content: {
@@ -1849,6 +1892,7 @@ export interface operations {
             /** @description Savings */
             200: {
                 headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
                     [name: string]: unknown;
                 };
                 content: {
@@ -1876,6 +1920,7 @@ export interface operations {
             /** @description Savings transfer page */
             200: {
                 headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
                     [name: string]: unknown;
                 };
                 content: {
@@ -1904,6 +1949,7 @@ export interface operations {
             /** @description Transfer đã commit */
             201: {
                 headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
                     [name: string]: unknown;
                 };
                 content: {
@@ -1935,6 +1981,7 @@ export interface operations {
             /** @description Categories */
             200: {
                 headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
                     [name: string]: unknown;
                 };
                 content: {
@@ -1963,6 +2010,7 @@ export interface operations {
             /** @description Category đã tạo */
             201: {
                 headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
                     [name: string]: unknown;
                 };
                 content: {
@@ -1997,6 +2045,7 @@ export interface operations {
             /** @description Category đã cập nhật */
             200: {
                 headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
                     [name: string]: unknown;
                 };
                 content: {
@@ -2028,6 +2077,7 @@ export interface operations {
             /** @description Budget list */
             200: {
                 headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
                     [name: string]: unknown;
                 };
                 content: {
@@ -2058,6 +2108,7 @@ export interface operations {
             /** @description Budget đã cập nhật */
             200: {
                 headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
                     [name: string]: unknown;
                 };
                 content: {
@@ -2090,6 +2141,7 @@ export interface operations {
             /** @description Budget summary */
             200: {
                 headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
                     [name: string]: unknown;
                 };
                 content: {
@@ -2117,6 +2169,7 @@ export interface operations {
             /** @description Monthly report */
             200: {
                 headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
                     [name: string]: unknown;
                 };
                 content: {
@@ -2141,6 +2194,7 @@ export interface operations {
             /** @description Dashboard */
             200: {
                 headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
                     [name: string]: unknown;
                 };
                 content: {
@@ -2168,6 +2222,7 @@ export interface operations {
             /** @description Issue đã tạo */
             201: {
                 headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
                     [name: string]: unknown;
                 };
                 content: {
@@ -2200,6 +2255,7 @@ export interface operations {
             /** @description Issue page */
             200: {
                 headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
                     [name: string]: unknown;
                 };
                 content: {
@@ -2229,6 +2285,7 @@ export interface operations {
             /** @description Admin issue page */
             200: {
                 headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
                     [name: string]: unknown;
                 };
                 content: {
@@ -2256,6 +2313,7 @@ export interface operations {
             /** @description Issue detail */
             200: {
                 headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
                     [name: string]: unknown;
                 };
                 content: {
@@ -2287,6 +2345,7 @@ export interface operations {
             /** @description Issue đã cập nhật */
             200: {
                 headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
                     [name: string]: unknown;
                 };
                 content: {
@@ -2320,6 +2379,7 @@ export interface operations {
             /** @description Note đã tạo */
             201: {
                 headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
                     [name: string]: unknown;
                 };
                 content: {
@@ -2352,6 +2412,7 @@ export interface operations {
             /** @description Audit page */
             200: {
                 headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
                     [name: string]: unknown;
                 };
                 content: {
@@ -2377,6 +2438,7 @@ export interface operations {
             /** @description User statistics */
             200: {
                 headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
                     [name: string]: unknown;
                 };
                 content: {
@@ -2401,6 +2463,7 @@ export interface operations {
             /** @description API đang chạy */
             200: {
                 headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
                     [name: string]: unknown;
                 };
                 content: {
@@ -2423,6 +2486,7 @@ export interface operations {
             /** @description Dependency sẵn sàng */
             200: {
                 headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
                     [name: string]: unknown;
                 };
                 content: {

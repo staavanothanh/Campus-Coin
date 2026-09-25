@@ -371,11 +371,21 @@ export async function resetPassword(input: Record<string, unknown>, ip = 'unknow
 }
 
 export async function getSession(token: string) {
-  const [rows] = await getDb().execute<UserRow[]>(
-    'SELECT u.id, u.email, u.display_name, u.locale, u.role, u.email_verified, u.status FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token_hash = ? AND s.revoked_at IS NULL AND s.expires_at > UTC_TIMESTAMP(3) AND u.email_verified = 1 AND u.status = ? LIMIT 1',
+  const [rows] = await getDb().execute<(UserRow & { should_update_last_seen: number })[]>(
+    'SELECT u.id, u.email, u.display_name, u.locale, u.role, u.email_verified, u.status, (s.last_seen_at IS NULL OR s.last_seen_at < DATE_SUB(UTC_TIMESTAMP(3), INTERVAL 1 MINUTE)) AS should_update_last_seen FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token_hash = ? AND s.revoked_at IS NULL AND s.expires_at > UTC_TIMESTAMP(3) AND u.email_verified = 1 AND u.status = ? LIMIT 1',
     [hashSession(token), 'active']
   );
-  return rows[0] ? publicUser(rows[0]) : null;
+  const session = rows[0];
+  if (!session) return null;
+
+  if (session.should_update_last_seen) {
+    await getDb().execute(
+      'UPDATE sessions SET last_seen_at = UTC_TIMESTAMP(3) WHERE token_hash = ? AND revoked_at IS NULL AND expires_at > UTC_TIMESTAMP(3)',
+      [hashSession(token)]
+    );
+  }
+
+  return publicUser(session);
 }
 
 export async function getCsrf(token: string) {

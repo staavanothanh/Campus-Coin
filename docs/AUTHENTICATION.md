@@ -2,7 +2,7 @@
 
 ## 1. Quyết định hiện hành
 
-Campus Coin giữ email/password/OTP theo [ADR-0008](./adr/0008-email-password-otp-auth.md) và bổ sung Google Sign-In tùy chọn theo [ADR-0009](./adr/0009-optional-google-sign-in.md). Không dùng Gmail credential cá nhân, Gmail inbox hoặc Gmail API. Email OTP được gửi qua server-side SMTP adapter; nhà cung cấp cụ thể cần được chọn và kiểm chứng riêng.
+Campus Coin giữ email/password/OTP theo [ADR-0008](./adr/0008-email-password-otp-auth.md) và bổ sung Google Sign-In tùy chọn theo [ADR-0009](./adr/0009-optional-google-sign-in.md). Không dùng Gmail credential cá nhân, Gmail inbox hoặc Gmail API. Team Leader đã báo register/reset gửi và nhận email thành công trên staging. DevD còn cần xác minh riêng provider outage, timeout/retry và log đã redact; kết quả gửi email thành công không thay cho các kiểm tra đó.
 
 ```text
 register → verify OTP → login → session
@@ -45,7 +45,9 @@ Cooldown OTP được kiểm tra trước quota gửi; yêu cầu bị từ ch�
 
 Session ID là random opaque; DB chỉ lưu hash ID, user, issued/expires, revoked, last_seen và metadata tối thiểu. Session có expiry và logout/recovery revoke. Cookie phải `HttpOnly`, `Secure` trong production, `SameSite=Lax` hoặc chặt hơn sau kiểm thử, `Path=/`, và không có `Domain` rộng. Không lưu session trong localStorage/sessionStorage.
 
-Public auth mutation bắt buộc kiểm tra Origin; mutation của session đã xác thực kiểm tra cả Origin và CSRF token, kể cả logout. Logout với session còn hiệu lực và CSRF token sai trả `403` mà không thu hồi session; nếu session đã hết hạn/bị thu hồi hoặc không tồn tại, logout trả thành công và xóa cookie để hỗ trợ gọi lặp. Ở development, API cho phép thêm hai origin local `http://127.0.0.1:5173` và `http://localhost:5173` để khớp Vite; production chỉ nhận đúng `CLIENT_ORIGIN`. Money mutation có idempotency khi có thể retry. 401 là thiếu/hết session; 403 là đã xác thực nhưng không có quyền; lỗi không trả stack hoặc nội dung nội bộ. `npm run test:auth-security` kiểm tra Origin sai, thiếu CSRF và mutation hợp lệ trên MySQL tạm; các bước live trên staging nằm trong [DB-STAGING-TESTING.md](./DB-STAGING-TESTING.md).
+Mọi API response, gồm JSON và redirect, gửi `Cache-Control: no-store, private`; CDN/browser không được lưu session hoặc dữ liệu cá nhân. Mọi mutation kiểm tra `Origin` theo allowlist trước khi xử lý body hoặc CSRF. `Referer` không thay thế `Origin`; request thiếu Origin bị từ chối ngay cả khi Referer hợp lệ. Mutation của session đã xác thực kiểm tra cả Origin và CSRF token, kể cả logout. Logout với session còn hiệu lực và CSRF token sai trả `403` mà không thu hồi session; nếu session đã hết hạn/bị thu hồi hoặc không tồn tại, logout trả thành công và xóa cookie để hỗ trợ gọi lặp. Ở development, API cho phép thêm hai origin local `http://127.0.0.1:5173` và `http://localhost:5173` để khớp Vite; production chỉ nhận đúng `CLIENT_ORIGIN`. Money mutation có idempotency khi có thể retry. 401 là thiếu/hết session; 403 là đã xác thực nhưng không có quyền; lỗi không trả stack hoặc nội dung nội bộ. `npm run test:auth-security` kiểm tra Origin sai, thiếu CSRF và mutation hợp lệ trên MySQL tạm; các bước live trên staging nằm trong [DB-STAGING-TESTING.md](./DB-STAGING-TESTING.md).
+
+Mỗi lần dùng session hợp lệ, server cập nhật `sessions.last_seen_at` nếu giá trị cũ hơn một phút hoặc chưa từng được đặt. Khoảng cách này giảm lượt ghi DB nhưng vẫn ghi nhận hoạt động gần đây.
 
 ## 5. Phân quyền và owner scope
 

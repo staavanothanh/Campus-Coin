@@ -17,7 +17,10 @@ function sslOptions(dbEnv: DbEnv): PoolOptions["ssl"] {
       // rejectUnauthorized=true: xác minh hostname + chain qua system CAs.
       return { rejectUnauthorized: true };
     case "verify-ca":
-      return { rejectUnauthorized: true, ca: readFileSync(dbEnv.caPath!, "utf8") };
+      return {
+        rejectUnauthorized: true,
+        ca: dbEnv.caCertificate ?? readFileSync(dbEnv.caPath!, "utf8"),
+      };
     case "disabled":
       // Chỉ dùng cho local dev; production phải required|verify-ca (kiểm tra ở preflight).
       return undefined;

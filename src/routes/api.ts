@@ -43,7 +43,7 @@ function readNamedCookie(req: IncomingMessage, name: string) {
 function redirect(res: ServerResponse, location: string, cookies: string[] = []) {
   res.writeHead(302, {
     Location: location,
-    'Cache-Control': 'no-store',
+    'Cache-Control': 'no-store, private',
     ...(cookies.length ? { 'Set-Cookie': cookies } : {}),
   });
   res.end();
@@ -163,7 +163,7 @@ export async function handleRequest(
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('Referrer-Policy', 'no-referrer');
-  res.setHeader('Cache-Control', 'no-store');
+  res.setHeader('Cache-Control', 'no-store, private');
   const path = new URL(req.url || '/', 'http://localhost').pathname;
   const method = req.method || 'GET';
 

@@ -1,6 +1,6 @@
 # Kế hoạch giao hàng — Campus Coin
 
-> Cập nhật: 2026-09-25 · Owner: Team Leader — Hiệp
+> Cập nhật: 2026-09-26 · Owner: Team Leader — Hiệp
 > Nguồn quyết định auth: [ADR-0008](./adr/0008-email-password-otp-auth.md) và phần Google bổ sung tại [ADR-0009](./adr/0009-optional-google-sign-in.md)
 
 Tài liệu này ghi trạng thái/gate. Team Leader đã chốt giữ email/password/OTP và thêm Google Sign-In tùy chọn; production readiness là trạng thái riêng, chỉ ghi đạt khi có evidence.
@@ -29,15 +29,15 @@ Google không cấu hình thì email flow vẫn hoạt động và provider disc
 | Migration `0005_auth_rate_limits.sql` | `npm run db:status` ngày 2026-09-25 báo đã apply trên schema `campus_coin` đang cấu hình | Chưa có evidence cho `campus_coin_done`; credential/config hiện tại trả `Unknown database` khi kiểm tra target clone; DevB cần xác nhận service/schema/grants và migration history |
 | Aiven query access | `.env` hiện kết nối được schema `campus_coin`; MySQL 8.4.8, TLS pass, 5 migration đã apply | `campus_coin_done` chưa truy cập được bằng cấu hình ứng dụng (`Unknown database`); xác nhận target bằng `SELECT DATABASE()`, không chạy migration/test trước khi resolve |
 | Dùng `db:datatest` ngoài CI | Team Leader chạy bộ test trên MySQL Aiven và nhận `3/15` do 12 file negative test bị phân loại sai | Parser xử lý CRLF đã sửa; regression test pass trong nhóm 20 unit tests, typecheck/build pass. Chưa chạy lại database suite trên target clone |
-| SMTP/email | SMTP adapter có timeout 10 giây, tối đa hai lần gửi và lỗi fail-closed; không có fallback OTP vào log/dev | Team Leader báo đã hoàn tất register/reset email trong staging; lỗi provider/timeout/retry chưa được thử riêng |
+| SMTP/email | SMTP adapter có timeout 10 giây, tối đa hai lần gửi và lỗi fail-closed; local adapter regression kiểm tra timeout/retry bounded bằng SMTP server treo; không có fallback OTP vào log/dev | DevD chạy controlled outage trong Preview cô lập, xác nhận `EMAIL_UNAVAILABLE`, log không lộ dữ liệu, rồi khôi phục và thử gửi/nhận register/reset |
 | API domain | Auth, preferences, wallet, ledger, savings, category, budget, report, issue và admin routes đã nối application services; client hỗ trợ GET/POST/PUT/PATCH/DELETE | OpenAPI đã khai báo `403` cho Origin ở auth mutation; lint còn 5 warning không chặn validate cho discovery/redirect/health; cần integration review với Developer B |
 | UI | Auth UI có validation/accessibility cơ bản và hai ngôn ngữ; sau login hiện chỉ có chào user, kết nối Google và logout | Chưa có giao diện wallet onboarding, dashboard, income/payment/history, savings, category/budget, report và issue/admin; đây là phần chức năng/UI lớn cần hoàn thiện |
 | CI | Workflow có MySQL disposable service; chạy typecheck, build, API validate/artifacts, auth/schema/Google/client-IP tests, DB-test guard, `db:datatest` và ba suite MySQL | [Workflow run #11 trên commit `5bc7185`](https://github.com/staavanothanh/Campus-Coin/actions/runs/36158404035) pass toàn workflow, gồm kiểm thử CSRF/Origin/logout mới; [run #6 trên commit code `5ee8858`](https://github.com/staavanothanh/Campus-Coin/actions/runs/36113454931) pass `db:datatest` và cả ba suite MySQL riêng |
 | Domain owner isolation qua HTTP | Test hai tài khoản bao phủ wallet, ledger, savings, category, budget, report và dashboard; request giả `userId` không đổi owner | Auth MySQL integration pass ở run #6; category ngoài owner trả `404 NOT_FOUND` và không thể tạo budget |
 | Hợp nhất nhánh DB | Giữ `hiep` làm nhánh sản phẩm; chưa merge nguyên nhánh nào | `origin/thien` đưa `node_modules/` và `dist/` vào Git; `database-ingest-0.2` có 22 xung đột mô phỏng với `hiep` và dùng lại số migration `0004`/`0005`. DevB/DB owner cần xác nhận lịch sử apply/restore trước khi review port chọn lọc |
 | Production/restore | Chưa có evidence | Cần backup/restore rehearsal, CA chain/role grants, TLS/connectivity, redacted logs và rollback |
-| Vercel runtime/deploy | Chưa thấy adapter, function handler hoặc deploy config trong snapshot repository; API hiện chạy như Node HTTP server dài hạn | Vercel project settings ngoài repo chưa được kiểm tra; xác định runtime target rồi cấu hình/kiểm tra deploy API trước khi tuyên bố đã deploy trên Vercel |
-| Cloud benchmark | Chỉ có số tham chiếu MySQL local trong `db/README.md`; chưa có phép đo cloud hoặc harness tái chạy | Sau khi DB clone và runtime được xác nhận, đo report/dashboard/list/payment; ghi môi trường, tải, p50/p95 và query plan; không dùng dữ liệu thật |
+| Vercel runtime/deploy | Đã thêm Node.js Function adapter, SPA/API routing, max duration 60s, MySQL pool lifecycle hook và workflow deploy thủ công Preview/Production | DevD cấu hình secrets/env và GitHub Environment; chạy Preview sau CI, xác minh app/API/readiness. Chưa có bằng chứng deploy trong task này |
+| Cloud benchmark | Chỉ có số tham chiếu MySQL local trong `db/README.md`; chưa có phép đo cloud hoặc harness tái chạy. Pool hook hỗ trợ đóng idle connection khi function suspend nhưng không chứng minh capacity | Sau khi DB clone và runtime được xác nhận, đo report/dashboard/list/payment; ghi môi trường, tải, p50/p95, connection headroom và query plan; không dùng dữ liệu thật |
 
 Không suy ra trạng thái DB, SMTP, cloud hoặc production từ sự tồn tại của config/file/migration hay từ health `SELECT 1`.
 
@@ -46,7 +46,7 @@ Không suy ra trạng thái DB, SMTP, cloud hoặc production từ sự tồn t�
 - Login account+IP rate-limit, OTP attempt/backoff và quota đã có trong MySQL; OTP resend cooldown không trừ quota gửi; auth MySQL integration pass ở CI run #6. `X-Forwarded-For` chỉ được tin khi socket peer khớp `TRUSTED_PROXY_IPS`; unit test bao phủ header giả mạo.
 - OTP expiry, max attempts, resend cooldown và single-use có auth MySQL test đã pass trong CI. Team Leader xác nhận staging Phần 2 (register/reset email, OTP sai/hết hạn/resend, logout/session) hoàn tất; đây là báo cáo của Team Leader, không phải live run của task này. Team Leader báo kết nối Google OAuth thành công; môi trường và việc thử riêng login/connect account chưa nêu. SMTP/provider failure timeout/retry vẫn cần kiểm tra.
 - Cookie `HttpOnly`, `Secure` production, `SameSite`, expiry, revoke, logout và reset-password revoke session cũ đã có code; CI auth integration bao phủ.
-- CSRF/Origin có test integration riêng và đã được thêm vào CI; [workflow run #11](https://github.com/staavanothanh/Campus-Coin/actions/runs/36158404035) pass trên MySQL CI cô lập. Logout của session sống từ chối CSRF sai; logout session đã hết hạn/thu hồi vẫn clear cookie idempotently. Kiểm tra CSRF/Origin thủ công trên staging, lỗi provider/DB và các production gates vẫn cần evidence; API error envelope được kiểm tra trong integration/contract tests.
+- CSRF/Origin có test integration riêng và đã được thêm vào CI; contract hiện chốt chỉ dùng Origin, Referer không thay thế. Response API/redirect dùng `Cache-Control: no-store, private`. Logout của session sống từ chối CSRF sai; logout session đã hết hạn/thu hồi vẫn clear cookie idempotently. Kiểm tra CSRF/Origin staging, SMTP outage thật và các production gates vẫn cần evidence; API error envelope được kiểm tra trong integration/contract tests.
 - Email: adapter SMTP provider thật, timeout, retry giới hạn, cùng một mã trong retry, lỗi rõ; không fallback OTP vào log/dev.
 - UI: register/verify/resend/login/forgot/reset, loading/error/success/expired/locked, VI/EN, keyboard/focus/ARIA, chống double-submit.
 
@@ -71,7 +71,8 @@ npm run api:validate
 npm run api:bundle
 npm run api:types
 git diff --exit-code -- artifacts/openapi.json artifacts/api.d.ts
-node --import tsx --test tests/auth.test.ts test/schema-readiness.test.ts tests/google-oauth.test.ts tests/client-ip.test.ts
+node --import tsx --test tests/auth.test.ts test/schema-readiness.test.ts tests/google-oauth.test.ts tests/client-ip.test.ts test/env.test.ts tests/api-cache-header.test.ts
+node --import tsx --test tests/vercel-adapter.test.ts tests/mail.test.ts
 node --import tsx --test tests/db-test-guard.test.ts tests/datatest-sql-file.test.ts tests/db-clone-script.test.ts
 npm run db:datatest
 npm run test:auth-security
@@ -82,7 +83,7 @@ CAMPUS_COIN_TEST_DB=1 node --import tsx --test test/auth.mysql.integration.test.
 
 Các test MySQL chỉ dùng disposable MySQL do CI tạo riêng, không Aiven `defaultdb` hoặc database dùng chung. `test:auth-security` là test riêng để chạy nhanh hai tình huống CSRF/Origin và kiểm tra mutation hợp lệ sau đó. `db:verify-clone` là lệnh hỗ trợ local: chỉ preflight/status trên `campus_coin_done`, rồi tạo/xóa schema test tạm trên cùng server. Auth MySQL E2E bao phủ luồng, cookie/session, CSRF/IDOR, OTP expiry/attempts, rate-limit và provider/database failure bằng email adapter giả lập; adapter giả không chứng minh email provider thật. Chỉ báo pass cho job thật đã chạy.
 
-## 7. Evidence đã chạy trong phiên 2026-09-24 và 2026-09-25
+## 7. Evidence đã chạy trong phiên 2026-09-24 đến 2026-09-26
 
 Các bullet lịch sử dưới đây ghi trạng thái tại thời điểm chạy; evidence hiện hành nằm ở [CURRENT-STATUS.md](./CURRENT-STATUS.md). CI run #6 xác nhận ba MySQL suites pass trên DB disposable; run #7, #8, #9 và #10 xác nhận toàn workflow tại các commit `3bf6c0c`, `4bbdb61`, `ed62986` và `dd90c11`.
 
@@ -114,6 +115,17 @@ Các bullet lịch sử dưới đây ghi trạng thái tại thời điểm ch�
 - Không chạy `npm run db:datatest` hoặc MySQL integration trên Aiven `defaultdb`: hai bộ này tạo/xóa database tạm, còn target này chưa được xác nhận là DB test cô lập.
 - Ghi chú tại thời điểm trước khi run #9 hoàn tất: chưa có kết quả workflow GitHub mới hơn lần chạy được liên kết ở bảng trên; run #9 sau đó đã pass toàn workflow như ghi ở bảng trạng thái hiện hành.
 
+### Thay đổi code ngày 2026-09-26
+
+- Thêm `api/v1/[...path].ts`, `vercel.json` và workflow deploy thủ công. Production chỉ deploy từ `hiep`; Vercel secrets, project settings và deployment chưa được kiểm tra trong lượt này.
+- Vercel adapter tắt platform body parser để API tiếp tục giới hạn/parse body theo cùng quy tắc Node; Vercel Function gọi lại `handleRequest` hiện có.
+- `@vercel/functions` gắn MySQL pool trong Vercel runtime để đóng idle connections khi function sắp suspend; không thay thế benchmark capacity theo số instance.
+- Khi `verify-ca` chạy trên serverless, DB adapter nhận CA PEM từ `CAMPUS_COIN_DB_CA_BASE64`; không cần commit `ca.pem`.
+- `getSession()` cập nhật `last_seen_at` khi giá trị chưa có hoặc cũ ít nhất một phút.
+- Bổ sung owner regression cho foreign correction, foreign category PATCH và `relatedTransactionId` thuộc owner khác.
+- Thêm local SMTP adapter timeout/retry test bằng SMTP server treo; đây không phải SMTP staging/provider test.
+- Origin-only và `Cache-Control: no-store, private` được đồng bộ trong auth/API docs và OpenAPI. Các test mới cần CI chạy trước khi ghi nhận pass.
+
 ## 8. Phối hợp Developer B
 
 Quy trình chi tiết và điều kiện không chạy destructive test trên DB dùng chung nằm trong [DB-STAGING-TESTING.md](./DB-STAGING-TESTING.md).
@@ -121,7 +133,7 @@ Quy trình chi tiết và điều kiện không chạy destructive test trên DB
 - Đồng bộ migration `0004` và DB handoff; không sửa migration đã chạy.
 - Xác nhận target/schema, preflight/status, backup/restore và grants trên DB cô lập.
 - Role runtime least privilege; không dùng `avnadmin` trong runtime.
-- Phân phối CA từ Aiven theo cách bảo mật; CA local không commit, không đưa vào repo.
+- Phân phối CA Aiven qua secret environment; runtime hỗ trợ `CAMPUS_COIN_DB_CA_BASE64` cho function serverless. Không commit CA file hoặc certificate vào source.
 - Nối route domain với services, chạy test trên DB cô lập và cung cấp evidence cho Team Leader.
 
 ### Kết quả bổ sung ngày 2026-09-25

@@ -49,9 +49,13 @@ JEV là optional category suggestion trước submit. API gửi description đã
 
 ## 6. Triển khai và vận hành
 
-- Web/API: Vercel-provided domain.
+- Web/API: Vercel-provided domain. Vite build xuất vào `dist`; route `/api/v1/*` dùng Node.js Function tại `api/v1/[...path].ts`, còn SPA path rewrite về `index.html`.
+- Local API chạy bằng `src/local-server.ts`; file này không mang tên server entrypoint của Vercel. Vercel adapter gọi cùng `handleRequest` để không tạo một bộ route thứ hai. Body parser của platform tắt để giới hạn và parse JSON thống nhất trong API boundary.
+- Trên Vercel, `attachDatabasePool` quản lý kết nối MySQL idle trước khi function suspend; pool vẫn bounded và cần đo tổng connections theo số function instance, không suy đoán capacity từ limit mỗi instance.
+- Deploy workflow chỉ chạy thủ công sau CI, chọn Preview hoặc Production; Production chỉ từ nhánh `hiep` và cần GitHub Environment có approval phù hợp.
 - DB: cloud MySQL đã kiểm chứng, TLS, bounded serverless pool, backup/restore.
-- Secret: Vercel environment בלבד; không log/commit.
+- Mọi response API/redirect gửi `Cache-Control: no-store, private`. Mutation cần `Origin` đúng allowlist; `Referer` không phải fallback.
+- Secret: lưu trong Vercel environment; không log/commit.
 - Auth: rate-limit login theo account/IP; OTP có expiry, maximum attempts, cooldown, single-use; session có expiry/revoke; mọi owner lấy từ session.
 - Log: structured và redact cookie, password, OTP, reset token, SMTP credential, raw JEV, raw financial data.
 - Migration: versioned, non-destructive với ledger; rollback deployment và restore data theo runbook.

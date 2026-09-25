@@ -7,7 +7,7 @@
       "name": "MIT",
       "identifier": "MIT"
     },
-    "description": "Hợp đồng HTTP canonical cho Campus Coin MVP; auth email là register → verify OTP → login → session và forgot password → reset password.\nGoogle Sign-In là lựa chọn bổ sung qua OIDC; không dùng Gmail credential cá nhân, inbox hoặc Gmail API.\nAPI không trao quyền tính số dư, authorize payment hoặc ghi tiền cho client/JEV.\n"
+    "description": "Hợp đồng HTTP canonical cho Campus Coin MVP; auth email là register → verify OTP → login → session và forgot password → reset password.\nGoogle Sign-In là lựa chọn bổ sung qua OIDC; không dùng Gmail credential cá nhân, inbox hoặc Gmail API.\nMutation cần Origin thuộc allowlist; Referer không thay thế Origin. API response và redirect dùng Cache-Control: no-store, private.\nAPI không trao quyền tính số dư, authorize payment hoặc ghi tiền cho client/JEV.\n"
   },
   "servers": [
     {
@@ -95,6 +95,11 @@
         },
         "responses": {
           "201": {
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/PrivateNoStore"
+              }
+            },
             "description": "Mã OTP đã gửi; tài khoản chưa được tạo",
             "content": {
               "application/json": {
@@ -154,6 +159,11 @@
         },
         "responses": {
           "200": {
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/PrivateNoStore"
+              }
+            },
             "description": "Xác minh thành công",
             "content": {
               "application/json": {
@@ -210,6 +220,11 @@
         },
         "responses": {
           "200": {
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/PrivateNoStore"
+              }
+            },
             "description": "OTP đã gửi lại",
             "content": {
               "application/json": {
@@ -269,6 +284,11 @@
         },
         "responses": {
           "200": {
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/PrivateNoStore"
+              }
+            },
             "description": "Đăng nhập thành công, thiết lập session cookie",
             "content": {
               "application/json": {
@@ -316,6 +336,11 @@
         "responses": {
           "200": {
             "description": "Phương thức hiện có",
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/PrivateNoStore"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -345,6 +370,9 @@
           "302": {
             "description": "Chuyển trình duyệt đến Google; cookie flow ngắn hạn được thiết lập",
             "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/PrivateNoStore"
+              },
               "Location": {
                 "schema": {
                   "type": "string",
@@ -359,7 +387,12 @@
             }
           },
           "default": {
-            "description": "Lỗi chuyển hướng đã được xử lý an toàn"
+            "description": "Lỗi chuyển hướng đã được xử lý an toàn",
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/PrivateNoStore"
+              }
+            }
           }
         }
       }
@@ -376,6 +409,9 @@
           "200": {
             "description": "URL xác thực Google và cookie flow",
             "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/PrivateNoStore"
+              },
               "Set-Cookie": {
                 "schema": {
                   "type": "string"
@@ -447,6 +483,9 @@
           "302": {
             "description": "Chuyển về ứng dụng; thiết lập session khi đăng nhập thành công",
             "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/PrivateNoStore"
+              },
               "Location": {
                 "schema": {
                   "type": "string",
@@ -461,7 +500,12 @@
             }
           },
           "default": {
-            "description": "Lỗi callback được chuyển về ứng dụng bằng mã lỗi an toàn"
+            "description": "Lỗi callback được chuyển về ứng dụng bằng mã lỗi an toàn",
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/PrivateNoStore"
+              }
+            }
           }
         }
       }
@@ -486,6 +530,11 @@
         },
         "responses": {
           "200": {
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/PrivateNoStore"
+              }
+            },
             "description": "Phản hồi tiêu chuẩn không để lộ sự tồn tại của email",
             "content": {
               "application/json": {
@@ -536,6 +585,11 @@
         },
         "responses": {
           "200": {
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/PrivateNoStore"
+              }
+            },
             "description": "Đặt lại mật khẩu thành công",
             "content": {
               "application/json": {
@@ -578,6 +632,11 @@
         "summary": "Lấy CSRF token",
         "responses": {
           "200": {
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/PrivateNoStore"
+              }
+            },
             "description": "Token CSRF",
             "content": {
               "application/json": {
@@ -608,6 +667,11 @@
         "summary": "Lấy thông tin user hiện tại (owner scope)",
         "responses": {
           "200": {
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/PrivateNoStore"
+              }
+            },
             "description": "Thông tin user",
             "content": {
               "application/json": {
@@ -648,6 +712,11 @@
         ],
         "responses": {
           "200": {
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/PrivateNoStore"
+              }
+            },
             "description": "Thông tin user",
             "content": {
               "application/json": {
@@ -685,6 +754,11 @@
         "responses": {
           "200": {
             "description": "Session hợp lệ",
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/PrivateNoStore"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -716,6 +790,11 @@
         "responses": {
           "200": {
             "description": "Session đã revoke và cookie được clear",
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/PrivateNoStore"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -763,6 +842,11 @@
         "responses": {
           "200": {
             "description": "Preference đã cập nhật",
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/PrivateNoStore"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -808,6 +892,11 @@
         "responses": {
           "200": {
             "description": "Wallet",
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/PrivateNoStore"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -853,6 +942,11 @@
         "responses": {
           "201": {
             "description": "Wallet đã khởi tạo",
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/PrivateNoStore"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -936,6 +1030,11 @@
         "responses": {
           "200": {
             "description": "Ledger page",
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/PrivateNoStore"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -979,6 +1078,11 @@
         "responses": {
           "201": {
             "description": "Transaction đã commit",
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/PrivateNoStore"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -1029,6 +1133,11 @@
         "responses": {
           "200": {
             "description": "Transaction",
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/PrivateNoStore"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -1079,6 +1188,11 @@
         "responses": {
           "201": {
             "description": "Correction đã commit",
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/PrivateNoStore"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -1127,6 +1241,11 @@
         "responses": {
           "200": {
             "description": "Savings",
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/PrivateNoStore"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -1168,6 +1287,11 @@
         "responses": {
           "200": {
             "description": "Savings transfer page",
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/PrivateNoStore"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -1211,6 +1335,11 @@
         "responses": {
           "201": {
             "description": "Transfer đã commit",
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/PrivateNoStore"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -1273,6 +1402,11 @@
         "responses": {
           "200": {
             "description": "Categories",
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/PrivateNoStore"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -1316,6 +1450,11 @@
         "responses": {
           "201": {
             "description": "Category đã tạo",
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/PrivateNoStore"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -1377,6 +1516,11 @@
         "responses": {
           "200": {
             "description": "Category đã cập nhật",
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/PrivateNoStore"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -1427,6 +1571,11 @@
         "responses": {
           "200": {
             "description": "Budget list",
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/PrivateNoStore"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -1477,6 +1626,11 @@
         "responses": {
           "200": {
             "description": "Budget đã cập nhật",
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/PrivateNoStore"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -1530,6 +1684,11 @@
         "responses": {
           "200": {
             "description": "Budget summary",
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/PrivateNoStore"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -1568,6 +1727,11 @@
         "responses": {
           "200": {
             "description": "Monthly report",
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/PrivateNoStore"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -1601,6 +1765,11 @@
         "responses": {
           "200": {
             "description": "Dashboard",
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/PrivateNoStore"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -1643,6 +1812,11 @@
         "responses": {
           "201": {
             "description": "Issue đã tạo",
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/PrivateNoStore"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -1699,6 +1873,11 @@
         "responses": {
           "200": {
             "description": "Issue page",
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/PrivateNoStore"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -1754,6 +1933,11 @@
         "responses": {
           "200": {
             "description": "Admin issue page",
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/PrivateNoStore"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -1795,6 +1979,11 @@
         "responses": {
           "200": {
             "description": "Issue detail",
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/PrivateNoStore"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -1845,6 +2034,11 @@
         "responses": {
           "200": {
             "description": "Issue đã cập nhật",
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/PrivateNoStore"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -1904,6 +2098,11 @@
         "responses": {
           "201": {
             "description": "Note đã tạo",
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/PrivateNoStore"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -1960,6 +2159,11 @@
         "responses": {
           "200": {
             "description": "Audit page",
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/PrivateNoStore"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -1996,6 +2200,11 @@
         "responses": {
           "200": {
             "description": "User statistics",
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/PrivateNoStore"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -2030,6 +2239,11 @@
         "responses": {
           "200": {
             "description": "API đang chạy",
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/PrivateNoStore"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -2057,6 +2271,11 @@
         "responses": {
           "200": {
             "description": "Dependency sẵn sàng",
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/PrivateNoStore"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -2079,6 +2298,15 @@
     }
   },
   "components": {
+    "headers": {
+      "PrivateNoStore": {
+        "description": "Không lưu response riêng tư trong browser hoặc shared cache.",
+        "schema": {
+          "type": "string",
+          "example": "no-store, private"
+        }
+      }
+    },
     "securitySchemes": {
       "sessionCookie": {
         "type": "apiKey",
@@ -2144,6 +2372,11 @@
     "responses": {
       "BadRequest": {
         "description": "Request body JSON không hợp lệ",
+        "headers": {
+          "Cache-Control": {
+            "$ref": "#/components/headers/PrivateNoStore"
+          }
+        },
         "content": {
           "application/json": {
             "schema": {
@@ -2154,6 +2387,11 @@
       },
       "PayloadTooLarge": {
         "description": "Request vượt giới hạn kích thước",
+        "headers": {
+          "Cache-Control": {
+            "$ref": "#/components/headers/PrivateNoStore"
+          }
+        },
         "content": {
           "application/json": {
             "schema": {
@@ -2164,6 +2402,11 @@
       },
       "Unauthorized": {
         "description": "Thiếu, hết hạn hoặc bị revoke session",
+        "headers": {
+          "Cache-Control": {
+            "$ref": "#/components/headers/PrivateNoStore"
+          }
+        },
         "content": {
           "application/json": {
             "schema": {
@@ -2174,6 +2417,11 @@
       },
       "LoginForbidden": {
         "description": "Origin không hợp lệ, tài khoản bị vô hiệu hoặc email chưa xác minh",
+        "headers": {
+          "Cache-Control": {
+            "$ref": "#/components/headers/PrivateNoStore"
+          }
+        },
         "content": {
           "application/json": {
             "schema": {
@@ -2184,6 +2432,11 @@
       },
       "OriginInvalid": {
         "description": "Origin của request không được phép",
+        "headers": {
+          "Cache-Control": {
+            "$ref": "#/components/headers/PrivateNoStore"
+          }
+        },
         "content": {
           "application/json": {
             "schema": {
@@ -2194,6 +2447,11 @@
       },
       "CsrfInvalid": {
         "description": "Origin không hợp lệ hoặc CSRF token thiếu/sai; error code trong body phân biệt hai trường hợp",
+        "headers": {
+          "Cache-Control": {
+            "$ref": "#/components/headers/PrivateNoStore"
+          }
+        },
         "content": {
           "application/json": {
             "schema": {
@@ -2204,6 +2462,11 @@
       },
       "Forbidden": {
         "description": "Không đủ quyền",
+        "headers": {
+          "Cache-Control": {
+            "$ref": "#/components/headers/PrivateNoStore"
+          }
+        },
         "content": {
           "application/json": {
             "schema": {
@@ -2214,6 +2477,11 @@
       },
       "NotFound": {
         "description": "Không tìm thấy resource hoặc resource ngoài owner scope",
+        "headers": {
+          "Cache-Control": {
+            "$ref": "#/components/headers/PrivateNoStore"
+          }
+        },
         "content": {
           "application/json": {
             "schema": {
@@ -2224,6 +2492,11 @@
       },
       "Conflict": {
         "description": "Xung đột state hoặc uniqueness",
+        "headers": {
+          "Cache-Control": {
+            "$ref": "#/components/headers/PrivateNoStore"
+          }
+        },
         "content": {
           "application/json": {
             "schema": {
@@ -2234,6 +2507,11 @@
       },
       "IdempotencyConflict": {
         "description": "Idempotency key đã dùng với body khác",
+        "headers": {
+          "Cache-Control": {
+            "$ref": "#/components/headers/PrivateNoStore"
+          }
+        },
         "content": {
           "application/json": {
             "schema": {
@@ -2244,6 +2522,11 @@
       },
       "ValidationError": {
         "description": "Input không hợp lệ",
+        "headers": {
+          "Cache-Control": {
+            "$ref": "#/components/headers/PrivateNoStore"
+          }
+        },
         "content": {
           "application/json": {
             "schema": {
@@ -2254,6 +2537,11 @@
       },
       "DomainValidationError": {
         "description": "Vi phạm domain hoặc invariant",
+        "headers": {
+          "Cache-Control": {
+            "$ref": "#/components/headers/PrivateNoStore"
+          }
+        },
         "content": {
           "application/json": {
             "schema": {
@@ -2265,6 +2553,9 @@
       "RateLimited": {
         "description": "Vượt rate limit",
         "headers": {
+          "Cache-Control": {
+            "$ref": "#/components/headers/PrivateNoStore"
+          },
           "Retry-After": {
             "schema": {
               "type": "integer"
@@ -2281,6 +2572,11 @@
       },
       "InternalError": {
         "description": "Lỗi server đã được sanitize",
+        "headers": {
+          "Cache-Control": {
+            "$ref": "#/components/headers/PrivateNoStore"
+          }
+        },
         "content": {
           "application/json": {
             "schema": {
@@ -2291,6 +2587,11 @@
       },
       "WalletAlreadyInitialized": {
         "description": "Wallet đã khởi tạo",
+        "headers": {
+          "Cache-Control": {
+            "$ref": "#/components/headers/PrivateNoStore"
+          }
+        },
         "content": {
           "application/json": {
             "schema": {
@@ -2301,6 +2602,11 @@
       },
       "ServiceUnavailable": {
         "description": "Dependency chưa sẵn sàng",
+        "headers": {
+          "Cache-Control": {
+            "$ref": "#/components/headers/PrivateNoStore"
+          }
+        },
         "content": {
           "application/json": {
             "schema": {

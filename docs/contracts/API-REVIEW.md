@@ -1,11 +1,11 @@
 # Review rủi ro API — Campus Coin
 
-> Ngày: 2026-09-24 · Đây là working design evidence; không sửa ADR hoặc architecture canonical.
+> Ngày cập nhật: 2026-09-26 · Đây là working review; quyết định API hiện hành được phản ánh tại `AUTHENTICATION.md` và `contracts/README.md`.
 
 ## Cổng bảo mật
 
-- Session response phải `Cache-Control: no-store, private` và không được cache ở edge.
-- State-changing request phải kiểm tra Origin/Referer allowlist trước CSRF token.
+- Mọi API response, kể cả redirect, phải trả `Cache-Control: no-store, private` và không được cache ở edge.
+- State-changing request kiểm tra Origin allowlist trước body/CSRF; `Referer` không thay thế Origin và bị bỏ qua.
 - CSRF token phải bind với active session và tự vô hiệu khi session revoke.
 - Logout của session còn hiệu lực vẫn cần CSRF token đúng; CSRF sai phải trả `403` và giữ session. Khi session không còn hiệu lực, logout phải idempotent: trả thành công và clear cookie, kể cả khi client còn gửi session cookie cũ.
 - Owner lấy từ session; cross-owner resource trả 404 hoặc 403 theo contract, không leak existence.

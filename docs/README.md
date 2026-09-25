@@ -27,6 +27,7 @@ docs/
 ├── adr/                      # Lịch sử quyết định kiến trúc, ổn định
 └── working/                  # Handoff, replan và bằng chứng tạm thời
     ├── README.md             # Quy tắc và phân loại working docs
+    ├── team-handoff-2026-09-26/ # DB/benchmark, UI và Vercel/SMTP tasks theo owner
     └── replan/               # Bằng chứng của lượt replan hiện tại
 ```
 
@@ -62,6 +63,7 @@ Root `docs/` là canonical product docs; `adr/` là canonical history; `working/
 | [`QUALITY-AND-SCORING.md`](./QUALITY-AND-SCORING.md) | Trọng số chấm điểm, thứ tự ưu tiên và evidence |
 | [`DB-STAGING-TESTING.md`](./DB-STAGING-TESTING.md) | Quy trình DB test an toàn, auth/email staging và owner checks |
 | [`ENGINEERING-PRINCIPLES-APPLICATION.md`](./ENGINEERING-PRINCIPLES-APPLICATION.md) | Câu hỏi–trả lời kỹ thuật và thay đổi áp dụng vào code |
+| [`working/team-handoff-2026-09-26/`](./working/team-handoff-2026-09-26/README.md) | Hướng dẫn theo owner cho DB/benchmark, UI/accessibility và Vercel/SMTP/release |
 
 ## 4. Thứ tự ưu tiên khi mâu thuẫn
 

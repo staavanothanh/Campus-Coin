@@ -13,6 +13,7 @@ export interface DbEnv {
   password: string;
   sslMode: DbSslMode;
   caPath: string | undefined;
+  caCertificate: string | undefined;
   connectionLimit: number;
   migrateUser: string | undefined;
   migratePassword: string | undefined;
@@ -61,9 +62,23 @@ export function readDbEnv(env: NodeJS.ProcessEnv = process.env): DbEnv {
   const password = requireValue("CAMPUS_COIN_DB_PASSWORD", env);
   const sslMode = parseSslMode(env["CAMPUS_COIN_DB_SSL"]);
   const caPath = optionalValue("CAMPUS_COIN_DB_CA_PATH", env);
-  if (sslMode === "verify-ca" && caPath === undefined) {
+  const caBase64 = optionalValue("CAMPUS_COIN_DB_CA_BASE64", env);
+  let caCertificate: string | undefined;
+
+  if (caBase64 !== undefined) {
+    if (!/^[A-Za-z0-9+/]+={0,2}$/.test(caBase64) || caBase64.length % 4 !== 0) {
+      throw new DbEnvError("CAMPUS_COIN_DB_CA_BASE64 must be valid base64 PEM");
+    }
+    const decoded = Buffer.from(caBase64, "base64").toString("utf8");
+    if (!decoded.includes("-----BEGIN CERTIFICATE-----") || !decoded.includes("-----END CERTIFICATE-----")) {
+      throw new DbEnvError("CAMPUS_COIN_DB_CA_BASE64 must contain a PEM certificate");
+    }
+    caCertificate = decoded;
+  }
+
+  if (sslMode === "verify-ca" && caPath === undefined && caCertificate === undefined) {
     throw new DbEnvError(
-      `CAMPUS_COIN_DB_SSL=verify-ca requires CAMPUS_COIN_DB_CA_PATH`,
+      `CAMPUS_COIN_DB_SSL=verify-ca requires CAMPUS_COIN_DB_CA_PATH or CAMPUS_COIN_DB_CA_BASE64`,
     );
   }
   return {
@@ -74,6 +89,7 @@ export function readDbEnv(env: NodeJS.ProcessEnv = process.env): DbEnv {
     password,
     sslMode,
     caPath,
+    caCertificate,
     connectionLimit: parseIntInRange(
       "CAMPUS_COIN_DB_CONNECTION_LIMIT",
       env["CAMPUS_COIN_DB_CONNECTION_LIMIT"],
@@ -109,8 +125,11 @@ export interface DbSslOption {
 export function sslOption(env: DbEnv): DbSslOption | undefined {
   switch (env.sslMode) {
     case "verify-ca":
-      // readDbEnv đã bắt buộc caPath khi verify-ca.
-      return { rejectUnauthorized: true, ca: readFileSync(env.caPath!, "utf8") };
+      // Runtime serverless có thể nhận CA qua environment thay vì file local.
+      return {
+        rejectUnauthorized: true,
+        ca: env.caCertificate ?? readFileSync(env.caPath!, "utf8"),
+      };
     case "disabled":
       // Chỉ local dev; production phải required|verify-ca (kiểm tra ở preflight).
       return undefined;

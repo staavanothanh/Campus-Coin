@@ -2,6 +2,9 @@
   "name": "campus-coin",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": "24.x"
+  },
   "description": "Campus Coin API contract and application workspace",
   "type": "module",
   "scripts": {
@@ -9,9 +12,9 @@
     "api:bundle": "redocly bundle docs/contracts/openapi.yaml -o artifacts/openapi.json",
     "api:types": "openapi-typescript docs/contracts/openapi.yaml -o artifacts/api.d.ts",
     "verify:docs": "npm run api:validate && git diff --check",
-    "start": "tsx src/server.ts",
+    "start": "tsx src/local-server.ts",
     "dev": "vite --host 127.0.0.1",
-    "dev:api": "tsx watch src/server.ts",
+    "dev:api": "tsx watch src/local-server.ts",
     "build": "tsc --noEmit && vite build",
     "typecheck": "tsc --noEmit",
     "test": "node --import tsx --test",
@@ -36,6 +39,7 @@
     "vite": "^8.3.0"
   },
   "dependencies": {
+    "@vercel/functions": "3.9.9",
     "google-auth-library": "11.1.0",
     "mysql2": "^3.24.4",
     "nodemailer": "^10.0.10",
