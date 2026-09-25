@@ -14,11 +14,13 @@ Các giá trị provider phải được lấy lại từ Aiven console tại th
 | SSL | `verify-ca` (production target) |
 | CA cert | Provider-managed secret; không commit vào repo |
 
-## Status
+## Status (2026-09-25, nhánh database-ingest-0.2/0.3)
 
-- Cần xác minh trực tiếp trên provider sau mỗi thay đổi: migration `0001`–`0030` (kèm repair `0011` đã duyệt theo DELIVERY-PLAN BLK-MIG-02), seed category, connectivity và readiness.
-- Chưa có evidence trong working docs để claim database đã sẵn sàng cho production.
-- Không tạo PR hoặc chạy migration production khi endpoint, role, CA và grant chưa được Team Leader xác nhận.
+- Migrations `0001`–`0030` đã apply trên `campus_coin` bằng `cc_migrate` (MySQL 8.4.8); `db:status` sạch, `db:preflight` hết FAIL (2 WARN charset/pool đã biết), `db:reconcile` pass.
+- Roles `cc_migrate`/`cc_runtime` đã provision đúng `db/grants.example.sql` (verify runtime không DELETE/DDL/TRIGGER/SUPER); trigger DEFINER: 8 guards cũ `avnadmin@%`, 14 mới `cc_migrate@%`. `cc_ops` provision sau (chờ app dùng operation log).
+- Database `campus_coin_clone` + user `cc_tester` (DML-only trên clone) dành cho team test qua DBeaver; service free tier auto-sleep, kiểm tra IP allowlist từng member.
+- App runtime vẫn đang dùng provider admin trong `.env`; chuyển sang `cc_runtime` trước khi smoke production.
+- Không tạo PR hoặc chạy migration production thêm khi Team Leader chưa xác nhận bước tiếp theo.
 
 ## Vercel Setup
 
