@@ -1,22 +1,6 @@
 {
-  "$comment": "Migration baselines for the shared Aiven database (ADR-0009). Every accepted checksum was read from schema_migrations via read-only probe on 2026-09-25; DDL equivalence for 0001/0003 was verified table-by-table on MySQL 8.4.8 before pinning. Do not add entries without DDL comparison evidence and Team Leader approval.",
+  "$comment": "Migration baselines for the shared Aiven database (ADR-0009). Accepted checksums were read from schema_migrations via read-only probe on 2026-09-25. The 0001/0003 historical pins were removed on 2026-09-25 after proving the earlier mismatch was a CRLF working-tree artifact (LF files match recorded checksums exactly); keeping them would mask future flips instead of fail-closed. Do not add entries without DDL comparison evidence and Team Leader approval.",
   "entries": [
-    {
-      "version": "0001",
-      "kind": "historical",
-      "acceptedChecksums": [
-        "13b19b13437c32a2e73766fc30abdbb2d5366e7ce4e35a7c6db8b1535798aadb"
-      ],
-      "reason": "Applied 2026-09-23 from pre-fix file content; applied DDL is semantically identical to the current file (verified 2026-09-25)."
-    },
-    {
-      "version": "0003",
-      "kind": "historical",
-      "acceptedChecksums": [
-        "452de71f02e66036f190c3b90b5dadf06bbcf66dd3f4118c23d27ad8ffbd3843"
-      ],
-      "reason": "Applied 2026-09-23 from different file content; the index it creates exists on Aiven and matches current file intent (verified 2026-09-25)."
-    },
     {
       "version": "0004",
       "kind": "external",

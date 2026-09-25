@@ -1,0 +1,10 @@
+# Pin LF để checksum migration/SQL ổn định trên mọi máy (Windows/autocrlf từng
+# flip CRLF làm vỡ checksum schema_migrations — xem DELIVERY-PLAN BLK-MIG-02).
+*.sql text eol=lf
+*.ts text eol=lf
+*.mjs text eol=lf
+*.cjs text eol=lf
+*.json text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+*.md text eol=lf

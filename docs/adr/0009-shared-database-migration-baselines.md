@@ -6,7 +6,7 @@
 
 ## Bối cảnh
 
-Database `campus_coin` trên Aiven là shared: một migration chain khác đã apply `0004_email_auth.sql` và `0005_auth_rate_limits.sql`, trùng version với `0004`/`0005` của chain Campus Coin. Engine fail-closed đúng (checksum mismatch) và không có đường bypass. Probe read-only ngày 2026-09-25 xác minh trên MySQL 8.4.8:
+Database `campus_coin` trên Aiven là shared: một migration chain khác đã apply `0004_email_auth.sql` và `0005_auth_rate_limits.sql`, trùng version với `0004`/`0005` của chain Campus Coin. Engine fail-closed đúng (checksum mismatch) và không có đường bypass. Probe read-only ngày 2026-09-25 xác minh trên MySQL 8.4.8. Đính chính cùng ngày: mismatch `0001`/`0003` ban đầu hóa ra là artifact CRLF của working tree (file LF khớp checksum đã ghi từng byte); không có historical pin nào còn hiệu lực. Cơ chế `historical` giữ lại trong engine cho tương lai.
 
 - DDL đã apply của `0001`/`0003` ≡ intent file hiện tại (đối chiếu từng bảng; lệch duy nhất ở ledger là index của chính `0003`). Mismatch hai version này chỉ ở cấp file (nội dung lúc apply khác), không ở semantics.
 - Objects của `0004`/`0005` chain mình **không tồn tại**; version đã bị chain khác chiếm.
