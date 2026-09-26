@@ -12,6 +12,7 @@ node_modules/
 !.env.example
 .vercel
 .env*
+!.env.example
 .vercel-env-sync/
 
 # temp

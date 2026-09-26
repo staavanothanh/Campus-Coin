@@ -47,6 +47,9 @@ Nếu command cần chạy chưa được khai báo trong manifest, trước h�
 - Secret bắt buộc phải được validate presence/shape ở startup hoặc deploy nhưng không được log giá trị.
 - Preview/staging không dùng production secret hoặc production database.
 - OpenRouter key chỉ ở server environment; không đưa vào browser bundle, API response hoặc client storage.
+- Chỉ dùng `.env.example` để biết tên biến khi implement; `.env` là dữ liệu runtime nhạy cảm, không mở/đọc/in/copy hoặc đưa vào prompt/tool.
+- Local runtime được phép nạp `.env` qua `dotenv` hoặc Node `--env-file` mà không hiển thị giá trị; test phải dùng env synthetic và không gọi loader có side effect đọc `.env`.
+- Tuyệt đối không stage/commit `.env`; giữ `.env.example` với placeholder rỗng/an toàn và feature flag tùy chọn mặc định tắt.
 
 # Không được đụng
 
