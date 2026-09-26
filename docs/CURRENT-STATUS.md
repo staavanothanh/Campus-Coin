@@ -16,6 +16,7 @@ Tài liệu này giúp thành viên mới nắm quyết định hiện hành, ph
 
 ## Đã push lên `hiep`
 
+- `6cc27dc` — thêm Vercel Function adapter, cấu hình routing và deploy workflow; GitHub Actions run #14 pass toàn workflow.
 - `4bbdb61` — cập nhật trạng thái nhánh, rubric, cách áp dụng nguyên lý web và checklist phối hợp.
 - `3bf6c0c` — ghi nhận kết quả Auth MySQL integration và CI run #7.
 - `5ee8858` — sửa hai lỗi CI về owner budget trả `404 NOT_FOUND` và kiểm tra Google redirect mà không gọi hostname giả.
@@ -29,6 +30,10 @@ Tài liệu này giúp thành viên mới nắm quyết định hiện hành, ph
 
 ## Evidence kiểm tra gần nhất
 
+- Team Leader xác nhận DB clone `campus_coin_clone` truy cập qua TLS; MySQL `8.4.8`, migrations `0001`–`0005` đều `applied`, `pending=0`. Preflight có cảnh báo charset `utf8mb4_0900_ai_ci` và pool 5 so với `max_connections=76`; không có lỗi kết nối.
+- Trên MySQL service có clone `campus_coin_clone`, `npm run db:datatest` đạt `15/15`; `test/mysql.integration.test.ts` đạt `22/22`; `test/e2e.contract.smoke.test.ts` đạt `13/13`; `test/auth.mysql.integration.test.ts` đạt `8/8`; `npm run test:auth-security` đạt `1/1`. Đây là output Team Leader cung cấp ngày 2026-09-26; các harness ghi vào schema test tạm, không ghi trực tiếp vào `campus_coin_clone`.
+- [Workflow run #14](https://github.com/staavanothanh/Campus-Coin/actions/runs/36169562394) trên commit `6cc27dc` pass toàn workflow. GitHub hiển thị cảnh báo tương lai về Node.js 20 của actions và Ubuntu runner image; không làm run thất bại.
+- Ảnh Team Leader cung cấp ngày 2026-09-26 cho thấy giao diện báo Google đã kết nối và đăng nhập Google thành công. Môi trường staging chưa được xác nhận độc lập; Google OAuth chỉ xin `openid email profile`, nên Test users của Google không phải allowlist truy cập của Campus Coin.
 - `npm run typecheck`: pass.
 - `npm run build`: pass.
 - `node --import tsx --test tests/db-test-guard.test.ts`: 3/3 pass.
@@ -46,6 +51,8 @@ Tài liệu này giúp thành viên mới nắm quyết định hiện hành, ph
 
 ## Cập nhật kiểm tra và tích hợp ngày 2026-09-25–26
 
+Các ghi chú lỗi `campus_coin_done`, `3/15` và chờ MySQL test bên dưới là snapshot trước khi DevB cấp clone `campus_coin_clone`; kết quả mới hơn ở mục Evidence kiểm tra gần nhất thay thế trạng thái pending đó.
+
 - Team Leader chạy `db:status` và `db:preflight`: target mà `.env` đang chọn là `campus_coin`; migration `0001`–`0005` đã apply, MySQL `8.4.8`, TLS pass, `applied=5 pending=0`.
 - Service URI Aiven được cung cấp dùng cùng host/port đã kiểm tra nhưng có suffix `/defaultdb`; biến `CAMPUS_COIN_DB_NAME` chỉ chọn schema trên host đó, không tự xác nhận hoặc tạo `campus_coin_done`.
 - Chạy read-only với `CAMPUS_COIN_DB_NAME=campus_coin_done` bằng credential/config hiện tại trả `Unknown database`. Lần chạy `npm run db:verify-clone` cũng dừng đúng tại preflight; không chạy `db:datatest` hay MySQL integration và không ghi/xóa schema nào.
@@ -56,11 +63,11 @@ Tài liệu này giúp thành viên mới nắm quyết định hiện hành, ph
 - Đã thêm Vercel Node.js Function adapter `api/v1/[...path].ts`, `vercel.json` cho `dist`/SPA/API routing và workflow deploy thủ công `vercel-deploy.yml`. Production workflow chỉ nhận nhánh `hiep`; Vercel project settings/secrets, Preview deployment và Production deployment chưa được kiểm tra.
 - Vercel adapter tắt body parser để giữ API giới hạn/parse body hiện có, gắn MySQL pool lifecycle hook bằng `@vercel/functions`, và hỗ trợ CA qua base64 environment khi chọn `verify-ca`. Cần DevB xác nhận vùng DB/runtime và đo pool capacity trước khi kết luận hiệu năng/capacity.
 - API chỉ chấp nhận `Origin` đúng allowlist cho mutation; `Referer` không thay thế Origin. Mọi JSON response và redirect trả `Cache-Control: no-store, private`.
-- `getSession()` cập nhật `sessions.last_seen_at` khi chưa từng được đặt hoặc giá trị cũ ít nhất một phút. Auth MySQL integration thêm negative owner cases cho correction, category PATCH và issue `relatedTransactionId`; pass/fail chờ CI mới.
+- `getSession()` cập nhật `sessions.last_seen_at` khi chưa từng được đặt hoặc giá trị cũ ít nhất một phút. Auth MySQL integration bao gồm negative owner cases cho correction, category PATCH và issue `relatedTransactionId`; Team Leader xác nhận suite trên schema test tạm của MySQL service có clone đạt `8/8`, CI run #14 trên commit hiện hành pass.
 - Local SMTP adapter test mới mô phỏng greeting timeout và kiểm tra retry có giới hạn trên Nodemailer tới server local. Nó không thay cho kiểm tra SMTP provider/outage trên staging.
-- Kiểm tra local ngày 2026-09-26: `npm run typecheck`, `npm run build` pass; bộ unit/regression 47/47 pass, gồm kiểm tra OpenAPI khai báo `Cache-Control` trên mọi response; `npm run api:validate` pass với 5 cảnh báo 4xx đã liệt kê. Thay đổi owner regression chưa chạy trên MySQL local; chờ CI mới trên commit này.
+- Snapshot kiểm tra local ngày 2026-09-26: `npm run typecheck`, `npm run build` pass; bộ unit/regression 47/47 pass, gồm kiểm tra OpenAPI khai báo `Cache-Control` trên mọi response; `npm run api:validate` pass với 5 cảnh báo 4xx đã liệt kê. Tại thời điểm snapshot, owner regression chưa chạy trên MySQL local và đang chờ CI; kết quả mới hơn nằm ở Evidence kiểm tra gần nhất.
 - Kiểm tra trước đó: 36 unit tests liên quan, `node --check` cho hai script DB clone và `git diff --check` pass. Workflow run #11 nêu trên thuộc commit cũ.
-- Bộ `db:datatest` đầy đủ trên Aiven clone vẫn `pending` đến khi preflight clone pass và DevB xác nhận quyền tạo/xóa schema tạm trên đúng MySQL server. CSRF/Origin đã được kiểm tra tự động trong CI; kiểm tra staging và local clone vẫn pending.
+- `db:datatest` và ba MySQL integration suites đã chạy trên server có clone `campus_coin_clone`; kết quả chi tiết ở Evidence kiểm tra gần nhất. Backup/restore rehearsal, SMTP outage/recovery thật, CSRF/Origin trên staging và deployment Vercel vẫn pending.
 
 ## Kiểm tra nhánh và quyết định hợp nhất
 
@@ -84,8 +91,8 @@ Tài liệu này giúp thành viên mới nắm quyết định hiện hành, ph
 
 1. **Làm lát cắt giao diện domain đầu tiên**: wallet/dashboard, income/payment và lịch sử; sau đó savings, category/budget, report và issue/admin. Nối API hiện có, owner luôn lấy từ session. DevB có thể chuẩn bị DB song song.
 2. **Đối chiếu SRS với tính năng và test**: tạo bảng yêu cầu → màn/API → test → kết quả. Checkout hiện không có bản SRS; dùng bản có thẩm quyền của nhóm và không sửa bản gốc.
-3. **Auth staging**: Team Leader xác nhận Phần 2 đã hoàn tất (register/reset email, OTP sai/hết hạn/resend, logout/session); SMTP/provider failure timeout/retry vẫn riêng. Team Leader báo Google OAuth đã kết nối, nhưng môi trường và việc thử cả login/connect account chưa được nêu.
-4. **Chốt DB với DevB/DB owner**: xác nhận test DB riêng, migration/checksum/schema state từng target, quyền create/drop, TLS/CA, runtime role least-privilege và backup/restore. Không dùng Aiven `defaultdb` cho test destructive.
+3. **Auth staging**: Team Leader xác nhận Phần 2 đã hoàn tất (register/reset email, OTP sai/hết hạn/resend, logout/session) và cung cấp ảnh Google link/login thành công. Chưa có bằng chứng độc lập cho staging CSRF/Origin hoặc SMTP/provider failure timeout/retry.
+4. **Chốt DB với DevB/DB owner**: clone `campus_coin_clone`, TLS, migration state và các MySQL test đã được xác nhận theo output ngày 2026-09-26. Còn backup/restore rehearsal, runtime role least-privilege và xác nhận các target triển khai khác. Không dùng Aiven `defaultdb` cho test destructive.
 5. **Kiểm tra UI/accessibility/compatibility**: bàn phím, focus, screen reader cơ bản, màn hình nhỏ và Chrome/Firefox/Edge/Opera; ghi phiên bản, viewport, ngày và kết quả.
 6. **Hoàn thiện Project Report và evidence originality**: problem statement, sơ đồ, module/logic, phân công, hướng dẫn cài/chạy/kiểm tra, giới hạn, test evidence và nguồn tham khảo; thành viên cần giải thích được phần mình làm.
 7. **Đóng gói cuối**: chạy CI trên commit chốt, kiểm tra demo/build, lưu commit/tag và chuẩn bị gói nộp.

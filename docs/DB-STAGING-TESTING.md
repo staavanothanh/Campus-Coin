@@ -7,7 +7,7 @@ Tài liệu này mô tả cách kiểm chứng ba phần: DB test cô lập, aut
 ### Quy tắc an toàn
 
 - `npm run db:datatest` và MySQL integration tạo schema tạm, chạy migration/test rồi xóa schema tạm.
-- `npm run db:verify-clone` chỉ đọc `campus_coin_done` ở bước preflight/status; sau đó chạy các test trên schema tạm có tên ngẫu nhiên.
+- `npm run db:verify-clone` hiện yêu cầu tên clone cố định `campus_coin_done` ở bước preflight/status; không dùng script này với clone `campus_coin_clone`.
 - Chỉ chạy trên MySQL local/CI dành riêng cho test hoặc một service/schema test được DB owner xác nhận không có dữ liệu dùng chung.
 - Không dùng `defaultdb`, database production, staging có dữ liệu thật hoặc user runtime ít quyền làm nơi chạy destructive test.
 - Tài khoản migration/test cần quyền tạo và xóa schema thử nghiệm; tài khoản runtime vẫn giữ quyền thấp nhất cần thiết.
@@ -28,23 +28,22 @@ Xác nhận `selected_database` là schema test và DevB/DB owner đã xác nh�
 
 ### Phân biệt schema ứng dụng và máy chủ test
 
-- `CAMPUS_COIN_DB_NAME` trong `.env` là schema mà `db:status`, `db:preflight` và `db:migrate` sử dụng. Trước khi chạy các lệnh đó, xác nhận nó đang là schema clone được phép thử nghiệm, ví dụ `campus_coin_done`.
-- Service URI Aiven được cung cấp có phần database `/defaultdb`. `CAMPUS_COIN_DB_NAME=campus_coin_done` chỉ đổi schema app yêu cầu trên cùng host/port; nó không tự tạo clone, đổi server hay cấp quyền. Preflight bằng cấu hình hiện tại phải xác nhận clone truy cập được trước khi chạy test.
-- Khi chạy `db:datatest` hoặc MySQL integration, biến môi trường `CAMPUS_COIN_DB_NAME=campus_coin_test_<tên>` chỉ là chốt xác nhận. Harness kết nối bằng host/port/test credential trong `.env`, tự tạo schema tạm có tên ngẫu nhiên, chạy migration/test rồi xóa schema tạm. Nó không chạy trong schema `campus_coin_done`.
+- `CAMPUS_COIN_DB_NAME` trong `.env` là schema mà `db:status`, `db:preflight` và `db:migrate` sử dụng. Xác nhận tên clone với DB owner trước khi chạy các lệnh đó; clone đã kiểm tra ngày 2026-09-26 là `campus_coin_clone`.
+- Service URI Aiven được cung cấp có phần database `/defaultdb`. Đặt `CAMPUS_COIN_DB_NAME=campus_coin_clone` chỉ chọn schema trên cùng host/port; nó không tự tạo clone, đổi server hay cấp quyền. Preflight bằng cấu hình hiện tại phải xác nhận clone truy cập được trước khi chạy test.
+- Khi chạy `db:datatest` hoặc MySQL integration, biến môi trường `CAMPUS_COIN_DB_NAME=campus_coin_test_<tên>` chỉ là chốt xác nhận. Harness kết nối bằng host/port/test credential trong `.env`, tự tạo schema tạm có tên ngẫu nhiên, chạy migration/test rồi xóa schema tạm. Nó không chạy trong schema `campus_coin_clone`.
 - Vì vậy, việc đổi riêng tên database không đổi MySQL service. Host/port và tài khoản trong `.env` vẫn phải trỏ tới service test mà DevB cho phép tạo/xóa schema tạm.
 
 ### Chạy bộ kiểm tra clone
 
-Trên PowerShell, chọn clone làm target cho hai bước chỉ đọc rồi chạy lệnh:
+`npm run db:verify-clone` hiện cố định tên `campus_coin_done`. Clone được kiểm tra ngày 2026-09-26 có tên `campus_coin_clone`, nên không dùng script đó với clone này. Thực hiện hai bước chỉ đọc trực tiếp:
 
 ```powershell
-$env:CAMPUS_COIN_DB_NAME = "campus_coin_done"
-npm run db:verify-clone
+$env:CAMPUS_COIN_DB_NAME = "campus_coin_clone"
+npm run db:preflight
+npm run db:status
 ```
 
-Script dừng nếu tên database không đúng, target không tồn tại/không truy cập được, có checksum mismatch, migration còn `pending` hoặc output không xác nhận được migration state. Chỉ khi `db:status` có ít nhất một migration và tất cả đều `applied`, script mới đổi nhãn test thành `campus_coin_test_verify` và chạy `db:datatest` cùng ba MySQL integration suite.
-
-Các bước integration không ghi vào hoặc xóa `campus_coin_done`. Chúng tạo và xóa các schema test mới trên **cùng MySQL server** lấy từ `.env`, nên chỉ chạy khi DevB xác nhận server này dành cho test và test credentials được phép tạo/xóa schema. Nếu không có quyền phù hợp, dừng và nhờ DevB chuẩn bị MySQL local/CI riêng; không tăng quyền trên DB dùng chung.
+Chỉ chạy destructive suites khi DB owner đã xác nhận server này dành cho test và test credential được phép tạo/xóa schema tạm. Các suite không ghi vào `campus_coin_clone`; chúng tạo rồi xóa schema test mới trên cùng MySQL server.
 
 ### Chạy trên Windows PowerShell
 
@@ -106,7 +105,7 @@ Nếu Postman không giữ cookie tự động, kiểm tra cookie jar của đú
 
 ### Kiểm tra Google Sign-In trên staging
 
-Google Sign-In là tùy chọn. Team Leader báo đã kết nối OAuth thành công nhưng chưa nêu môi trường hoặc flow đã thử. Trên staging, kiểm tra riêng hai flow này:
+Google Sign-In là tùy chọn. Ảnh Team Leader cung cấp ngày 2026-09-26 cho thấy giao diện báo Google đã kết nối và đăng nhập Google thành công; môi trường staging chưa được xác nhận độc lập. Trên staging, kiểm tra riêng hai flow này trước khi đánh dấu gate staging đạt:
 
 1. Gọi `GET /api/v1/auth/providers`; `data.google` phải là `true`.
 2. Đăng nhập bằng email/password vào account thử nghiệm, chọn kết nối Google và xác nhận callback quay về đúng account.
@@ -134,7 +133,9 @@ Workflow [#6 trên commit `5ee8858`](https://github.com/staavanothanh/Campus-Coi
 - Owner: chỉ đánh dấu đạt khi HTTP integration pass với hai user/session và session B không đọc hoặc sửa được dữ liệu A.
 - Khi một bước chưa chạy vì chưa có staging/service/mailbox, ghi là `pending` cùng lý do; không gắn nhãn pass dựa trên test mock.
 
-## Evidence môi trường do Team Leader cung cấp ngày 2026-09-25
+## Evidence cũ do Team Leader cung cấp ngày 2026-09-25
+
+Các kết quả `campus_coin_done` và `3/15` dưới đây là trạng thái cũ trước khi clone `campus_coin_clone` sẵn sàng. Evidence mới nhất ở mục kế tiếp thay thế trạng thái pending đó.
 
 - `npm run db:status` báo migration `0001`–`0005` đã apply, không có mismatch.
 - `npm run db:preflight` xác định schema đang kiểm tra là `campus_coin`, MySQL `8.4.8`, TLS đã thương lượng và `applied=5 pending=0`. Đây chưa phải bằng chứng cho schema clone `campus_coin_done`; cần chạy lại hai lệnh chỉ đọc với `CAMPUS_COIN_DB_NAME=campus_coin_done`.
@@ -145,3 +146,13 @@ Workflow [#6 trên commit `5ee8858`](https://github.com/staavanothanh/Campus-Coi
 - Lần `db:datatest` đầu đạt `3/15`. Mười hai file `expect-error` bị runner hiểu nhầm thành file phải chạy thành công vì parser giữ ký tự `\r` ở dòng header CRLF. Parser đã được sửa và có regression test; cần chạy lại `db:datatest` trên MySQL service test được DevB xác nhận. Lần chạy cũ không được ghi là pass.
 - Team Leader xác nhận Phần 2 auth staging đã hoàn tất: register/reset email, thử OTP sai/hết hạn/resend và logout/session. Đây là báo cáo của Team Leader; chưa có staging URL/evidence chi tiết trong task để tái kiểm tra độc lập. Kiểm thử SMTP/provider failure timeout/retry vẫn là trường hợp riêng.
 - Team Leader báo ngày 2026-09-25 rằng kết nối Google OAuth đã thành công; môi trường chưa được nêu. Ảnh cũ cho thấy provider chưa cấu hình là trạng thái trước đó. Chưa ghi nhận riêng Google login và connect-account nếu chưa thử cả hai.
+
+## Evidence clone và auth do Team Leader cung cấp ngày 2026-09-26
+
+- Target: schema `campus_coin_clone`; `db:preflight` xác nhận MySQL `8.4.8`, kết nối TLS với cipher `TLS_AES_256_GCM_SHA384`, database tồn tại và migrations `applied=5 pending=0`. `db:status` liệt kê `0001`–`0005` đều `applied`.
+- Hai cảnh báo preflight: charset `utf8mb4/utf8mb4_0900_ai_ci` và pool 5 so với `max_connections=76`. Đây là cảnh báo, không làm preflight thất bại.
+- `npm run db:datatest`: `15/15 pass`.
+- Trên cùng MySQL service, các harness tạo schema test tạm thay vì ghi trực tiếp vào `campus_coin_clone`: `test/mysql.integration.test.ts` `22/22 pass`; `test/e2e.contract.smoke.test.ts` `13/13 pass`; `test/auth.mysql.integration.test.ts` `8/8 pass`; `npm run test:auth-security` `1/1 pass`.
+- GitHub Actions [run #14 trên commit `6cc27dc`](https://github.com/staavanothanh/Campus-Coin/actions/runs/36169562394) pass toàn workflow. Đây là CI trên MySQL service cô lập; kết quả Aiven clone phía trên là output do Team Leader cung cấp.
+- Team Leader cung cấp ảnh giao diện sau Google link/login thành công. Môi trường staging chưa được xác nhận độc lập; không suy rộng bằng chứng này thành kiểm tra production.
+- Chưa có evidence từ lượt này cho SMTP outage/recovery, CSRF/Origin trên staging, backup/restore hoặc benchmark cloud.
