@@ -1031,9 +1031,9 @@ components:
       type: object
       required: [wallet, savings, currentMonth, recentTransactions]
       properties:
-        wallet: {$ref: '#/components/schemas/Wallet'}
-        savings: {$ref: '#/components/schemas/Savings'}
-        currentMonth: {$ref: '#/components/schemas/MonthlyReport'}
+        wallet: {anyOf: [{$ref: '#/components/schemas/Wallet'}, {type: 'null'}]}
+        savings: {anyOf: [{$ref: '#/components/schemas/Savings'}, {type: 'null'}]}
+        currentMonth: {anyOf: [{$ref: '#/components/schemas/MonthlyReport'}, {type: 'null'}]}
         recentTransactions: {type: array, items: {$ref: '#/components/schemas/Transaction'}}
     DashboardResponse: {type: object, required: [data], properties: {data: {$ref: '#/components/schemas/Dashboard'}}}
     IssueStatus: {type: string, enum: [open, in_triage, resolved, closed]}

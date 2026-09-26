@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { api, ApiError, type User } from '../features/auth/auth.api';
+import { DomainDashboard } from '../features/domain/DomainDashboard';
 import { errorText, text, type Language } from './text';
 
 type Page = 'login' | 'register' | 'verify' | 'forgot' | 'reset';
@@ -258,6 +259,13 @@ export function App() {
     }
   }
 
+  function sessionExpired() {
+    setUser(null);
+    openPage('login');
+    setMessage(text[language].sessionExpired);
+    setMessageKind('error');
+  }
+
   let title = t.login;
   let buttonText = t.login;
   if (page === 'register') { title = t.register; buttonText = t.sendCode; }
@@ -273,15 +281,19 @@ export function App() {
       </button>
     </div>
 
-    <section className="authCard">
-      {user ? <>
-        <h1 ref={headingRef} tabIndex={-1}>{t.hello} {user.displayName}</h1>
-        <p>{user.email}</p>
-        {googleLinked
-          ? <p role="status">{t.googleConnected}</p>
-          : <button className="textButton" disabled={busy} onClick={connectGoogle}>{t.googleConnect}</button>}
-        <button className="primaryButton" disabled={busy} onClick={signOut}>{t.logout}</button>
-      </> : <>
+    {user ? <DomainDashboard
+      user={user}
+      language={language}
+      googleEnabled={googleEnabled}
+      googleLinked={googleLinked}
+      authBusy={busy}
+      authMessage={message}
+      authMessageKind={messageKind}
+      onLogout={signOut}
+      onConnectGoogle={connectGoogle}
+      onSessionExpired={sessionExpired}
+    /> : <>
+      <section className="authCard">
         <h1 id="auth-title" ref={headingRef} tabIndex={-1}>{title}</h1>
         {page === 'verify' && <p className="emailHint">{t.email}: {email}</p>}
         <form aria-labelledby="auth-title" onInvalid={() => setSubmitted(true)} onSubmit={submit}>
@@ -420,9 +432,9 @@ export function App() {
           <button className="textButton" onClick={() => openPage('register')}>{t.signUp}</button>
         </>}
         {page !== 'login' && <button className="textButton" onClick={() => openPage('login')}>{t.back}</button>}
-      </>}
       {message && <p className="message" role={messageKind === 'error' ? 'alert' : 'status'} aria-live={messageKind === 'error' ? 'assertive' : 'polite'}>{message}</p>}
-    </section>
-    <p className="subtitle">{t.subtitle}</p>
+      </section>
+      <p className="subtitle">{t.subtitle}</p>
+    </>}
   </main>;
 }

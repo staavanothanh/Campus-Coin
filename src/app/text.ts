@@ -30,6 +30,7 @@ export const text = {
     mismatch: 'Mật khẩu nhập lại chưa khớp.',
     codeHint: 'Nhập 6 chữ số', passwordHint: 'Ít nhất 8 ký tự',
     wait: 'Đang xử lý...', hello: 'Xin chào!', logout: 'Đăng xuất',
+    sessionExpired: 'Phiên đã hết hạn. Vui lòng đăng nhập lại.',
     subtitle: 'Ghi thu chi và đặt ngân sách dành cho sinh viên',
     rateLimited: 'Bạn đã thử quá nhiều lần. Vui lòng chờ', seconds: 'giây rồi thử lại',
     error: 'Không thể thực hiện yêu cầu. Vui lòng thử lại.'
@@ -63,6 +64,7 @@ export const text = {
     mismatch: 'The passwords do not match.',
     codeHint: 'Enter 6 digits', passwordHint: 'At least 8 characters',
     wait: 'Please wait...', hello: 'Hello!', logout: 'Sign out',
+    sessionExpired: 'Your session expired. Please sign in again.',
     subtitle: 'Track spending and plan a student budget',
     rateLimited: 'Too many attempts. Please wait', seconds: 'seconds and try again',
     error: 'The request could not be completed. Please try again.'

@@ -28,6 +28,7 @@ docs/
 └── working/                  # Handoff, replan và bằng chứng tạm thời
     ├── README.md             # Quy tắc và phân loại working docs
     ├── student-cashflow-research-2026-09-26.md # Đề xuất nghiên cứu, chưa chốt phạm vi
+    ├── repository-review-2026-09-27.md # Đánh giá 23 repository, nhánh mới và quyết định áp dụng
     ├── team-handoff-2026-09-26/ # DB/benchmark, UI và Vercel/SMTP tasks theo owner
     └── replan/               # Bằng chứng của lượt replan hiện tại
 ```
@@ -66,6 +67,7 @@ Root `docs/` là canonical product docs; `adr/` là canonical history; `working/
 | [`ENGINEERING-PRINCIPLES-APPLICATION.md`](./ENGINEERING-PRINCIPLES-APPLICATION.md) | Câu hỏi–trả lời kỹ thuật và thay đổi áp dụng vào code |
 | [`working/team-handoff-2026-09-26/`](./working/team-handoff-2026-09-26/README.md) | Hướng dẫn theo owner cho DB/benchmark, UI/accessibility và Vercel/SMTP/release |
 | [`working/student-cashflow-research-2026-09-26.md`](./working/student-cashflow-research-2026-09-26.md) | Nghiên cứu advisory về weekly cashflow, what-if, personal benchmark và nguồn tham khảo |
+| [`working/repository-review-2026-09-27.md`](./working/repository-review-2026-09-27.md) | Đánh giá từng repo, nhánh mới, license/rủi ro và phần áp dụng vào sản phẩm |
 
 ## 4. Thứ tự ưu tiên khi mâu thuẫn
 

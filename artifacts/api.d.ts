@@ -890,9 +890,9 @@ export interface components {
             data: components["schemas"]["MonthlyReport"];
         };
         Dashboard: {
-            wallet: components["schemas"]["Wallet"];
-            savings: components["schemas"]["Savings"];
-            currentMonth: components["schemas"]["MonthlyReport"];
+            wallet: components["schemas"]["Wallet"] | null;
+            savings: components["schemas"]["Savings"] | null;
+            currentMonth: components["schemas"]["MonthlyReport"] | null;
             recentTransactions: components["schemas"]["Transaction"][];
         };
         DashboardResponse: {

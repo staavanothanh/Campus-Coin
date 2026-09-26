@@ -1,6 +1,6 @@
 # Kế hoạch giao hàng — Campus Coin
 
-> Cập nhật: 2026-09-26 · Owner: Team Leader — Hiệp
+> Cập nhật: 2026-09-27 · Owner: Team Leader — Hiệp
 > Nguồn quyết định auth: [ADR-0008](./adr/0008-email-password-otp-auth.md) và phần Google bổ sung tại [ADR-0009](./adr/0009-optional-google-sign-in.md)
 
 Tài liệu này ghi trạng thái/gate. Team Leader đã chốt giữ email/password/OTP và thêm Google Sign-In tùy chọn; production readiness là trạng thái riêng, chỉ ghi đạt khi có evidence.
@@ -32,13 +32,13 @@ Google không cấu hình thì email flow vẫn hoạt động và provider disc
 | Dùng `db:datatest` ngoài CI | Chạy trên MySQL service thử nghiệm ngày 2026-09-26; harness dùng schema tạm | `23/23 pass`, gồm regression chứng minh assertion sai làm runner thất bại; không dùng schema nghiệp vụ để chạy test |
 | SMTP/email | SMTP adapter có timeout 10 giây, tối đa hai lần gửi và lỗi fail-closed; local adapter regression kiểm tra timeout/retry bounded bằng SMTP server treo; không có fallback OTP vào log/dev | DevD chạy controlled outage trong Preview cô lập, xác nhận `EMAIL_UNAVAILABLE`, log không lộ dữ liệu, rồi khôi phục và thử gửi/nhận register/reset |
 | API domain | Auth, preferences, wallet, ledger, savings, category, budget, report, issue và admin routes đã nối application services; client hỗ trợ GET/POST/PUT/PATCH/DELETE | OpenAPI đã khai báo `403` cho Origin ở auth mutation; lint còn 5 warning không chặn validate cho discovery/redirect/health; cần integration review với Developer B |
-| UI | Auth UI có validation/accessibility cơ bản và hai ngôn ngữ; sau login hiện chỉ có chào user, kết nối Google và logout | Chưa có giao diện wallet onboarding, dashboard, income/payment/history, savings, category/budget, report và issue/admin; đây là phần chức năng/UI lớn cần hoàn thiện |
-| CI | Workflow có MySQL disposable service và các gate typecheck/build/API/auth/DB | [Run #14 trên commit `6cc27dc`](https://github.com/staavanothanh/Campus-Coin/actions/runs/36169562394) pass toàn workflow; GitHub có warning về action Node.js 20 và Ubuntu runner image |
+| UI | Đã có lát cắt sau đăng nhập cho khởi tạo wallet, dashboard, ghi `income`/`payment`, savings transfer, lịch sử phân trang, monthly report và upsert budget; có VI/EN, keyboard/focus, live status, table/progress và responsive styles | Chưa có giao diện quản lý category, corrections, savings transfer history, issue/admin/preferences. Browser/device compatibility matrix và kiểm tra accessibility với screen reader còn cần ghi evidence |
+| CI | Workflow có MySQL disposable service và các gate typecheck/build/API/auth/DB; lượt này thêm test API client và format của giao diện domain | [Run #14 trên commit `6cc27dc`](https://github.com/staavanothanh/Campus-Coin/actions/runs/36169562394) pass toàn workflow nhưng không chứa thay đổi của lượt này; CI mới cần chạy sau push |
 | Domain owner isolation qua HTTP | Test hai tài khoản bao phủ wallet, ledger, savings, category, budget, report và dashboard; request giả `userId` không đổi owner | Kết quả mới nhất trên schema MySQL tạm: `test/mysql.integration.test.ts` 31/31, `test/e2e.contract.smoke.test.ts` 13/13, Auth MySQL 8/8; CI run #14 là evidence của commit cũ, chưa xác nhận các sửa đổi mới |
-| Hợp nhất nhánh DB | Giữ `hiep` làm nhánh sản phẩm; chưa merge nguyên nhánh nào | `origin/thien` đưa `node_modules/` và `dist/` vào Git; `database-ingest-0.2` có 22 xung đột mô phỏng với `hiep` và dùng lại số migration `0004`/`0005`. DevB/DB owner cần xác nhận lịch sử apply/restore trước khi review port chọn lọc |
+| Hợp nhất nhánh | Giữ `hiep` làm nhánh sản phẩm; không merge nguyên nhánh nào | Snapshot `2026-09-27`: `origin/thien-merge=77ad3dd`, `origin/database-ingest-0.4=053a434`, `origin/main=1a1822f` thay architecture/auth/migration chain và không tương thích với `hiep`. Benchmark runner của DB lane giới hạn vào MySQL local, tạo schema tạm riêng và drop trong `finally`; các file SQL fixture dùng ID cố định nên không chạy rời. Runner dùng migration chain khác và chưa phù hợp với Aiven hoặc `hiep`; lượt này không chạy benchmark. Lý do theo từng nhánh nằm trong [repository review](./working/repository-review-2026-09-27.md) |
 | Production/restore | Chưa có evidence | Cần backup/restore rehearsal, CA chain/role grants, TLS/connectivity, redacted logs và rollback |
 | Vercel runtime/deploy | Đã thêm Node.js Function adapter, SPA/API routing, max duration 60s, MySQL pool lifecycle hook và workflow deploy thủ công Preview/Production | DevD cấu hình secrets/env và GitHub Environment; chạy Preview sau CI, xác minh app/API/readiness. Chưa có bằng chứng deploy trong task này |
-| Cloud benchmark | Chỉ có số tham chiếu MySQL local trong `db/README.md`; chưa có phép đo cloud hoặc harness tái chạy. Pool hook hỗ trợ đóng idle connection khi function suspend nhưng không chứng minh capacity | Sau khi DB clone và runtime được xác nhận, đo report/dashboard/list/payment; ghi môi trường, tải, p50/p95, connection headroom và query plan; không dùng dữ liệu thật |
+| Cloud benchmark | Chỉ có số tham chiếu MySQL local trong `db/README.md`; chưa có phép đo cloud hoặc runner an toàn trong `hiep`. Các SQL thô ở `benchmark/001_setup.sql` và `003_cleanup.sql` không an toàn: setup chọn schema `campus_coin` và ID user cố định, cleanup để lại users, ledger và savings transfers. | Không chạy SQL thô trên DB dùng chung/cloud. DevB chuẩn bị harness riêng dùng schema MySQL local tạm, migrations của `hiep`, dữ liệu synthetic và drop schema ở `finally`; sau khi review guard/cleanup mới đo report/dashboard/list/payment, p50/p95, query plan và connection headroom. |
 
 Không suy ra trạng thái DB, SMTP, cloud hoặc production từ sự tồn tại của config/file/migration hay từ health `SELECT 1`.
 
@@ -47,7 +47,7 @@ Team Leader chạy `npm run db:preflight` và `npm run db:status` trực tiếp 
 ## 3. Gate auth/security
 
 - Login account+IP rate-limit, OTP attempt/backoff và quota đã có trong MySQL; OTP resend cooldown không trừ quota gửi; auth MySQL integration pass ở CI run #6. `X-Forwarded-For` chỉ được tin khi socket peer khớp `TRUSTED_PROXY_IPS`; unit test bao phủ header giả mạo.
-- OTP expiry, max attempts, resend cooldown và single-use được xác nhận bởi Auth MySQL 8/8 trên schema test tạm cùng MySQL service có clone và CI run #14. Team Leader xác nhận staging Phần 2 hoàn tất và cung cấp ảnh Google link/login thành công; không có bằng chứng SMTP outage hoặc CSRF/Origin staging trong lượt này.
+- OTP expiry, max attempts, resend cooldown và single-use được Team Leader xác nhận Auth MySQL 8/8 trên schema test tạm cùng MySQL service có clone. CI run #14 là evidence của commit cũ `6cc27dc`, không bao gồm thay đổi hiện tại. Team Leader xác nhận staging Phần 2 hoàn tất và cung cấp ảnh Google link/login thành công; không có bằng chứng SMTP outage hoặc CSRF/Origin staging trong lượt này.
 - Cookie `HttpOnly`, `Secure` production, `SameSite`, expiry, revoke, logout và reset-password revoke session cũ đã có code; CI auth integration bao phủ.
 - CSRF/Origin có test integration riêng và đã được thêm vào CI; contract hiện chốt chỉ dùng Origin, Referer không thay thế. Response API/redirect dùng `Cache-Control: no-store, private`. Logout của session sống từ chối CSRF sai; logout session đã hết hạn/thu hồi vẫn clear cookie idempotently. Kiểm tra CSRF/Origin staging, SMTP outage thật và các production gates vẫn cần evidence; API error envelope được kiểm tra trong integration/contract tests.
 - Email: adapter SMTP provider thật, timeout, retry giới hạn, cùng một mã trong retry, lỗi rõ; không fallback OTP vào log/dev.
@@ -74,6 +74,7 @@ npm run api:validate
 npm run api:bundle
 npm run api:types
 git diff --exit-code -- artifacts/openapi.json artifacts/api.d.ts
+node --import tsx --test test/domain.format.test.ts test/domain.api.test.ts
 node --import tsx --test tests/auth.test.ts test/schema-readiness.test.ts tests/google-oauth.test.ts tests/client-ip.test.ts test/env.test.ts tests/api-cache-header.test.ts
 node --import tsx --test tests/vercel-adapter.test.ts tests/mail.test.ts
 node --import tsx --test tests/db-test-guard.test.ts tests/datatest-sql-file.test.ts tests/db-clone-script.test.ts
@@ -139,6 +140,14 @@ Các bullet lịch sử dưới đây ghi trạng thái tại thời điểm ch�
 - `node --import tsx --test test/e2e.contract.smoke.test.ts`: `13/13` pass.
 - `node --import tsx --test test/auth.mysql.integration.test.ts`: `8/8` pass.
 - Migration `0006`–`0010` đã được kiểm tra khi harness tạo schema tạm, nhưng chưa apply lên clone dùng chung/staging. Kết quả trên chưa thay thế CI cho working tree hiện tại.
+
+### Bổ sung ngày 2026-09-27
+
+- Đối chiếu lại remote trước khi thay đổi: `origin/hiep=563eaae`, `origin/thien-merge=77ad3dd`, `origin/main=1a1822f`, `origin/thien=55df41e`; nhóm DB là chuỗi `origin/database-ingest=48f8cd4` → `.2=ce984ae` → `.3=9df1c97` → `.4=053a434`. Giữ `hiep`; không merge nguyên nhánh có auth/session hoặc migration chain xung đột. Không chạy benchmark trong lượt này; runner của nhánh DB ingest tạo schema tạm local nhưng migration chain không khớp và file SQL fixture không an toàn nếu chạy riêng.
+- Đọc metadata/README/license của cả 23 repo trong danh sách; deep-review source/example/test của nhóm repo UI, chart, AI eval và reporting. Kết luận theo từng repo ở [repository review](./working/repository-review-2026-09-27.md). Không cài dependency hoặc sao chép code từ checkout tham khảo.
+- Đã nối lát cắt UI cho wallet setup, dashboard, income/payment, savings, transaction history, monthly report và budget. Client gửi idempotency key; server vẫn quyết định số dư, kết quả và cảnh báo budget. Các test mới bao phủ HCMC month/date-time, định dạng VND và Idempotency-Key.
+- Lượt xác minh cục bộ: `npm run typecheck`, `npm run build`, `npm run api:validate`, 53 test trong các bước CI không cần MySQL, OpenAPI artifact generation/check và `git diff --check` đều pass. `api:validate` hợp lệ nhưng còn 5 warning 4xx lịch sử ở discovery/redirect/health. Kết quả cụ thể nằm trong `CURRENT-STATUS.md`.
+- Không chạy MySQL integration, migration, benchmark, SMTP/staging hoặc deploy trong lượt này. MySQL tests trong CI dùng MySQL disposable; các kết quả test DB do Team Leader cung cấp ngày 2026-09-26 vẫn là evidence trước lượt code mới.
 
 ## 8. Phối hợp Developer B
 

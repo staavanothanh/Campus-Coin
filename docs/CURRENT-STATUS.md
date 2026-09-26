@@ -1,6 +1,6 @@
 # Trạng thái hiện tại — Campus Coin
 
-> Cập nhật: 2026-09-26 · Nhánh tích hợp: `hiep`
+> Cập nhật: 2026-09-27 · Nhánh tích hợp: `hiep`
 
 Tài liệu này giúp thành viên mới nắm quyết định hiện hành, phần đã triển khai và cổng còn chờ. Chi tiết quyết định thuộc ADR; hướng dẫn kiểm tra ở [DB-STAGING-TESTING.md](./DB-STAGING-TESTING.md); trạng thái giao hàng ở [DELIVERY-PLAN.md](./DELIVERY-PLAN.md).
 
@@ -49,6 +49,14 @@ Tài liệu này giúp thành viên mới nắm quyết định hiện hành, ph
 - [Workflow run #6](https://github.com/staavanothanh/Campus-Coin/actions/runs/36113454931) trên commit code `5ee8858` pass typecheck, build, API validation/artifacts, unit tests, `db:datatest`, MySQL domain integration, HTTP contract smoke và Auth MySQL integration trên MySQL cô lập. Run #7 xác nhận lại toàn workflow sau cập nhật docs.
 - Trước đó CI tìm ra budget của category ngoài owner trả `422` thay vì `404` và Google integration test tự theo redirect đến hostname giả. Đã sửa budget thành `404 NOT_FOUND`, giữ redirect ở response trong test; run #6 xác nhận auth/owner integration pass.
 
+### Bổ sung ngày 2026-09-27
+
+- Remote được fetch lại trước khi xem xét hợp nhất: `origin/hiep=563eaae`, `origin/thien-merge=77ad3dd`, `origin/main=1a1822f`, `origin/thien=55df41e`; nhóm DB gồm `origin/database-ingest=48f8cd4`, `.2=ce984ae`, `.3=9df1c97`, `.4=053a434`. Nhánh DB là chuỗi tổ tiên theo thứ tự đến `.4`, nên `.4` đã chứa các commit của ba refs DB cũ. `hiep` là sản phẩm chính; không có merge nguyên nhánh phù hợp. Lý do và phạm vi từng repo/nhánh nằm trong [repository review](./working/repository-review-2026-09-27.md).
+- Đã thêm giao diện domain sau đăng nhập: wallet setup, tổng quan, thu/chi, savings transfer, lịch sử phân trang, báo cáo tháng và ngân sách. Client dùng typed API wrapper, Idempotency-Key và giờ/ngày theo `Asia/Ho_Chi_Minh`; không tính lại authoritative balance/budget ở browser.
+- CI workflow hiện có bước chạy `test/domain.format.test.ts` và `test/domain.api.test.ts`.
+- Lượt kiểm tra cục bộ ngày 2026-09-27: `npm run typecheck` và `npm run build` pass; `npm run api:validate` hợp lệ với 5 warning 4xx lịch sử; domain unit tests 6/6 pass; 53 test trong các bước CI không cần MySQL pass. `npm run api:bundle` và `npm run api:types` đã sinh lại artifacts để thể hiện `wallet`, `savings`, `currentMonth` có thể là `null` trước khi khởi tạo ví. Workflow GitHub cho thay đổi hiện tại chỉ có kết quả sau push.
+- Không chạy migration, `db:datatest`, MySQL integration, SMTP/provider staging, benchmark hoặc Vercel deploy trong lượt này. Không dùng database được cấu hình trong môi trường local.
+
 ## Cập nhật kiểm tra và tích hợp ngày 2026-09-25–26
 
 Các ghi chú lỗi `campus_coin_done`, `3/15` và chờ MySQL test bên dưới là snapshot trước khi DevB cấp clone `campus_coin_clone`; kết quả mới hơn ở mục Evidence kiểm tra gần nhất thay thế trạng thái pending đó.
@@ -63,7 +71,7 @@ Các ghi chú lỗi `campus_coin_done`, `3/15` và chờ MySQL test bên dưới
 - Đã thêm Vercel Node.js Function adapter `api/v1/[...path].ts`, `vercel.json` cho `dist`/SPA/API routing và workflow deploy thủ công `vercel-deploy.yml`. Production workflow chỉ nhận nhánh `hiep`; Vercel project settings/secrets, Preview deployment và Production deployment chưa được kiểm tra.
 - Vercel adapter tắt body parser để giữ API giới hạn/parse body hiện có, gắn MySQL pool lifecycle hook bằng `@vercel/functions`, và hỗ trợ CA qua base64 environment khi chọn `verify-ca`. Cần DevB xác nhận vùng DB/runtime và đo pool capacity trước khi kết luận hiệu năng/capacity.
 - API chỉ chấp nhận `Origin` đúng allowlist cho mutation; `Referer` không thay thế Origin. Mọi JSON response và redirect trả `Cache-Control: no-store, private`.
-- `getSession()` cập nhật `sessions.last_seen_at` khi chưa từng được đặt hoặc giá trị cũ ít nhất một phút. Auth MySQL integration bao gồm negative owner cases cho correction, category PATCH và issue `relatedTransactionId`; Team Leader xác nhận suite trên schema test tạm của MySQL service có clone đạt `8/8`, CI run #14 trên commit hiện hành pass.
+- `getSession()` cập nhật `sessions.last_seen_at` khi chưa từng được đặt hoặc giá trị cũ ít nhất một phút. Auth MySQL integration bao gồm negative owner cases cho correction, category PATCH và issue `relatedTransactionId`; Team Leader xác nhận suite trên schema test tạm của MySQL service có clone đạt `8/8` ngày 2026-09-26. CI run #14 thuộc commit cũ `6cc27dc`, không kiểm tra thay đổi của lượt này.
 - Local SMTP adapter test mới mô phỏng greeting timeout và kiểm tra retry có giới hạn trên Nodemailer tới server local. Nó không thay cho kiểm tra SMTP provider/outage trên staging.
 - Snapshot kiểm tra local ngày 2026-09-26: `npm run typecheck`, `npm run build` pass; bộ unit/regression 47/47 pass, gồm kiểm tra OpenAPI khai báo `Cache-Control` trên mọi response; `npm run api:validate` pass với 5 cảnh báo 4xx đã liệt kê. Tại thời điểm snapshot, owner regression chưa chạy trên MySQL local và đang chờ CI; kết quả mới hơn nằm ở Evidence kiểm tra gần nhất.
 - Kiểm tra trước đó: 36 unit tests liên quan, `node --check` cho hai script DB clone và `git diff --check` pass. Workflow run #11 nêu trên thuộc commit cũ.
@@ -71,25 +79,18 @@ Các ghi chú lỗi `campus_coin_done`, `3/15` và chờ MySQL test bên dưới
 
 ## Kiểm tra nhánh và quyết định hợp nhất
 
-> Snapshot refs được đối chiếu ngày 2026-09-25 trên baseline `origin/hiep=4bbdb61`; đây là mốc so sánh trước thay đổi tài liệu trong lượt hiện tại.
+Snapshot remote `2026-09-27`: giữ `hiep` làm nhánh sản phẩm theo quyết định Team Leader. Các refs và quan hệ tổ tiên được ghi trong [repository review](./working/repository-review-2026-09-27.md): `origin/hiep=563eaae`, `origin/thien-merge=77ad3dd`, `origin/main=1a1822f`, `origin/thien=55df41e` và chuỗi `origin/database-ingest=48f8cd4` → `.2=ce984ae` → `.3=9df1c97` → `.4=053a434`. Kiến trúc/auth/session và migration chain của các nhánh không tương thích. Hiep có các SQL benchmark thô dùng schema `campus_coin`, ID user cố định và cleanup không xóa lịch sử ledger/transfer; không chạy các file này. Runner của nhánh DB ingest tạo schema tạm local và dọn schema trong `finally`, nhưng dùng migration chain riêng nên không dùng được trực tiếp cho Aiven hoặc `hiep`; lượt này không chạy benchmark.
 
-- `hiep` là nhánh sản phẩm chính theo quyết định Team Leader.
-- `origin/main` ở `e4c68fc`; `origin/thien` ở `2d54823` và đi sau `main` đúng 2 commit. Commit đầu đưa source riêng lên `thien`; commit kế tiếp thêm `node_modules/` và `dist/` đã build. Không nhập nguyên `thien` vào nhánh sản phẩm.
-- `origin/thiên` (`af2beba`) còn trong remote-tracking refs cục bộ nhưng không xuất hiện trong danh sách nhánh GitHub được kiểm tra; xem đây là ref cũ, không phải nhánh sản phẩm hiện hành.
-- `origin/database-ingest-0.2` (`0d34c88`) là nhánh mới hơn và chứa lịch sử của `origin/database-ingest` (`48f8cd4`) cùng 7 commit bổ sung, tiếp tục migration tới `0030`. Nếu cần port phần DB, review `database-ingest-0.2` thay vì xử lý cả hai nhánh.
-- Tại baseline `4bbdb61`, `hiep` có 11 commit riêng so với các nhánh remote; các nhánh có commit riêng lần lượt là: `main` 21, `thien` 23, `database-ingest` 13 và `database-ingest-0.2` 20. `main` là tổ tiên trực tiếp của `thien`; hai nhánh này không cùng tip.
-- Đã chạy kiểm tra merge mô phỏng tại baseline `4bbdb61`, không thay đổi working tree: `hiep` với `main` có 17 xung đột; `hiep` với `database-ingest-0.2` có 22 xung đột.
-- Không merge tự động: cả hai nhánh đặt migration khác nhau dưới cùng số `0004` và `0005`. Trong `hiep`, chúng là auth credential/OTP và auth rate limit; trong nhánh DB, chúng là idempotency owner key và wallet boundary. Tên file khác nhau nên cần đối chiếu migration runner/schema, không chỉ dựa vào xung đột Git.
-- Bước cần DevB/DB owner xác nhận: branch/schema đang được dùng, migration/checksum và schema state trên từng môi trường, quyền test và backup/restore. Lập kế hoạch tương thích theo state thực tế trước khi port; không chỉ lấy số migration lớn nhất, không sửa migration đã chạy và không đưa `defaultdb` vào destructive test.
+## Giao diện domain hiện có
 
-## Phạm vi giao diện còn thiếu
-
-- Backend API có các route domain và owner-scope integration đã pass trên MySQL CI cô lập.
-- Frontend hiện mới có luồng auth và màn hình sau đăng nhập ở mức chào user, kết nối Google và đăng xuất. Chưa có màn hình sản phẩm cho wallet onboarding, dashboard, income/payment, history, savings, category/budget, report hoặc issue/admin. Vì vậy các API domain chưa tạo thành trải nghiệm MVP hoàn chỉnh cho sinh viên.
+- Sau đăng nhập, người dùng có thể khởi tạo wallet, xem số dư và tóm tắt tháng, ghi `income`/`payment`, chuyển savings, xem lịch sử phân trang và báo cáo tháng với ngân sách.
+- Client gửi `Idempotency-Key` cho mutation, giữ nội dung form khi request lỗi, khóa nút khi đang gửi và đọc số dư/tổng tiền/budget từ API server.
+- Giao diện dùng VI/EN, native controls, semantic forms/tables, nhãn trạng thái, keyboard focus và layout responsive. Giao dịch correction được đánh dấu trong lịch sử.
+- Chưa có giao diện category management, correction, savings transfer history, issue/admin/preferences. Cần kiểm thử browser, responsive và screen reader thực tế; source semantics chưa thay cho evidence kiểm tra.
 
 ## Còn cần hoàn tất
 
-1. **Làm lát cắt giao diện domain đầu tiên**: wallet/dashboard, income/payment và lịch sử; sau đó savings, category/budget, report và issue/admin. Nối API hiện có, owner luôn lấy từ session. DevB có thể chuẩn bị DB song song.
+1. **Hoàn thiện giao diện domain còn thiếu**: category management, correction, savings transfer history và issue/admin/preferences. Các lát cắt wallet/dashboard, income/payment/history, savings, budget và report đã nối API; owner luôn lấy từ session.
 2. **Đối chiếu SRS với tính năng và test**: tạo bảng yêu cầu → màn/API → test → kết quả. Checkout hiện không có bản SRS; dùng bản có thẩm quyền của nhóm và không sửa bản gốc.
 3. **Auth staging**: Team Leader xác nhận Phần 2 đã hoàn tất (register/reset email, OTP sai/hết hạn/resend, logout/session) và cung cấp ảnh Google link/login thành công. Chưa có bằng chứng độc lập cho staging CSRF/Origin hoặc SMTP/provider failure timeout/retry.
 4. **Chốt DB với DevB/DB owner**: clone `campus_coin_clone`, TLS, migration state và các MySQL test đã được xác nhận theo output ngày 2026-09-26. Còn backup/restore rehearsal, runtime role least-privilege và xác nhận các target triển khai khác. Không dùng Aiven `defaultdb` cho test destructive.

@@ -16,8 +16,8 @@
 
 ## Thứ tự ưu tiên
 
-1. **Chức năng (35 điểm):** lập ma trận SRS → tính năng → test; làm lát cắt giao diện wallet/dashboard, income/payment/history, rồi các domain còn lại; kiểm tra auth/email và tình huống lỗi quan trọng.
-2. **UI/accessibility (15 điểm):** sửa luồng khó dùng, lỗi form và keyboard/focus trước khi thêm trang mới.
+1. **Chức năng (35 điểm):** lập ma trận SRS → tính năng → test; hoàn tất lát cắt wallet/dashboard, income/payment/history, savings, budget và report; tiếp tục các luồng correction, category, issue/admin và auth/email.
+2. **UI/accessibility (15 điểm):** kiểm tra responsive, lỗi form, keyboard/focus và thông báo trợ năng trên các trang đã nối API; sau đó mở rộng luồng còn thiếu.
 3. **Source code + Database (20 điểm):** giữ code đơn giản, kiểm tra migration và dữ liệu trên MySQL độc lập.
 4. **Documentation + Plagiarism (20 điểm):** hoàn thiện báo cáo, sơ đồ, phân công và nguồn tham khảo.
 5. **Compatibility + On-time (10 điểm):** thử trình duyệt và đóng gói trước hạn.
@@ -26,9 +26,9 @@
 
 | Hạng mục | Trạng thái hiện tại | Việc còn thiếu để có bằng chứng nộp bài |
 |---|---|---|
-| Functionality Testing — 35 | Auth và API domain có unit/integration coverage; owner isolation đã pass trên MySQL CI cô lập. Team Leader báo Phần 2 auth staging đã hoàn tất. | Giao diện domain sau đăng nhập còn thiếu. Checkout chưa có bản SRS nên cần ma trận yêu cầu SRS → tính năng/API → test/evidence; giữ lại evidence staging do nhóm cung cấp và demo luồng sản phẩm hoàn chỉnh. |
-| UI & Accessibility Testing — 15 | Auth UI có validation, hai ngôn ngữ và keyboard semantics cơ bản. | Làm màn hình domain; kiểm tra responsive, keyboard/focus/screen reader và trạng thái lỗi/loading trên toàn app. |
-| Source Code — 10 | Code nghiệp vụ giữ function dễ đọc; các phép tiền dùng integer an toàn; mutation tiền có transaction, khóa và idempotency; regression bao phủ overflow, ngày lùi, rollback và cập nhật budget đồng thời. | Typecheck/build và test hẹp mới nhất đã pass cục bộ; workflow CI cho các thay đổi chưa push chưa chạy. Nhóm cần giải thích được ledger, correction, savings và owner boundary. |
+| Functionality Testing — 35 | Auth và API domain có unit/integration coverage; owner isolation đã pass trên MySQL CI cô lập. Giao diện hiện nối wallet setup, dashboard, income/payment, savings transfer, transaction history, monthly report và budget upsert. Team Leader báo Phần 2 auth staging đã hoàn tất. | Lập ma trận yêu cầu SRS → tính năng/API → test/evidence; bổ sung giao diện category, correction, savings history, issue/admin/preferences; giữ evidence staging do nhóm cung cấp và demo luồng sản phẩm hoàn chỉnh. |
+| UI & Accessibility Testing — 15 | Auth và domain UI có VI/EN, native form controls, labels, keyboard focus, live status, tables, budget progress và responsive layout. | Kiểm tra thực tế trên viewport nhỏ, keyboard/focus và screen reader; lưu ma trận Chrome/Firefox/Edge/Opera. Chưa ghi các hạng mục này là pass chỉ từ source review. |
+| Source Code — 10 | Code nghiệp vụ giữ function dễ đọc; các phép tiền dùng integer an toàn; mutation tiền có transaction, khóa và idempotency; UI gọi API domain và không tự tính balance/report. | Typecheck/build và 53 test ở các bước CI không cần MySQL pass cục bộ; CI trên commit mới cần chạy sau push. Nhóm cần giải thích được ledger, correction, savings và owner boundary. |
 | Database Testing — 10 | Migration CHECK theo bảng, datatest `23/23`, MySQL integration `31/31`, E2E `13/13` và Auth MySQL `8/8` đã pass trên schema tạm. | Chưa apply migration `0006`–`0010` lên clone dùng chung/staging; DevB vẫn cần xác nhận grants, TLS/CA và backup/restore. Thêm integration case correction thành công cho `adjustment` và `replacement` qua wallet/report/reconciliation. Benchmark riêng trên dữ liệu synthetic chưa chạy. |
 | Compatibility Testing — 5 | Chưa có ma trận kiểm tra trình duyệt được lưu. | Ghi kết quả Chrome, Firefox, Edge, Opera cùng phiên bản, viewport và ngày. |
 | Documentation — 10 | Canonical product/auth/architecture/DB/scoring docs đã có. | Hoàn thiện Project Report với vấn đề, sơ đồ, module/logic, phân công và hướng dẫn chạy/kiểm tra. |
@@ -41,9 +41,9 @@ Giới hạn số nguyên an toàn và regression hiện đã pass local typeche
 
 ## Benchmark hiệu năng
 
-Benchmark không phải hạng mục chấm điểm có trọng số riêng trong rubric BTC; số đo có thể hỗ trợ đánh giá chất lượng source và trải nghiệm chức năng. `db/README.md` đang lưu số đo tham chiếu cũ trên MySQL local 8.0.41 với khoảng 101.000 ledger rows/21 owner. Số này không chứng minh latency của Aiven/Vercel và chưa có harness trong repo để tái chạy cùng phép đo. Vercel adapter gắn pool lifecycle hook cho MySQL idle connection, nhưng chưa đo p50/p95, connection headroom hoặc tải triển khai.
+Benchmark không phải hạng mục chấm điểm có trọng số riêng trong rubric BTC; số đo có thể hỗ trợ đánh giá chất lượng source và trải nghiệm chức năng. `db/README.md` đang lưu số đo tham chiếu cũ trên MySQL local 8.0.41 với khoảng 101.000 ledger rows/21 owner. Số này không chứng minh latency của Aiven/Vercel. Các file benchmark hiện có trên `hiep` là SQL thô: setup chạy `USE campus_coin`, dùng ID user cố định và thêm dữ liệu vào users/wallet/ledger/savings; cleanup chỉ xóa một phần projection, còn users, ledger và savings transfers. Không chạy các file này trên DB dùng chung hoặc Aiven. Nhánh database-ingest-0.4 có runner giới hạn vào MySQL local, tạo schema tạm riêng, áp dụng migration chain của nhánh đó rồi drop schema trong `finally`; runner này chưa khớp schema/migrations `hiep` và không dùng trực tiếp trên Aiven. Chưa có runner benchmark an toàn trong `hiep`, và lượt này không chạy benchmark. Vercel adapter gắn pool lifecycle hook cho MySQL idle connection, nhưng chưa đo p50/p95, connection headroom hoặc tải triển khai.
 
-Khi có MySQL clone và runtime triển khai được xác nhận, DevB đo report/dashboard/list/payment; ghi commit, MySQL version/region, số dòng/owner synthetic, concurrency, warm-up, số lần chạy, p50/p95, query plan và connection headroom. Không dùng dữ liệu người dùng thật. Hiện trạng: cloud benchmark chưa chạy; checklist ở [handoff DevB](./working/team-handoff-2026-09-26/DEV-B-DB-AND-BENCHMARK.md).
+Khi có MySQL clone và runtime triển khai được xác nhận, DevB đo report/dashboard/list/payment bằng harness cô lập, ghi commit, MySQL version/region, số dòng/owner synthetic, concurrency, warm-up, số lần chạy, p50/p95, query plan và connection headroom. Không dùng dữ liệu người dùng thật. Hiện trạng: cloud benchmark chưa chạy; checklist ở [handoff DevB](./working/team-handoff-2026-09-26/DEV-B-DB-AND-BENCHMARK.md).
 
 ## Bằng chứng cần giữ
 

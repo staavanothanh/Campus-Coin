@@ -3426,13 +3426,34 @@
         ],
         "properties": {
           "wallet": {
-            "$ref": "#/components/schemas/Wallet"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Wallet"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "savings": {
-            "$ref": "#/components/schemas/Savings"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Savings"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "currentMonth": {
-            "$ref": "#/components/schemas/MonthlyReport"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MonthlyReport"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "recentTransactions": {
             "type": "array",
