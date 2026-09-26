@@ -15,7 +15,7 @@ export type CategoryStatus = 'active' | 'disabled' | 'retired';
 export type TransferDirection = 'deposit' | 'withdraw';
 export type IssueStatus = 'open' | 'in_triage' | 'resolved' | 'closed';
 export type IssuePriority = 'P0' | 'P1' | 'P2';
-export type Screen = 'dashboard' | 'transactions' | 'savings' | 'reports' | 'admin' | 'settings';
+export type Screen = 'dashboard' | 'transactions' | 'savings' | 'reports' | 'admin' | 'settings' | 'help';
 
 // --- Domain entities ---
 

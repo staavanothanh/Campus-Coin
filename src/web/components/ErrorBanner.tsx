@@ -16,6 +16,10 @@ const errorMessages: Record<string, { vi: string; en: string }> = {
   RATE_LIMITED: { vi: 'Quá nhiều yêu cầu, thử lại sau', en: 'Too many requests, try again later' },
   INTERNAL_ERROR: { vi: 'Lỗi hệ thống', en: 'System error' },
   INSUFFICIENT_BALANCE: { vi: 'Số dư không đủ', en: 'Insufficient balance' },
+  WALLET_NOT_INITIALIZED: { vi: 'Ví của bạn chưa được thiết lập số dư ban đầu. Vui lòng khởi tạo ví trước khi giao dịch.', en: 'Wallet has not been initialized yet. Please set your starting balance.' },
+  INSUFFICIENT_WALLET_BALANCE: { vi: 'Số dư ví khả dụng không đủ để thanh toán khoản này', en: 'Insufficient wallet balance for this payment' },
+  INSUFFICIENT_SAVINGS_BALANCE: { vi: 'Số dư tiết kiệm không đủ', en: 'Insufficient savings balance' },
+  WALLET_ALREADY_INITIALIZED: { vi: 'Ví đã được khởi tạo trước đó', en: 'Wallet already initialized' },
 };
 
 function getErrorMessage(error: ApiError | string, locale: Locale): string {

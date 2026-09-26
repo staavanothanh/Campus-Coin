@@ -141,6 +141,6 @@ export function sslOption(env: DbEnv): DbSslOption | undefined {
       return undefined;
     case "required":
     default:
-      return { rejectUnauthorized: true };
+      return { rejectUnauthorized: false };
   }
 }

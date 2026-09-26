@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Bản xem trước Campus Coin theo ý tưởng sổ thu chi của sinh viên">
+  <title>Campus Coin — Sổ tháng Chín</title>
+  <link rel="stylesheet" href="option-01-so-tay.css">
+</head>
+<body>
+  <a class="skip-link" href="#overview">Bỏ qua phần đầu trang</a>
+  <p class="preview-note">PHƯƠNG ÁN 01 · BẢN TĨNH · CHƯA KẾT NỐI API · TÊN VÀ SỐ LIỆU LÀ MINH HỌA</p>
+
+  <div class="notebook">
+    <header class="masthead">
+      <a class="brand" href="#overview" aria-label="Campus Coin — về đầu sổ">
+        <span class="coin-mark" aria-hidden="true">c</span>
+        <span class="brand-name">Campus Coin<small>SỔ THU CHI CỦA MÌNH</small></span>
+      </a>
+      <p class="date-stamp"><span>GHI NGÀY</span><time datetime="2026-09-25">25.09.2026</time></p>
+    </header>
+
+    <div class="book-layout">
+      <aside class="book-index" aria-label="Mục lục sổ tháng Chín">
+        <nav aria-label="Đi đến phần">
+          <a href="#overview" aria-current="page"><span>01</span>Đầu sổ</a>
+          <a href="#transactions"><span>02</span>Thu chi</a>
+          <a href="#saving"><span>03</span>Để dành</a>
+          <a href="#budget"><span>04</span>Ngân sách</a>
+          <a href="#report"><span>05</span>Nhìn lại</a>
+        </nav>
+        <p class="month-mark"><span>THÁNG</span><strong>09</strong><span>năm 2026</span></p>
+        <p class="student-name">Sổ của <strong>Linh Nguyễn</strong></p>
+      </aside>
+
+      <main id="overview" class="content">
+        <header class="welcome">
+          <p class="eyebrow">TRANG 09 <span aria-hidden="true">/</span> 30</p>
+          <h1>Tiền đi đâu,<br>mình nhớ được.</h1>
+          <p class="intro">Ghi từng khoản nhỏ để cuối tháng đỡ phải đoán.</p>
+        </header>
+
+        <section class="balance" aria-labelledby="balance-title">
+          <div class="balance-copy">
+            <p class="eyebrow">SỔ QUỸ · THÁNG CHÍN</p>
+            <h2 id="balance-title">Đang có trong ví</h2>
+            <p class="amount"><data value="4280000">4.280.000</data> <span>VND</span></p>
+            <p class="balance-caption">Đã ghi nhận đến ngày 25 tháng 9</p>
+          </div>
+          <p class="seal" aria-hidden="true"><span>CC</span><small>GHI LẠI<br>CHO RÕ</small></p>
+        </section>
+
+        <div class="quick-actions" role="group" aria-label="Thao tác nhanh">
+          <button type="button"><span aria-hidden="true">＋</span>Ghi khoản thu</button>
+          <button type="button"><span aria-hidden="true">−</span>Ghi khoản chi</button>
+          <button type="button"><span aria-hidden="true">↗</span>Chuyển tiết kiệm</button>
+        </div>
+
+        <div class="lower-grid">
+          <section id="transactions" class="ledger" aria-labelledby="ledger-title">
+            <header class="section-heading">
+              <div>
+                <p class="eyebrow">MỚI GHI GẦN ĐÂY</p>
+                <h2 id="ledger-title">Sổ thu chi</h2>
+              </div>
+              <p class="page-tag">TRANG 02</p>
+            </header>
+
+            <table>
+              <caption>Ba khoản ghi minh họa gần đây</caption>
+              <thead>
+                <tr><th scope="col">Ngày</th><th scope="col">Khoản ghi</th><th scope="col">Số tiền</th></tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><time datetime="2026-09-25">25.09</time></td>
+                  <td><strong>Bánh mì sau giờ học</strong><small>Ăn uống · 16:10</small></td>
+                  <td class="outgoing"><span class="visually-hidden">Chi </span>− 22.000</td>
+                </tr>
+                <tr>
+                  <td><time datetime="2026-09-24">24.09</time></td>
+                  <td><strong>Tiền nhà gửi tháng này</strong><small>Gia đình · 09:25</small></td>
+                  <td class="incoming"><span class="visually-hidden">Thu </span>+ 1.500.000</td>
+                </tr>
+                <tr>
+                  <td><time datetime="2026-09-23">23.09</time></td>
+                  <td><strong>Photo tài liệu môn học</strong><small>Học tập · 13:40</small></td>
+                  <td class="outgoing"><span class="visually-hidden">Chi </span>− 18.000</td>
+                </tr>
+              </tbody>
+            </table>
+          </section>
+
+          <aside class="margin-notes" aria-label="Ghi chú tháng này">
+            <section id="saving" class="note-section" aria-labelledby="saving-title">
+              <p class="eyebrow">MỤC TIÊU NHỎ</p>
+              <h2 id="saving-title">Để dành đi Đà Lạt</h2>
+              <p class="note-amount"><data value="900000">900.000</data> <span>/ 1.200.000 VND</span></p>
+              <label for="saving-progress">Đã để dành 75%</label>
+              <progress id="saving-progress" value="75" max="100">75%</progress>
+            </section>
+
+            <section id="budget" class="note-section" aria-labelledby="budget-title">
+              <p class="eyebrow">GHI CHÚ LỀ</p>
+              <h2 id="budget-title">Ngân sách ăn uống</h2>
+              <p class="note-amount"><data value="1260000">1.260.000</data> <span>/ 2.000.000 VND</span></p>
+              <label for="budget-progress">Đã dùng 63%</label>
+              <progress id="budget-progress" value="63" max="100">63%</progress>
+              <p class="note-copy">Còn 740.000 VND đến hết tháng.</p>
+            </section>
+
+            <section id="report" class="note-section month-summary" aria-labelledby="report-title">
+              <p class="eyebrow">NHÌN LẠI</p>
+              <h2 id="report-title">Tháng này</h2>
+              <dl>
+                <div><dt>Tiền vào</dt><dd>2.400.000 VND</dd></div>
+                <div><dt>Tiền ra</dt><dd>1.640.000 VND</dd></div>
+              </dl>
+            </section>
+          </aside>
+        </div>
+
+        <footer class="page-footer">Ghi cho dễ nhớ <span aria-hidden="true">·</span> Campus Coin</footer>
+      </main>
+    </div>
+  </div>
+</body>
+</html>

@@ -34,10 +34,17 @@ export function createAuthRouter(authService: AuthService, config: AppConfig): R
         maxAge: config.session.maxAgeMs,
         domain: config.session.domain
       });
-
-      res.redirect(302, redirectTo || '/');
+      let finalRedirectUrl = redirectTo || '/';
+      const frontendUrl = config.app.allowedOrigins[0] || 'http://127.0.0.1:5173';
+      if (finalRedirectUrl.startsWith('/')) {
+        finalRedirectUrl = frontendUrl + finalRedirectUrl;
+      }
+      
+      res.redirect(302, finalRedirectUrl);
     } catch (error) {
-      res.redirect(302, '/login?error=auth_failed');
+      console.error('OAuth Callback Error:', error);
+      const frontendUrl = config.app.allowedOrigins[0] || 'http://127.0.0.1:5173';
+      res.redirect(302, `${frontendUrl}/login?error=auth_failed`);
     }
   });
 

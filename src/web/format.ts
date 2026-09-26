@@ -44,6 +44,23 @@ export function getCurrentMonth(): string {
   return formatter.format(now).slice(0, 7);
 }
 
+/** Get current month formatted as MM/YYYY in Asia/Ho_Chi_Minh timezone. */
+export function getCurrentMonthFormatted(): string {
+  const parts = getCurrentMonth().split('-');
+  return `${parts[1]}/${parts[0]}`;
+}
+
+/** Get current date formatted in Asia/Ho_Chi_Minh timezone. */
+export function getCurrentDateFormatted(locale: Locale): string {
+  const now = new Date();
+  return new Intl.DateTimeFormat(locale === 'vi' ? 'vi-VN' : 'en-US', {
+    timeZone: 'Asia/Ho_Chi_Minh',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  }).format(now);
+}
+
 /**
  * Parse user-input amount string to positive integer VND.
  * Strips thousand separators (dot, comma, space).

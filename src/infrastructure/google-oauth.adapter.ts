@@ -79,6 +79,7 @@ class GoogleOAuthAdapter implements GoogleOAuthPort {
         picture: payload.picture
       };
     } catch (err: any) {
+      console.error('exchangeCode underlying error:', err);
       if (err.name === 'AppError') {
         throw err;
       }

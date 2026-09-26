@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <defs>
+    <radialGradient id="coinFace" cx="35%" cy="30%" r="65%">
+      <stop offset="0%" stop-color="#FFE885" />
+      <stop offset="40%" stop-color="#F5B324" />
+      <stop offset="85%" stop-color="#D97706" />
+      <stop offset="100%" stop-color="#92400E" />
+    </radialGradient>
+    <linearGradient id="coinRim" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFBEB" />
+      <stop offset="25%" stop-color="#FBBF24" />
+      <stop offset="70%" stop-color="#B45309" />
+      <stop offset="100%" stop-color="#78350F" />
+    </linearGradient>
+    <linearGradient id="coinInnerRim" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#78350F" />
+      <stop offset="100%" stop-color="#FCD34D" />
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="1.5" stdDeviation="1.2" flood-color="#000000" flood-opacity="0.3" />
+    </filter>
+  </defs>
+
+  <!-- Outer drop shadow & Coin Rim -->
+  <circle cx="16" cy="16" r="14.5" fill="url(#coinRim)" filter="url(#glow)" />
+  
+  <!-- Outer Bevel Edge -->
+  <circle cx="16" cy="16" r="13.2" fill="url(#coinFace)" />
+  
+  <!-- Milling Dots / Grooves Ring -->
+  <circle cx="16" cy="16" r="11" fill="none" stroke="#FEF3C7" stroke-width="1.1" stroke-dasharray="1.8 1.4" opacity="0.8" />
+  
+  <!-- Recessed Center Circle -->
+  <circle cx="16" cy="16" r="9.2" fill="url(#coinFace)" stroke="url(#coinInnerRim)" stroke-width="0.8" />
+
+  <!-- Stylized Currency Emblem: "C" for Campus Coin with coin lines -->
+  <!-- Shadow of C -->
+  <path d="M19.2 11.2 C18 10 16.5 9.4 14.8 9.4 C11.5 9.4 9 12.1 9 16 C9 19.9 11.5 22.6 14.8 22.6 C16.5 22.6 18 22 19.2 20.8" fill="none" stroke="#78350F" stroke-width="2.8" stroke-linecap="round" />
+  <!-- Highlight of C -->
+  <path d="M19 11 C17.8 9.8 16.3 9.2 14.6 9.2 C11.3 9.2 8.8 11.9 8.8 15.8 C8.8 19.7 11.3 22.4 14.6 22.4 C16.3 22.4 17.8 21.8 19 20.6" fill="none" stroke="#FFFBEB" stroke-width="2.2" stroke-linecap="round" />
+  
+  <!-- Horizontal central bar across C like a coin currency sign (similar to Euro/Cent/Pound) -->
+  <line x1="8" y1="15.8" x2="16.5" y2="15.8" stroke="#78350F" stroke-width="2.4" stroke-linecap="round" />
+  <line x1="8" y1="15.2" x2="16.5" y2="15.2" stroke="#FFFBEB" stroke-width="1.8" stroke-linecap="round" />
+</svg>

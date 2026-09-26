@@ -21,7 +21,7 @@
     "test:mysql:required": "cross-env CAMPUS_COIN_TEST_DB=1 node --import tsx --test \"test/**/*.test.ts\"",
     "test:web": "vitest run src/web",
     "dev": "vite --host 127.0.0.1",
-    "dev:api": "tsx watch src/app/server.ts",
+    "dev:api": "tsx watch --env-file=.env src/app/server.ts",
     "dev:web": "vite --host 127.0.0.1",
     "build": "tsc",
     "build:web": "vite build",

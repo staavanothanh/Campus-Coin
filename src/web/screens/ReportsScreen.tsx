@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { apiGet } from '../api-client.js';
 import type { MonthlyReport, Budget, Locale, CategoryTotal } from '../types.js';
 import type { Copy } from '../i18n.js';
@@ -6,7 +6,18 @@ import { formatVnd, getCurrentMonth } from '../format.js';
 import { MonthPicker } from '../components/MonthPicker.js';
 import { ErrorBanner } from '../components/ErrorBanner.js';
 import { BudgetForm } from '../components/BudgetForm.js';
-import { Edit2, AlertTriangle } from 'lucide-react';
+import {
+  Edit2,
+  AlertTriangle,
+  PieChart as PieIcon,
+  BarChart3,
+  TrendingUp,
+  TrendingDown,
+  Wallet,
+  Sparkles,
+  Calendar,
+  CheckCircle2
+} from 'lucide-react';
 
 interface ReportsScreenProps {
   csrfToken: string;
@@ -15,15 +26,16 @@ interface ReportsScreenProps {
 }
 
 export function ReportsScreen({ csrfToken, t, locale }: ReportsScreenProps) {
+  const isVi = locale === 'vi';
   const [month, setMonth] = useState<string>(getCurrentMonth());
   const [report, setReport] = useState<MonthlyReport | null>(null);
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
-  
-  const [editBudgetCategory, setEditBudgetCategory] = useState<{ id: string, limit: number | null } | null>(null);
 
-  const loadData = async (targetMonth: string) => {
+  const [editBudgetCategory, setEditBudgetCategory] = useState<{ id: string; limit: number | null } | null>(null);
+
+  const loadData = useCallback(async (targetMonth: string) => {
     setLoading(true);
     setError(null);
     try {
@@ -38,110 +50,174 @@ export function ReportsScreen({ csrfToken, t, locale }: ReportsScreenProps) {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     void loadData(month);
-  }, [month]);
+  }, [month, loadData]);
 
   const handleBudgetSuccess = () => {
     void loadData(month);
   };
 
-  const hasData = report && (report.totalIncomeVnd > 0 || report.totalPaymentVnd > 0 || report.categoryBreakdown.length > 0);
-  
-  // Calculate max values for bar chart
-  const maxBarValue = report ? Math.max(report.totalIncomeVnd, report.totalPaymentVnd) : 0;
-  const incomePct = maxBarValue > 0 ? (report!.totalIncomeVnd / maxBarValue) * 100 : 0;
-  const paymentPct = maxBarValue > 0 ? (report!.totalPaymentVnd / maxBarValue) * 100 : 0;
+  const hasData =
+    report &&
+    (report.totalIncomeVnd > 0 ||
+      report.totalPaymentVnd > 0 ||
+      report.categoryBreakdown.length > 0);
+
+  const maxBarValue = report
+    ? Math.max(report.totalIncomeVnd, report.totalPaymentVnd, 1)
+    : 1;
+  const incomePct = report ? (report.totalIncomeVnd / maxBarValue) * 100 : 0;
+  const paymentPct = report ? (report.totalPaymentVnd / maxBarValue) * 100 : 0;
+  const netSavings = report ? report.totalIncomeVnd - report.totalPaymentVnd : 0;
 
   // Process category breakdown for pie chart
-  let pieSegments: Array<{ category: CategoryTotal, dashArray: string, dashOffset: string, color: string }> = [];
-  const colors = ['#10b981', '#f59e0b', '#3b82f6', '#8b5cf6', '#ec4899', '#f43f5e', '#14b8a6', '#6366f1'];
-  
+  let pieSegments: Array<{
+    category: CategoryTotal;
+    percentage: number;
+    dashArray: string;
+    dashOffset: string;
+    color: string;
+  }> = [];
+  const palette = ['#36856e', '#f59e0b', '#f0b15b', '#3b82f6', '#8b5cf6', '#ec4899', '#14b8a6', '#f43f5e'];
+
   if (report && report.categoryBreakdown.length > 0) {
-    const totalBreakdown = report.categoryBreakdown.reduce((sum, cat) => sum + cat.amountVnd, 0);
+    const totalBreakdown = report.categoryBreakdown.reduce((sum, cat) => sum + cat.amountVnd, 0) || 1;
     let currentOffset = 0;
-    
-    // Sort by amount descending
     const sortedCategories = [...report.categoryBreakdown].sort((a, b) => b.amountVnd - a.amountVnd);
-    
+
     pieSegments = sortedCategories.map((cat, index) => {
-      // Circumference of circle with r=15.9155 is 100
-      const percentage = (cat.amountVnd / totalBreakdown) * 100;
-      const dashArray = `${percentage} ${100 - percentage}`;
-      const dashOffset = `${100 - currentOffset + 25}`; // +25 to start at top
-      currentOffset += percentage;
-      
+      const pct = (cat.amountVnd / totalBreakdown) * 100;
+      const dashArray = `${pct} ${100 - pct}`;
+      const dashOffset = `${100 - currentOffset + 25}`;
+      currentOffset += pct;
+
       return {
         category: cat,
+        percentage: Math.round(pct),
         dashArray,
         dashOffset,
-        color: colors[index % colors.length]!
+        color: palette[index % palette.length]!
       };
     });
   }
 
-  const getBudgetForCategory = (categoryId: string) => budgets.find(b => b.categoryId === categoryId);
+  const getBudgetForCategory = (categoryId: string) =>
+    budgets.find(b => b.categoryId === categoryId);
 
   return (
-    <div className="dashboard-grid">
-      <section className="panel" style={{ gridColumn: '1 / -1' }}>
-        <div className="panel-heading">
+    <div className="reports-page">
+      {/* Top Header Card */}
+      <div className="reports-header-panel panel">
+        <div className="reports-header-title">
           <h2>{t.reports}</h2>
-          <MonthPicker month={month} onChange={setMonth} locale={locale} />
+          <p className="muted">
+            {isVi
+              ? 'Phân tích chi tiết thu chi và theo dõi ngân sách theo tháng'
+              : 'Detailed cash flow breakdown and monthly budget tracking'}
+          </p>
         </div>
 
-        <ErrorBanner error={error?.message ?? null} locale={locale} />
+        <div className="reports-header-controls">
+          <MonthPicker month={month} onChange={setMonth} locale={locale} />
+        </div>
+      </div>
 
-        {loading ? (
-          <div className="status-panel" role="status">{t.loading}</div>
-        ) : !hasData ? (
-          <div className="empty-state">{t.noData}</div>
-        ) : (
-          <div className="reports-layout">
-            
+      <ErrorBanner error={error?.message ?? null} locale={locale} />
+
+      {loading ? (
+        <div className="status-panel" role="status">
+          <div className="table-loading-bar">
+            <span>{t.loading}</span>
+          </div>
+        </div>
+      ) : !hasData ? (
+        <div className="empty-state panel">
+          <Calendar size={32} style={{ margin: '0 auto 10px', opacity: 0.5 }} />
+          <p>{t.noData}</p>
+        </div>
+      ) : (
+        <div className="reports-content-grid">
+          {/* KPI Summary Cards */}
+          <div className="reports-kpi-grid">
+            <div className="kpi-card mint">
+              <div className="kpi-icon"><TrendingUp size={20} /></div>
+              <div className="kpi-details">
+                <span className="kpi-label">{t.income}</span>
+                <strong>+{formatVnd(report.totalIncomeVnd, locale)}</strong>
+              </div>
+            </div>
+
+            <div className="kpi-card coral">
+              <div className="kpi-icon"><TrendingDown size={20} /></div>
+              <div className="kpi-details">
+                <span className="kpi-label">{t.spending}</span>
+                <strong>-{formatVnd(report.totalPaymentVnd, locale)}</strong>
+              </div>
+            </div>
+
+            <div className="kpi-card amber">
+              <div className="kpi-icon"><Wallet size={20} /></div>
+              <div className="kpi-details">
+                <span className="kpi-label">{isVi ? 'Thặng dư tháng' : 'Net Savings'}</span>
+                <strong className={netSavings >= 0 ? 'positive' : 'negative'}>
+                  {netSavings >= 0 ? '+' : ''}{formatVnd(netSavings, locale)}
+                </strong>
+              </div>
+            </div>
+          </div>
+
+          {/* Charts Row */}
+          <div className="reports-charts-row">
             {/* Overview Bar Chart */}
-            <div className="report-section">
-              <h3>{locale === 'vi' ? 'Tổng quan thu chi' : 'Income vs Payment Overview'}</h3>
-              <div className="bar-chart-container" aria-hidden="true">
-                <div className="bar-row">
-                  <span className="bar-label">{t.income}</span>
-                  <div className="bar-track">
-                    <div className="bar-fill mint" style={{ width: `${incomePct}%` }}></div>
-                  </div>
-                  <span className="bar-value">{formatVnd(report.totalIncomeVnd, locale)}</span>
-                </div>
-                <div className="bar-row">
-                  <span className="bar-label">{t.spending}</span>
-                  <div className="bar-track">
-                    <div className="bar-fill coral" style={{ width: `${paymentPct}%` }}></div>
-                  </div>
-                  <span className="bar-value">{formatVnd(report.totalPaymentVnd, locale)}</span>
+            <div className="chart-card panel">
+              <div className="chart-card-header">
+                <div className="chart-header-icon mint"><BarChart3 size={18} /></div>
+                <div>
+                  <h3>{isVi ? 'Tương quan Thu - Chi' : 'Income vs Payment Overview'}</h3>
+                  <p className="muted">{isVi ? 'So sánh dòng tiền trong tháng' : 'Monthly cash flow comparison'}</p>
                 </div>
               </div>
-              
-              {/* Screen reader table equivalent */}
-              <table className="visually-hidden">
-                <caption>{locale === 'vi' ? 'Dữ liệu tổng quan thu chi' : 'Income vs Payment Data'}</caption>
-                <thead>
-                  <tr><th>Loại</th><th>Số tiền</th></tr>
-                </thead>
-                <tbody>
-                  <tr><td>{t.income}</td><td>{formatVnd(report.totalIncomeVnd, locale)}</td></tr>
-                  <tr><td>{t.spending}</td><td>{formatVnd(report.totalPaymentVnd, locale)}</td></tr>
-                </tbody>
-              </table>
+
+              <div className="bar-chart-container" aria-hidden="true">
+                <div className="bar-row">
+                  <div className="bar-info">
+                    <span className="bar-label">{t.income}</span>
+                    <strong className="bar-val positive">+{formatVnd(report.totalIncomeVnd, locale)}</strong>
+                  </div>
+                  <div className="bar-track">
+                    <div className="bar-fill mint" style={{ width: `${Math.max(incomePct, 2)}%` }} />
+                  </div>
+                </div>
+
+                <div className="bar-row">
+                  <div className="bar-info">
+                    <span className="bar-label">{t.spending}</span>
+                    <strong className="bar-val negative">-{formatVnd(report.totalPaymentVnd, locale)}</strong>
+                  </div>
+                  <div className="bar-track">
+                    <div className="bar-fill coral" style={{ width: `${Math.max(paymentPct, 2)}%` }} />
+                  </div>
+                </div>
+              </div>
             </div>
 
             {/* Category Breakdown Pie Chart */}
-            <div className="report-section">
-              <h3>{locale === 'vi' ? 'Cơ cấu chi tiêu' : 'Spending Breakdown'}</h3>
-              
+            <div className="chart-card panel">
+              <div className="chart-card-header">
+                <div className="chart-header-icon amber"><PieIcon size={18} /></div>
+                <div>
+                  <h3>{isVi ? 'Cơ cấu chi tiêu' : 'Spending Breakdown'}</h3>
+                  <p className="muted">{isVi ? 'Tỷ trọng chi tiêu theo từng danh mục' : 'Expense distribution by category'}</p>
+                </div>
+              </div>
+
               <div className="pie-chart-layout">
                 <div className="pie-chart-container" aria-hidden="true">
                   <svg viewBox="0 0 32 32" className="pie-chart">
-                    {pieSegments.map((segment) => (
+                    {pieSegments.map(segment => (
                       <circle
                         key={segment.category.categoryId}
                         r="15.9155"
@@ -156,92 +232,119 @@ export function ReportsScreen({ csrfToken, t, locale }: ReportsScreenProps) {
                     ))}
                   </svg>
                 </div>
-                
+
                 <div className="pie-legend">
-                  {pieSegments.map((segment) => (
+                  {pieSegments.map(segment => (
                     <div key={segment.category.categoryId} className="legend-item">
-                      <span className="legend-color" style={{ backgroundColor: segment.color }}></span>
-                      <span className="legend-label">{segment.category.categoryId}</span>
-                      <span className="legend-value">{formatVnd(segment.category.amountVnd, locale)}</span>
+                      <span className="legend-color" style={{ backgroundColor: segment.color }} />
+                      <div className="legend-texts">
+                        <div className="legend-name-row">
+                          <span className="legend-label">{segment.category.categoryId}</span>
+                          <span className="legend-pct">{segment.percentage}%</span>
+                        </div>
+                        <span className="legend-value">{formatVnd(segment.category.amountVnd, locale)}</span>
+                      </div>
                     </div>
                   ))}
                 </div>
               </div>
-              
-              {/* Screen reader table equivalent */}
-              <table className="visually-hidden">
-                <caption>{locale === 'vi' ? 'Dữ liệu cơ cấu chi tiêu' : 'Spending Breakdown Data'}</caption>
-                <thead>
-                  <tr><th>Danh mục</th><th>Số tiền</th></tr>
-                </thead>
-                <tbody>
-                  {report.categoryBreakdown.map(cat => (
-                    <tr key={cat.categoryId}>
-                      <td>{cat.categoryId}</td>
-                      <td>{formatVnd(cat.amountVnd, locale)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
             </div>
+          </div>
 
-            {/* Budgets Table */}
-            <div className="report-section" style={{ gridColumn: '1 / -1', marginTop: 'var(--space-6)' }}>
-              <h3>{t.budget}</h3>
-              <div className="table-responsive">
-                <table className="data-table">
-                  <thead>
-                    <tr>
-                      <th scope="col">Danh mục</th>
-                      <th scope="col" className="text-right">Đã chi</th>
-                      <th scope="col" className="text-right">Ngân sách</th>
-                      <th scope="col">Trạng thái</th>
-                      <th scope="col" className="text-center">Hành động</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {report.categoryBreakdown.map(cat => {
-                      const budget = getBudgetForCategory(cat.categoryId);
-                      const isOverrun = budget?.isOverrun;
-                      
-                      return (
-                        <tr key={cat.categoryId}>
-                          <td>{cat.categoryId}</td>
-                          <td className="text-right">{formatVnd(cat.amountVnd, locale)}</td>
-                          <td className="text-right">
-                            {budget ? formatVnd(budget.limitVnd, locale) : <span className="muted">—</span>}
-                          </td>
-                          <td>
-                            {isOverrun ? (
-                              <span className="badge warning">
-                                <AlertTriangle size={12} /> {locale === 'vi' ? 'Vượt mức' : 'Exceeded'}
-                              </span>
-                            ) : budget ? (
-                              <span className="badge success">{locale === 'vi' ? 'Trong mức' : 'On track'}</span>
-                            ) : (
-                              <span className="muted">—</span>
-                            )}
-                          </td>
-                          <td className="text-center">
-                            <button 
-                              className="icon-button" 
-                              onClick={() => setEditBudgetCategory({ id: cat.categoryId, limit: budget?.limitVnd ?? null })}
-                              aria-label={locale === 'vi' ? `Thiết lập ngân sách cho ${cat.categoryId}` : `Set budget for ${cat.categoryId}`}
-                            >
-                              <Edit2 size={16} />
-                            </button>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+          {/* Budgets Table */}
+          <div className="reports-budgets-card panel">
+            <div className="panel-heading">
+              <div>
+                <h3>{t.budget}</h3>
+                <p className="muted">{isVi ? 'Theo dõi hạn mức ngân sách từng danh mục' : 'Category monthly spending limits'}</p>
               </div>
             </div>
 
+            <div className="table-responsive">
+              <table className="modern-data-table">
+                <thead>
+                  <tr>
+                    <th scope="col">{isVi ? 'Danh mục' : 'Category'}</th>
+                    <th scope="col" className="text-right">{isVi ? 'Đã chi' : 'Spent'}</th>
+                    <th scope="col" className="text-right">{isVi ? 'Hạn mức ngân sách' : 'Budget Limit'}</th>
+                    <th scope="col">{isVi ? 'Tiến độ' : 'Progress'}</th>
+                    <th scope="col">{isVi ? 'Trạng thái' : 'Status'}</th>
+                    <th scope="col" className="text-center">{isVi ? 'Thiết lập' : 'Action'}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {report.categoryBreakdown.map(cat => {
+                    const budget = getBudgetForCategory(cat.categoryId);
+                    const isOverrun = budget?.isOverrun;
+                    const usedPct = budget && budget.limitVnd > 0
+                      ? Math.min(Math.round((cat.amountVnd / budget.limitVnd) * 100), 100)
+                      : 0;
+
+                    return (
+                      <tr key={cat.categoryId} className="transaction-table-row">
+                        <td>
+                          <strong className="tx-category-tag">{cat.categoryId}</strong>
+                        </td>
+                        <td className="text-right">
+                          <strong className="negative">-{formatVnd(cat.amountVnd, locale)}</strong>
+                        </td>
+                        <td className="text-right">
+                          {budget ? formatVnd(budget.limitVnd, locale) : <span className="muted">—</span>}
+                        </td>
+                        <td>
+                          {budget ? (
+                            <div className="budget-bar-cell">
+                              <div className="budget-bar-track">
+                                <div
+                                  className={`budget-bar-fill ${isOverrun ? 'overrun' : 'ok'}`}
+                                  style={{ width: `${usedPct}%` }}
+                                />
+                              </div>
+                              <span className="budget-bar-pct">{usedPct}%</span>
+                            </div>
+                          ) : (
+                            <span className="muted">{isVi ? 'Chưa đặt hạn mức' : 'No limit'}</span>
+                          )}
+                        </td>
+                        <td>
+                          {isOverrun ? (
+                            <span className="status-badge warning">
+                              <AlertTriangle size={12} />
+                              <span>{isVi ? 'Vượt mức' : 'Exceeded'}</span>
+                            </span>
+                          ) : budget ? (
+                            <span className="status-badge success">
+                              <CheckCircle2 size={12} />
+                              <span>{isVi ? 'Trong mức' : 'On track'}</span>
+                            </span>
+                          ) : (
+                            <span className="muted">—</span>
+                          )}
+                        </td>
+                        <td className="text-center">
+                          <button
+                            type="button"
+                            className="icon-button edit-budget-btn"
+                            onClick={() =>
+                              setEditBudgetCategory({
+                                id: cat.categoryId,
+                                limit: budget?.limitVnd ?? null,
+                              })
+                            }
+                            title={isVi ? `Sửa ngân sách ${cat.categoryId}` : `Edit budget for ${cat.categoryId}`}
+                          >
+                            <Edit2 size={15} />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
-        )}
-      </section>
+        </div>
+      )}
 
       {editBudgetCategory && (
         <BudgetForm

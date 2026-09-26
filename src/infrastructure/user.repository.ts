@@ -69,23 +69,21 @@ class MysqlUserRepository implements UserRepository {
           updatedAt: new Date()
         };
       } else {
-        const userId = generateUUID();
-        const identityId = generateUUID();
-        
         const insertUserQuery = `
-          INSERT INTO users (id, display_name, email, role, status, locale, timezone, created_at, updated_at)
-          VALUES (?, ?, ?, 'user', 'active', 'vi', 'Asia/Ho_Chi_Minh', NOW(), NOW())
+          INSERT INTO users (display_name, email, role, status, locale, timezone, created_at, updated_at)
+          VALUES (?, ?, 'user', 'active', 'vi', 'Asia/Ho_Chi_Minh', NOW(), NOW())
         `;
-        await conn.execute(insertUserQuery, [userId, info.name, info.email]);
+        const [userResult] = await conn.execute(insertUserQuery, [info.name, info.email]);
+        const userIdStr = (userResult as any).insertId.toString();
         
         const insertIdentityQuery = `
-          INSERT INTO auth_identities (id, user_id, provider, subject, created_at)
-          VALUES (?, ?, 'google', ?, NOW())
+          INSERT INTO auth_identities (user_id, provider, subject, created_at)
+          VALUES (?, 'google', ?, NOW())
         `;
-        await conn.execute(insertIdentityQuery, [identityId, userId, info.sub]);
+        await conn.execute(insertIdentityQuery, [userIdStr, info.sub]);
         
         user = {
-          id: userId,
+          id: userIdStr,
           displayName: info.name,
           email: info.email,
           role: 'user',

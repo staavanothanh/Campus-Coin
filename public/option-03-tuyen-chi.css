@@ -1,0 +1,254 @@
+:root {
+  --ink: #263630;
+  --green: #214c3d;
+  --paper: #fbf8ef;
+  --page: #f3eee2;
+  --line: #d8d0bd;
+  --muted: #58665e;
+  --clay: #a74d31;
+  --ochre: #8b6826;
+  color: var(--ink);
+  background: var(--page);
+  font: 16px "Segoe UI", Arial, sans-serif;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { margin: 0; padding: 0 24px 32px; }
+a { color: inherit; text-underline-offset: 4px; }
+a:focus-visible { outline: 3px solid var(--clay); outline-offset: 4px; }
+
+.skip-link {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 2;
+  padding: 10px 14px;
+  transform: translateY(-150%);
+  background: #fff;
+  color: var(--ink);
+}
+.skip-link:focus { transform: translateY(0); }
+
+/* Preview heading and dark green navigation */
+.sample-note {
+  max-width: 1160px;
+  margin: 0 auto;
+  padding: 10px 0;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .12em;
+}
+.topbar {
+  max-width: 1160px;
+  min-height: 76px;
+  margin: 0 auto;
+  padding: 12px 24px;
+  display: flex;
+  align-items: center;
+  gap: 32px;
+  background: var(--green);
+  color: #fffdf5;
+}
+.brand { display: flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; }
+.brand-mark {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #dbc98e;
+  border-radius: 50%;
+  color: #f0dca1;
+  font: 15px Georgia, serif;
+  letter-spacing: -.08em;
+}
+.brand-name { font-size: 12px; font-weight: 800; letter-spacing: .12em; white-space: nowrap; }
+.brand-name small { display: block; margin-top: 4px; color: #d6e0d6; font-size: 10px; font-weight: 400; letter-spacing: .08em; }
+.main-nav { flex: 1; display: flex; align-items: center; gap: 22px; }
+.main-nav a { padding: 8px 0; color: #e5e9df; font-size: 13px; text-decoration: none; white-space: nowrap; }
+.main-nav a.current { color: #f3d78f; border-bottom: 2px solid #f3d78f; }
+.profile-name { margin: 0; display: flex; align-items: center; gap: 9px; font-size: 12px; white-space: nowrap; }
+.profile-name span { width: 30px; height: 30px; display: grid; place-items: center; border: 1px solid #9fb3a4; border-radius: 50%; color: #f3d78f; font: 14px Georgia, serif; }
+
+/* Paper page with a notebook margin */
+.page {
+  position: relative;
+  max-width: 1160px;
+  margin: 0 auto;
+  padding: 36px 48px 24px;
+  border: 1px solid #e0d8c8;
+  border-top: 0;
+  background: var(--paper);
+  box-shadow: 0 15px 40px #26363012;
+}
+.page::before { position: absolute; top: 0; bottom: 0; left: 31px; border-left: 1px solid #e7c9b9; content: ""; }
+.intro { min-height: 190px; padding-bottom: 28px; display: flex; justify-content: space-between; align-items: end; gap: 24px; }
+.eyebrow { margin: 0; color: var(--green); font-size: 11px; font-weight: 700; letter-spacing: .12em; }
+.route-dot { width: 9px; height: 9px; display: inline-block; margin-right: 7px; border: 2px solid var(--clay); border-radius: 50%; }
+.intro h1 { margin: 12px 0 9px; color: var(--green); font: 400 clamp(38px, 5vw, 54px)/1.02 Georgia, "Times New Roman", serif; letter-spacing: -.045em; }
+.intro-copy > p:last-child { max-width: 480px; margin: 0; color: var(--muted); font-size: 15px; line-height: 1.6; }
+.date-slip { min-width: 160px; padding: 8px 0 9px 16px; border-left: 1px dashed #a9aa91; color: var(--muted); }
+.date-slip span, .date-slip small { display: block; font-size: 10px; letter-spacing: .1em; }
+.date-slip strong { display: block; margin: 3px 0; color: var(--green); font: 400 34px/1 Georgia, serif; }
+
+/* Main route and the canteen budget stop */
+.dashboard { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(260px, .72fr); align-items: start; gap: 22px; }
+.route-sheet, .budget-stop, .receipts { min-width: 0; border: 1px solid var(--line); background: #fffdf8; }
+.route-sheet { padding: 22px 24px 18px; }
+.sheet-heading, .aside-heading { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.sheet-heading .eyebrow span { margin-left: 5px; color: var(--clay); }
+.sheet-code { margin: 0; color: var(--muted); font-size: 11px; letter-spacing: .08em; }
+.balance-ticket { position: relative; min-height: 158px; margin: 16px 0 22px; padding: 22px 25px; display: flex; justify-content: space-between; align-items: center; gap: 16px; background: var(--green); color: #fffdf5; }
+.balance-ticket::before, .balance-ticket::after { position: absolute; top: calc(50% - 10px); width: 20px; height: 20px; border-radius: 50%; background: #fffdf8; content: ""; }
+.balance-ticket::before { left: -11px; }
+.balance-ticket::after { right: -11px; }
+.ticket-label { margin: 0 0 7px; color: #d8e2d8; font-size: 13px; font-weight: 400; }
+.balance-amount { margin: 0; display: flex; align-items: baseline; gap: 8px; }
+.balance-amount strong { font: 400 clamp(31px, 4vw, 44px) Georgia, serif; letter-spacing: -.04em; }
+.balance-amount span { color: #d8e2d8; font-size: 11px; letter-spacing: .1em; }
+.ticket-caption { margin: 7px 0 0; color: #d8e2d8; font-size: 12px; }
+.coin-stamp { width: 76px; height: 76px; flex: 0 0 auto; display: grid; align-content: center; justify-items: center; border: 1px dashed #e0cf92; border-radius: 50%; color: #f0dca1; transform: rotate(7deg); }
+.coin-stamp span { font: 22px Georgia, serif; letter-spacing: -.08em; }
+.coin-stamp small { margin-top: 2px; font-size: 8px; line-height: 1.25; text-align: center; letter-spacing: .08em; }
+
+.subheading-row, .section-heading { display: flex; justify-content: space-between; align-items: end; gap: 12px; }
+.subheading-row h2, .section-heading h2, .budget-stop h2, .month-note h2 { margin: 0; color: var(--green); font: 400 24px Georgia, "Times New Roman", serif; }
+.subheading-row h2 { font-size: 21px; }
+.subheading-row > span { color: var(--muted); font-size: 10px; letter-spacing: .1em; }
+.route-stops { position: relative; margin: 20px 0 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); list-style: none; }
+.route-stops::before { position: absolute; top: 11px; right: 13%; left: 8%; border-top: 2px dashed #c7bfae; content: ""; }
+.stop { position: relative; z-index: 1; min-width: 0; padding: 0 8px; }
+.stop:first-child { padding-left: 0; }
+.stop:last-child { padding-right: 0; }
+.stop-marker { width: 23px; height: 23px; display: grid; place-items: center; border: 3px solid #fffdf8; border-radius: 50%; color: #fff; font-size: 15px; line-height: 1; }
+.stop-income .stop-marker { background: var(--green); }
+.stop-spend .stop-marker { background: var(--clay); }
+.stop-save .stop-marker { background: var(--ochre); }
+.stop-name, .stop small { display: block; color: var(--muted); font-size: 11px; letter-spacing: .07em; }
+.stop div { padding-top: 8px; }
+.stop strong { display: block; margin: 5px 0 2px; color: var(--ink); font: 400 clamp(15px, 2vw, 20px) Georgia, serif; white-space: nowrap; }
+.stop small { font-size: 12px; letter-spacing: 0; }
+.quick-notes { margin-top: 22px; padding-top: 14px; border-top: 1px solid #e4dfd2; }
+.quick-notes h2 { margin: 0 0 10px; color: var(--muted); font-size: 12px; font-weight: 600; }
+.quick-notes ul { margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; list-style: none; }
+.quick-notes li { min-height: 40px; padding: 8px 10px; display: flex; align-items: center; gap: 8px; border: 1px solid #cbd5ca; background: #f7f7ef; color: var(--green); font-size: 12px; }
+.quick-notes li span { color: var(--clay); font: 18px Georgia, serif; }
+
+.budget-stop { padding: 22px; overflow: hidden; border-top: 4px solid var(--clay); }
+.stop-number { color: var(--clay); font: 21px Georgia, serif; }
+.location-mark { width: 34px; height: 34px; margin-top: 24px; display: grid; place-items: center; border: 1px solid #cfb2a2; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); }
+.location-mark span { width: 9px; height: 9px; border-radius: 50%; background: var(--clay); }
+.location-label { margin: 13px 0 5px; color: var(--muted); font-size: 10px; letter-spacing: .09em; }
+.budget-stop h2 { font-size: 30px; }
+.budget-caption { margin: 5px 0 19px; color: var(--muted); font-size: 13px; }
+.budget-amount { margin: 0; color: var(--green); }
+.budget-amount strong { font: 400 25px Georgia, serif; letter-spacing: -.03em; }
+.budget-amount span { display: block; margin-top: 3px; color: var(--muted); font-size: 12px; }
+.budget-stop progress { width: 100%; height: 10px; margin-top: 16px; display: block; border: 0; border-radius: 0; background: #e5e5da; accent-color: var(--clay); }
+.budget-stop progress::-webkit-progress-bar { background: #e5e5da; }
+.budget-stop progress::-webkit-progress-value { background: var(--clay); }
+.budget-stop progress::-moz-progress-bar { background: var(--clay); }
+.progress-caption { margin: 8px 0 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+.progress-caption strong { color: var(--green); }
+.margin-note { margin-top: 22px; padding: 12px 13px; border-left: 3px solid var(--ochre); background: #f4efdf; }
+.margin-note span { color: #6b511c; font-size: 10px; font-weight: 700; letter-spacing: .09em; }
+.margin-note p { margin: 6px 0 0; color: #424c43; font: italic 14px/1.45 Georgia, serif; }
+.report-link { margin-top: 18px; display: inline-flex; align-items: center; gap: 8px; color: var(--green); font-size: 13px; font-weight: 600; }
+
+/* Recent entries look like the receipts tucked into a student notebook */
+.receipts { margin-top: 24px; padding: 19px 22px 8px; }
+.section-heading h2 { margin-top: 5px; font-size: 27px; }
+.section-heading > p { margin: 0 0 4px; color: var(--muted); font-size: 10px; letter-spacing: .1em; }
+.section-heading > p span { margin-left: 5px; color: var(--clay); }
+.receipt-list { margin: 14px 0 0; padding: 0; list-style: none; }
+.receipt-list li { min-height: 62px; display: grid; grid-template-columns: 28px 52px minmax(0, 1fr) 145px; align-items: center; gap: 10px; border-top: 1px solid #e6e1d6; }
+.receipt-mark { width: 24px; height: 24px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 50%; background: #fffdf8; font: 16px Georgia, serif; }
+.spend-mark, .amount-spent { color: var(--clay); }
+.income-mark, .amount-received { color: var(--green); }
+.receipt-list time { color: var(--muted); font: 13px Georgia, serif; }
+.receipt-detail strong, .receipt-detail small { display: block; }
+.receipt-detail strong { color: var(--ink); font-size: 14px; font-weight: 600; }
+.receipt-detail small { margin-top: 3px; color: var(--muted); font-size: 12px; }
+.receipt-list li > strong { text-align: right; font: 400 16px Georgia, serif; white-space: nowrap; }
+.receipt-list li > strong span { font: 10px "Segoe UI", Arial, sans-serif; }
+.month-note { margin-top: 22px; padding: 18px 21px; display: grid; grid-template-columns: minmax(140px, .7fr) minmax(0, 1.5fr); gap: 0 20px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); background: #f6f2e6; }
+.month-note .eyebrow { grid-row: span 2; align-self: center; }
+.month-note h2 { font-size: 20px; }
+.month-note > p:last-child { margin: 5px 0 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
+.page-footer { padding-top: 18px; display: flex; justify-content: space-between; align-items: center; gap: 12px; color: var(--muted); font-size: 10px; letter-spacing: .1em; }
+.page-footer span:first-child { color: var(--green); font-weight: 700; }
+
+@media (max-width: 850px) {
+  body { padding: 0 12px 24px; }
+  .topbar { flex-wrap: wrap; gap: 12px 22px; }
+  .main-nav { order: 3; flex-basis: 100%; gap: 20px; overflow-x: auto; }
+  .profile-name { margin-left: auto; }
+  .page { padding: 30px 32px 22px; }
+  .page::before { left: 20px; }
+  .dashboard { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 560px) {
+  body { padding: 0 8px 16px; }
+  .sample-note { padding: 9px 2px; font-size: 10px; letter-spacing: .08em; }
+  .topbar { padding: 12px; }
+  .main-nav { gap: 18px; }
+  .main-nav a { font-size: 12px; }
+  .page { padding: 26px 16px 18px; }
+  .page::before { display: none; }
+  .intro { min-height: 0; padding-bottom: 22px; align-items: start; gap: 12px; }
+  .intro h1 { font-size: 39px; }
+  .intro-copy > p:last-child { font-size: 14px; }
+  .date-slip { min-width: 88px; padding-left: 10px; }
+  .date-slip strong { font-size: 29px; }
+  .date-slip small { font-size: 9px; line-height: 1.4; }
+  .route-sheet { padding: 16px 14px 14px; }
+  .sheet-heading { align-items: start; }
+  .sheet-heading .eyebrow, .sheet-code { font-size: 10px; }
+  .balance-ticket { min-height: 138px; padding: 18px 15px; }
+  .balance-amount strong { font-size: 31px; }
+  .ticket-caption { max-width: 220px; font-size: 11px; line-height: 1.4; }
+  .coin-stamp { width: 58px; height: 58px; }
+  .coin-stamp span { font-size: 18px; }
+  .coin-stamp small { font-size: 7px; }
+  .subheading-row h2 { font-size: 19px; }
+  .subheading-row > span { font-size: 9px; }
+  .route-stops { margin-top: 16px; grid-template-columns: 1fr; gap: 14px; }
+  .route-stops::before { top: 10px; right: auto; bottom: 15px; left: 10px; border: 0; border-left: 2px dashed #c7bfae; }
+  .stop, .stop:first-child, .stop:last-child { padding: 0; display: flex; align-items: flex-start; gap: 10px; }
+  .stop-marker { flex: 0 0 auto; }
+  .stop div { padding-top: 0; }
+  .stop strong { margin: 3px 0 1px; font-size: 18px; }
+  .quick-notes ul { display: grid; grid-template-columns: 1fr; }
+  .quick-notes li { min-height: 42px; }
+  .budget-stop { padding: 17px 16px; }
+  .location-mark { margin-top: 21px; }
+  .margin-note { margin-top: 18px; }
+  .receipts { padding: 16px 13px 7px; }
+  .section-heading h2 { font-size: 23px; }
+  .receipt-list li { min-height: 68px; grid-template-columns: 26px minmax(0, 1fr) auto; column-gap: 7px; }
+  .receipt-mark { grid-column: 1; grid-row: 1 / span 2; }
+  .receipt-list time { grid-column: 2; align-self: end; font-size: 11px; }
+  .receipt-detail { grid-column: 2; grid-row: 2; align-self: start; }
+  .receipt-detail strong { font-size: 13px; }
+  .receipt-detail small { font-size: 11px; }
+  .receipt-list li > strong { grid-column: 3; grid-row: 1 / span 2; font-size: 13px; }
+  .receipt-list li > strong span { font-size: 9px; }
+  .month-note { padding: 15px; display: block; }
+  .month-note h2 { margin-top: 8px; font-size: 20px; }
+  .page-footer { font-size: 9px; letter-spacing: .06em; }
+  .page-footer span:nth-child(2) { display: none; }
+}
+
+@media (max-width: 380px) {
+  .intro { gap: 8px; }
+  .intro h1 { font-size: 35px; }
+  .date-slip { min-width: 70px; }
+  .coin-stamp { display: none; }
+  .balance-amount strong { font-size: 29px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+}
