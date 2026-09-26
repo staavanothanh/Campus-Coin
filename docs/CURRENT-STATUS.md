@@ -16,6 +16,7 @@ Tài liệu này giúp thành viên mới nắm quyết định hiện hành, ph
 
 ## Đã push lên `hiep`
 
+- `8884687` — thêm domain dashboard và test client/format; [GitHub Actions run #17](https://github.com/staavanothanh/Campus-Coin/actions/runs/36269420560) pass toàn workflow.
 - `6cc27dc` — thêm Vercel Function adapter, cấu hình routing và deploy workflow; GitHub Actions run #14 pass toàn workflow.
 - `4bbdb61` — cập nhật trạng thái nhánh, rubric, cách áp dụng nguyên lý web và checklist phối hợp.
 - `3bf6c0c` — ghi nhận kết quả Auth MySQL integration và CI run #7.
@@ -54,7 +55,7 @@ Tài liệu này giúp thành viên mới nắm quyết định hiện hành, ph
 - Remote được fetch lại trước khi xem xét hợp nhất: `origin/hiep=563eaae`, `origin/thien-merge=77ad3dd`, `origin/main=1a1822f`, `origin/thien=55df41e`; nhóm DB gồm `origin/database-ingest=48f8cd4`, `.2=ce984ae`, `.3=9df1c97`, `.4=053a434`. Nhánh DB là chuỗi tổ tiên theo thứ tự đến `.4`, nên `.4` đã chứa các commit của ba refs DB cũ. `hiep` là sản phẩm chính; không có merge nguyên nhánh phù hợp. Lý do và phạm vi từng repo/nhánh nằm trong [repository review](./working/repository-review-2026-09-27.md).
 - Đã thêm giao diện domain sau đăng nhập: wallet setup, tổng quan, thu/chi, savings transfer, lịch sử phân trang, báo cáo tháng và ngân sách. Client dùng typed API wrapper, Idempotency-Key và giờ/ngày theo `Asia/Ho_Chi_Minh`; không tính lại authoritative balance/budget ở browser.
 - CI workflow hiện có bước chạy `test/domain.format.test.ts` và `test/domain.api.test.ts`.
-- Lượt kiểm tra cục bộ ngày 2026-09-27: `npm run typecheck` và `npm run build` pass; `npm run api:validate` hợp lệ với 5 warning 4xx lịch sử; domain unit tests 6/6 pass; 53 test trong các bước CI không cần MySQL pass. `npm run api:bundle` và `npm run api:types` đã sinh lại artifacts để thể hiện `wallet`, `savings`, `currentMonth` có thể là `null` trước khi khởi tạo ví. Workflow GitHub cho thay đổi hiện tại chỉ có kết quả sau push.
+- Lượt kiểm tra cục bộ ngày 2026-09-27: `npm run typecheck` và `npm run build` pass; `npm run api:validate` hợp lệ với 5 warning 4xx lịch sử; domain unit tests 6/6 pass; 53 test trong các bước CI không cần MySQL pass. `npm run api:bundle` và `npm run api:types` đã sinh lại artifacts để thể hiện `wallet`, `savings`, `currentMonth` có thể là `null` trước khi khởi tạo ví. Sau push, GitHub Actions run #17 trên commit `8884687` pass job `verify` toàn workflow.
 - Không chạy migration, `db:datatest`, MySQL integration, SMTP/provider staging, benchmark hoặc Vercel deploy trong lượt này. Không dùng database được cấu hình trong môi trường local.
 
 ## Cập nhật kiểm tra và tích hợp ngày 2026-09-25–26

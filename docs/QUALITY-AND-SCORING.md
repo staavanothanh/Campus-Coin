@@ -28,7 +28,7 @@
 |---|---|---|
 | Functionality Testing — 35 | Auth và API domain có unit/integration coverage; owner isolation đã pass trên MySQL CI cô lập. Giao diện hiện nối wallet setup, dashboard, income/payment, savings transfer, transaction history, monthly report và budget upsert. Team Leader báo Phần 2 auth staging đã hoàn tất. | Lập ma trận yêu cầu SRS → tính năng/API → test/evidence; bổ sung giao diện category, correction, savings history, issue/admin/preferences; giữ evidence staging do nhóm cung cấp và demo luồng sản phẩm hoàn chỉnh. |
 | UI & Accessibility Testing — 15 | Auth và domain UI có VI/EN, native form controls, labels, keyboard focus, live status, tables, budget progress và responsive layout. | Kiểm tra thực tế trên viewport nhỏ, keyboard/focus và screen reader; lưu ma trận Chrome/Firefox/Edge/Opera. Chưa ghi các hạng mục này là pass chỉ từ source review. |
-| Source Code — 10 | Code nghiệp vụ giữ function dễ đọc; các phép tiền dùng integer an toàn; mutation tiền có transaction, khóa và idempotency; UI gọi API domain và không tự tính balance/report. | Typecheck/build và 53 test ở các bước CI không cần MySQL pass cục bộ; CI trên commit mới cần chạy sau push. Nhóm cần giải thích được ledger, correction, savings và owner boundary. |
+| Source Code — 10 | Code nghiệp vụ giữ function dễ đọc; các phép tiền dùng integer an toàn; mutation tiền có transaction, khóa và idempotency; UI gọi API domain và không tự tính balance/report. | Typecheck/build và 53 test ở các bước CI không cần MySQL pass cục bộ; [CI run #17](https://github.com/staavanothanh/Campus-Coin/actions/runs/36269420560) pass toàn workflow trên commit mới. Nhóm cần giải thích được ledger, correction, savings và owner boundary. |
 | Database Testing — 10 | Migration CHECK theo bảng, datatest `23/23`, MySQL integration `31/31`, E2E `13/13` và Auth MySQL `8/8` đã pass trên schema tạm. | Chưa apply migration `0006`–`0010` lên clone dùng chung/staging; DevB vẫn cần xác nhận grants, TLS/CA và backup/restore. Thêm integration case correction thành công cho `adjustment` và `replacement` qua wallet/report/reconciliation. Benchmark riêng trên dữ liệu synthetic chưa chạy. |
 | Compatibility Testing — 5 | Chưa có ma trận kiểm tra trình duyệt được lưu. | Ghi kết quả Chrome, Firefox, Edge, Opera cùng phiên bản, viewport và ngày. |
 | Documentation — 10 | Canonical product/auth/architecture/DB/scoring docs đã có. | Hoàn thiện Project Report với vấn đề, sơ đồ, module/logic, phân công và hướng dẫn chạy/kiểm tra. |
@@ -37,7 +37,7 @@
 
 Các trạng thái “chưa có evidence” nghĩa là chưa được kiểm chứng hoặc ghi lại; không kết luận thay kết quả kiểm tra thực tế.
 
-Giới hạn số nguyên an toàn và regression hiện đã pass local typecheck/build cùng các bộ test trên schema MySQL tạm; workflow CI chưa chạy cho các thay đổi hiện tại và migration `0006`–`0010` chưa được apply lên clone dùng chung/staging. Vì vậy chưa ghi nhận hai gate đó là hoàn tất. CI chỉ chứng minh những kịch bản đã chạy trên cấu hình đó, không chứng minh mọi luồng staging/production.
+Giới hạn số nguyên an toàn và regression pass local typecheck/build cùng các bộ test trên schema MySQL tạm; CI run #17 xác nhận các gate đã khai báo cho commit `8884687`. Migration `0006`–`0010` chưa được apply lên clone dùng chung/staging. CI chỉ chứng minh những kịch bản đã chạy trên cấu hình đó, không chứng minh mọi luồng staging/production.
 
 ## Benchmark hiệu năng
 
