@@ -1,7 +1,7 @@
 import type { RowDataPacket } from 'mysql2/promise';
 import { getDb } from '../db.js';
 
-const REQUIRED_MIGRATIONS = ['0001', '0002', '0003', '0004', '0005'] as const;
+const REQUIRED_MIGRATIONS = ['0001', '0002', '0003', '0004', '0005', '0006', '0007', '0008', '0009', '0010'] as const;
 const REQUIRED_TABLES = [
   'schema_migrations',
   'users',

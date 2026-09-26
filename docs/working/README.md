@@ -20,6 +20,7 @@
 - `TEAM-BOARD.md`: bảng điều phối working pass.
 - `replan/`: bằng chứng của kế hoạch triển khai 4–5 ngày và các handoff RP-A đến RP-D.
 - [`team-handoff-2026-09-26/`](team-handoff-2026-09-26/README.md): hành động còn lại của DevB (DB/benchmark), DevC (UI/accessibility) và DevD (Vercel/SMTP/release).
+- [`student-cashflow-research-2026-09-26.md`](student-cashflow-research-2026-09-26.md): nghiên cứu weekly cashflow, mô phỏng khoản chi và benchmark cá nhân; advisory, chưa phải quyết định sản phẩm.
 
 ## Quy tắc cập nhật
 

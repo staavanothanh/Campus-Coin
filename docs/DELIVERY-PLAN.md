@@ -27,13 +27,14 @@ Google không cấu hình thì email flow vẫn hoạt động và provider disc
 | Google Sign-In | Server-side OIDC với PKCE S256, state, nonce, verified email và Google `sub`; không lưu Google token hoặc gọi Gmail API | Ảnh Team Leader cho thấy link và login thành công. Google Test users không phải allowlist app khi chỉ xin `openid email profile`; Campus Coin hiện chưa có allowlist email riêng. Staging chưa được xác nhận độc lập |
 | Migration `0004_email_auth.sql` | Trên clone `campus_coin_clone`, `npm run db:status` ngày 2026-09-26 báo `applied` | Preflight xác nhận `applied=5 pending=0`, MySQL `8.4.8` và TLS pass |
 | Migration `0005_auth_rate_limits.sql` | Trên clone `campus_coin_clone`, `npm run db:status` ngày 2026-09-26 báo `applied` | Preflight xác nhận `applied=5 pending=0`, MySQL `8.4.8` và TLS pass |
+| Migration `0006`–`0010` safe integer | CHECK giới hạn tiền VND trong application, OpenAPI và MySQL; mỗi migration chỉ đổi một bảng; datatest và MySQL integration trên schema tạm đã pass | Chưa apply vào clone dùng chung/staging; DB owner cần xác nhận dữ liệu hiện tại không vượt `9007199254740991`, sau đó chạy migration và xác nhận `db:status`/preflight |
 | Aiven query access | Team Leader chạy preflight/status thành công trên schema clone `campus_coin_clone` | Preflight cảnh báo charset `utf8mb4_0900_ai_ci` và pool 5 so với server max 76; test suites chạy trên cùng MySQL service nhưng dùng schema test tạm. Không dùng `defaultdb` cho destructive test |
-| Dùng `db:datatest` ngoài CI | Team Leader chạy trên MySQL service có clone ngày 2026-09-26; harness dùng schema test tạm | `15/15 pass`; lần cũ `3/15` là trước khi sửa parser CRLF và không còn là trạng thái hiện tại |
+| Dùng `db:datatest` ngoài CI | Chạy trên MySQL service thử nghiệm ngày 2026-09-26; harness dùng schema tạm | `23/23 pass`, gồm regression chứng minh assertion sai làm runner thất bại; không dùng schema nghiệp vụ để chạy test |
 | SMTP/email | SMTP adapter có timeout 10 giây, tối đa hai lần gửi và lỗi fail-closed; local adapter regression kiểm tra timeout/retry bounded bằng SMTP server treo; không có fallback OTP vào log/dev | DevD chạy controlled outage trong Preview cô lập, xác nhận `EMAIL_UNAVAILABLE`, log không lộ dữ liệu, rồi khôi phục và thử gửi/nhận register/reset |
 | API domain | Auth, preferences, wallet, ledger, savings, category, budget, report, issue và admin routes đã nối application services; client hỗ trợ GET/POST/PUT/PATCH/DELETE | OpenAPI đã khai báo `403` cho Origin ở auth mutation; lint còn 5 warning không chặn validate cho discovery/redirect/health; cần integration review với Developer B |
 | UI | Auth UI có validation/accessibility cơ bản và hai ngôn ngữ; sau login hiện chỉ có chào user, kết nối Google và logout | Chưa có giao diện wallet onboarding, dashboard, income/payment/history, savings, category/budget, report và issue/admin; đây là phần chức năng/UI lớn cần hoàn thiện |
 | CI | Workflow có MySQL disposable service và các gate typecheck/build/API/auth/DB | [Run #14 trên commit `6cc27dc`](https://github.com/staavanothanh/Campus-Coin/actions/runs/36169562394) pass toàn workflow; GitHub có warning về action Node.js 20 và Ubuntu runner image |
-| Domain owner isolation qua HTTP | Test hai tài khoản bao phủ wallet, ledger, savings, category, budget, report và dashboard; request giả `userId` không đổi owner | Team Leader báo `test/mysql.integration.test.ts` 22/22, `test/e2e.contract.smoke.test.ts` 13/13 và Auth MySQL 8/8 pass trên MySQL service có clone, dùng schema test tạm; CI run #14 pass |
+| Domain owner isolation qua HTTP | Test hai tài khoản bao phủ wallet, ledger, savings, category, budget, report và dashboard; request giả `userId` không đổi owner | Kết quả mới nhất trên schema MySQL tạm: `test/mysql.integration.test.ts` 31/31, `test/e2e.contract.smoke.test.ts` 13/13, Auth MySQL 8/8; CI run #14 là evidence của commit cũ, chưa xác nhận các sửa đổi mới |
 | Hợp nhất nhánh DB | Giữ `hiep` làm nhánh sản phẩm; chưa merge nguyên nhánh nào | `origin/thien` đưa `node_modules/` và `dist/` vào Git; `database-ingest-0.2` có 22 xung đột mô phỏng với `hiep` và dùng lại số migration `0004`/`0005`. DevB/DB owner cần xác nhận lịch sử apply/restore trước khi review port chọn lọc |
 | Production/restore | Chưa có evidence | Cần backup/restore rehearsal, CA chain/role grants, TLS/connectivity, redacted logs và rollback |
 | Vercel runtime/deploy | Đã thêm Node.js Function adapter, SPA/API routing, max duration 60s, MySQL pool lifecycle hook và workflow deploy thủ công Preview/Production | DevD cấu hình secrets/env và GitHub Environment; chạy Preview sau CI, xác minh app/API/readiness. Chưa có bằng chứng deploy trong task này |
@@ -128,7 +129,16 @@ Các bullet lịch sử dưới đây ghi trạng thái tại thời điểm ch�
 - `getSession()` cập nhật `last_seen_at` khi giá trị chưa có hoặc cũ ít nhất một phút.
 - Bổ sung owner regression cho foreign correction, foreign category PATCH và `relatedTransactionId` thuộc owner khác.
 - Thêm local SMTP adapter timeout/retry test bằng SMTP server treo; đây không phải SMTP staging/provider test.
-- Origin-only và `Cache-Control: no-store, private` được đồng bộ trong auth/API docs và OpenAPI. Các test mới cần CI chạy trước khi ghi nhận pass.
+- Origin-only và `Cache-Control: no-store, private` được đồng bộ trong auth/API docs và OpenAPI. Test cục bộ cho các thay đổi này đã pass; CI chưa chạy cho working tree hiện tại.
+
+### Bổ sung evidence miền tiền ngày 2026-09-26
+
+- Thêm giới hạn `Number.MAX_SAFE_INTEGER` cho amount, balance, budget và tổng report; ledger nhập lùi ngày bị từ chối nếu làm opening/closing của một tháng HCMC không thể biểu diễn chính xác.
+- `npm run db:datatest`: `23/23` pass trên các schema tạm của MySQL service thử nghiệm.
+- `node --import tsx --test test/mysql.integration.test.ts`: `31/31` pass; gồm backdated report range, rollback, owner isolation và budget update đồng thời.
+- `node --import tsx --test test/e2e.contract.smoke.test.ts`: `13/13` pass.
+- `node --import tsx --test test/auth.mysql.integration.test.ts`: `8/8` pass.
+- Migration `0006`–`0010` đã được kiểm tra khi harness tạo schema tạm, nhưng chưa apply lên clone dùng chung/staging. Kết quả trên chưa thay thế CI cho working tree hiện tại.
 
 ## 8. Phối hợp Developer B
 

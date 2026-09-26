@@ -59,6 +59,17 @@ export function isNonNegativeVnd(value: unknown): value is number {
   );
 }
 
+/** Closing balance uses net change so intermediate addition does not round. */
+export function walletClosingBalance(openingVnd: number, incomeVnd: number, paymentVnd: number): number {
+  if (!Number.isSafeInteger(openingVnd) || !isNonNegativeVnd(incomeVnd) || !isNonNegativeVnd(paymentVnd)) {
+    throw new RangeError("report amounts are outside the supported range");
+  }
+  const netChange = incomeVnd - paymentVnd;
+  const closingVnd = openingVnd + netChange;
+  if (!Number.isSafeInteger(closingVnd)) throw new RangeError("report balance is outside the supported range");
+  return closingVnd;
+}
+
 export function isTransactionType(value: unknown): value is TransactionType {
   return typeof value === "string" && TRANSACTION_TYPES.includes(value as TransactionType);
 }

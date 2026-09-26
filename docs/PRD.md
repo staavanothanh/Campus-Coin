@@ -27,7 +27,7 @@ Mục tiêu là giúp người dùng nhìn thấy dòng tiền của mình bằn
 ### 3.2 Wallet, ledger và savings
 
 - User nhập opening wallet balance; baseline không phải income.
-- Ledger chỉ có `income` và `payment`, amount là số nguyên VND dương.
+- Ledger chỉ có `income` và `payment`, amount là số nguyên VND dương trong miền integer an toàn của API, tối đa `9007199254740991`.
 - Ledger đã commit immutable; correction là row append-only có reason/reference/audit.
 - Payment chỉ commit khi wallet đủ tiền tại transaction commit; payment thiếu tiền bị từ chối atomic.
 - Savings deposit/withdraw là internal transfer atomic, tách khỏi income/payment/budget.
@@ -55,7 +55,7 @@ Mục tiêu là giúp người dùng nhìn thấy dòng tiền của mình bằn
 ## 4. Tiêu chí chấp nhận
 
 1. Register/verify/login/session và forgot/reset đạt auth security gates; user A không truy cập được user B.
-2. Ledger chỉ nhận `income`/`payment`, VND nguyên dương, category đúng loại.
+2. Ledger chỉ nhận `income`/`payment`, VND nguyên dương không vượt `9007199254740991`, category đúng loại.
 3. Payment thiếu wallet bị reject atomic, không tạo row, wallet không âm; retry idempotency không duplicate.
 4. Savings atomic và không vào income/payment/budget totals.
 5. Category history không hỏng khi disable; report deterministic theo HCMC.

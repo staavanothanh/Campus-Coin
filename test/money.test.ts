@@ -5,6 +5,7 @@ import {
   isNonNegativeVnd,
   walletDeltaForCorrection,
   walletDeltaForOriginal,
+  walletClosingBalance,
 } from "../src/domain/money.ts";
 
 test("walletDeltaForOriginal: income tăng wallet, payment giảm wallet", () => {
@@ -40,4 +41,13 @@ test("amount validation: positive vs non-negative VND", () => {
   assert.equal(isNonNegativeVnd(0), true);
   assert.equal(isNonNegativeVnd(1), true);
   assert.equal(isNonNegativeVnd(-1), false);
+  assert.equal(isNonNegativeVnd(Number.MAX_SAFE_INTEGER + 1), false);
+});
+
+test("wallet closing balance avoids unsafe intermediate addition", () => {
+  assert.equal(
+    walletClosingBalance(Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER),
+    Number.MAX_SAFE_INTEGER,
+  );
+  assert.throws(() => walletClosingBalance(Number.MAX_SAFE_INTEGER, 1, 0), RangeError);
 });

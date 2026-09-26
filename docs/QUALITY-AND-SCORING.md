@@ -28,14 +28,16 @@
 |---|---|---|
 | Functionality Testing — 35 | Auth và API domain có unit/integration coverage; owner isolation đã pass trên MySQL CI cô lập. Team Leader báo Phần 2 auth staging đã hoàn tất. | Giao diện domain sau đăng nhập còn thiếu. Checkout chưa có bản SRS nên cần ma trận yêu cầu SRS → tính năng/API → test/evidence; giữ lại evidence staging do nhóm cung cấp và demo luồng sản phẩm hoàn chỉnh. |
 | UI & Accessibility Testing — 15 | Auth UI có validation, hai ngôn ngữ và keyboard semantics cơ bản. | Làm màn hình domain; kiểm tra responsive, keyboard/focus/screen reader và trạng thái lỗi/loading trên toàn app. |
-| Source Code — 10 | Typecheck/build và cấu trúc phân lớp đã được chạy trong CI; Vercel adapter gọi lại API handler chung, không tạo route nghiệp vụ trùng lặp. | Chờ CI mới; nhóm rà soát code, giải thích module/boundary và giữ thay đổi đơn giản, đúng convention. |
-| Database Testing — 10 | CI disposable MySQL đã chạy migration, seed/test-data và integration suites; bổ sung regression cho foreign correction/category/related transaction. | Chờ CI mới; DevB xác nhận chain, least-privilege grants, TLS/CA, backup/restore và benchmark bằng clone cô lập. |
+| Source Code — 10 | Code nghiệp vụ giữ function dễ đọc; các phép tiền dùng integer an toàn; mutation tiền có transaction, khóa và idempotency; regression bao phủ overflow, ngày lùi, rollback và cập nhật budget đồng thời. | Typecheck/build và test hẹp mới nhất đã pass cục bộ; workflow CI cho các thay đổi chưa push chưa chạy. Nhóm cần giải thích được ledger, correction, savings và owner boundary. |
+| Database Testing — 10 | Migration CHECK theo bảng, datatest `23/23`, MySQL integration `31/31`, E2E `13/13` và Auth MySQL `8/8` đã pass trên schema tạm. | Chưa apply migration `0006`–`0010` lên clone dùng chung/staging; DevB vẫn cần xác nhận grants, TLS/CA và backup/restore. Thêm integration case correction thành công cho `adjustment` và `replacement` qua wallet/report/reconciliation. Benchmark riêng trên dữ liệu synthetic chưa chạy. |
 | Compatibility Testing — 5 | Chưa có ma trận kiểm tra trình duyệt được lưu. | Ghi kết quả Chrome, Firefox, Edge, Opera cùng phiên bản, viewport và ngày. |
 | Documentation — 10 | Canonical product/auth/architecture/DB/scoring docs đã có. | Hoàn thiện Project Report với vấn đề, sơ đồ, module/logic, phân công và hướng dẫn chạy/kiểm tra. |
 | Plagiarism Testing — 10 | Chưa có kết quả kiểm tra originality được ghi nhận. | Ghi nguồn tham khảo; nhóm tự review và giải thích được source, thuật toán, schema và quyết định. |
 | Ontime Submission — 5 | Chưa có evidence gói nộp/demo cuối. | Khóa phạm vi, build sạch, kiểm tra demo, lưu commit/tag và chuẩn bị gói nộp trước hạn. |
 
 Các trạng thái “chưa có evidence” nghĩa là chưa được kiểm chứng hoặc ghi lại; không kết luận thay kết quả kiểm tra thực tế.
+
+Giới hạn số nguyên an toàn và regression hiện đã pass local typecheck/build cùng các bộ test trên schema MySQL tạm; workflow CI chưa chạy cho các thay đổi hiện tại và migration `0006`–`0010` chưa được apply lên clone dùng chung/staging. Vì vậy chưa ghi nhận hai gate đó là hoàn tất. CI chỉ chứng minh những kịch bản đã chạy trên cấu hình đó, không chứng minh mọi luồng staging/production.
 
 ## Benchmark hiệu năng
 

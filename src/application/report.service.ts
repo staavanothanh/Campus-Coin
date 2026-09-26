@@ -12,6 +12,7 @@ import {
   walletDeltaBefore,
 } from "../infrastructure/persistence/report.repository.ts";
 import { monthRangeUtc, currentMonthKey, isMonthKey } from "../domain/period.ts";
+import { walletClosingBalance } from "../domain/money.ts";
 import { invalidInput, walletNotInitialized } from "../domain/errors.ts";
 import { toSavings, toTransaction, toWallet, type SavingsView, type TransactionView, type WalletView } from "./map.ts";
 
@@ -37,8 +38,9 @@ export async function monthlyReport(db: Db, userId: number, month: string): Prom
     if (wallet === null) throw walletNotInitialized();
     const deltaBefore = await walletDeltaBefore(conn, userId, startUtcMs);
     const opening = wallet.initialBalanceVnd + deltaBefore;
+    if (!Number.isSafeInteger(opening)) throw new Error("report opening balance is outside the supported range");
     const totals = await monthTotals(conn, userId, startUtcMs, endExclusiveUtcMs);
-    const closing = opening + totals.incomeTotalVnd - totals.paymentTotalVnd;
+    const closing = walletClosingBalance(opening, totals.incomeTotalVnd, totals.paymentTotalVnd);
     const breakdown = await paymentTotalsByCategory(conn, userId, startUtcMs, endExclusiveUtcMs);
     return {
       month,

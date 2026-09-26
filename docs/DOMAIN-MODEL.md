@@ -5,7 +5,7 @@
 Campus Coin là sổ theo dõi do user nhập, không phải sao kê ngân hàng. Ưu tiên tính đúng, truy vết, owner scope và rebuild.
 
 - Currency duy nhất: VND.
-- Amount là số nguyên dương; không floating point.
+- Amount là số nguyên dương; không floating point. Amount và balance truyền qua JavaScript phải nằm trong miền integer an toàn, tối đa `9007199254740991` VND theo [ADR-0010](./adr/0010-safe-integer-money-range.md).
 - Transaction type duy nhất: `income` và `payment`.
 - Ledger/audit đã commit là immutable và append-only.
 - Wallet là nguồn duy nhất cho payment; savings là aggregate riêng.
@@ -65,6 +65,8 @@ Reversal giữ bản gốc, tạo row mới và áp dụng effect đối nghịc
 10. Category disabled không nhận row mới nhưng history vẫn đọc được.
 11. Report dùng local half-open period HCMC.
 12. JEV output không bypass validation, calculation hoặc authorization.
+13. Mọi wallet/savings balance sau phép tính vẫn là integer an toàn; nếu phép cộng vượt miền hỗ trợ, mutation bị từ chối và transaction rollback.
+14. Report totals, opening/closing của từng tháng HCMC, tổng payment và tổng budget limit phải nằm trong miền integer an toàn. Ledger mutation nhập lùi ngày bị từ chối nếu làm một report hiện tại hoặc tương lai vượt miền này.
 
 ## 5. Luồng nghiệp vụ
 

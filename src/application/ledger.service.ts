@@ -17,7 +17,10 @@ import {
 import { lockWalletForUpdate, updateWalletBalance } from "../infrastructure/persistence/wallet.repository.ts";
 import { insertAuditEvent } from "../infrastructure/persistence/audit.repository.ts";
 import { findBudget } from "../infrastructure/persistence/budget.repository.ts";
-import { paymentTotalForCategory } from "../infrastructure/persistence/report.repository.ts";
+import {
+  ledgerMutationKeepsReportsInRange,
+  paymentTotalForCategory,
+} from "../infrastructure/persistence/report.repository.ts";
 import {
   decodeCursor,
   encodeCursor,
@@ -26,6 +29,7 @@ import {
 } from "../domain/period.ts";
 import {
   isCorrectionRole,
+  isNonNegativeVnd,
   isPositiveVnd,
   isTransactionType,
   walletDeltaForCorrection,
@@ -81,6 +85,20 @@ export async function computeBudgetWarning(
   return { isOverrun: paymentTotal > budget.limitVnd, limitVnd: budget.limitVnd, usedVnd: paymentTotal };
 }
 
+async function ensureLedgerReportRange(
+  conn: PoolConnection,
+  userId: number,
+  occurredAtMs: number,
+  incomeDelta: number,
+  paymentDelta: number,
+): Promise<void> {
+  const month = monthKeyOf(occurredAtMs);
+  const { startUtcMs } = monthRangeUtc(month);
+  if (!(await ledgerMutationKeepsReportsInRange(conn, userId, startUtcMs, month, incomeDelta, paymentDelta))) {
+    throw invalidInput("monthly totals or report balances are outside the supported range");
+  }
+}
+
 async function lockWalletWithCheck(conn: PoolConnection, userId: number): Promise<{ balance: number }> {
   const wallet = await lockWalletForUpdate(conn, userId);
   if (wallet === null) throw walletNotInitialized();
@@ -131,6 +149,16 @@ export async function createTransaction(
       if (input.type === "payment" && balance < input.amountVnd) throw insufficientWalletBalance();
       const delta = walletDeltaForOriginal(input.type, input.amountVnd);
       const newBalance = balance + delta;
+      if (!isNonNegativeVnd(newBalance)) {
+        throw invalidInput("resulting wallet balance is outside the supported range");
+      }
+      await ensureLedgerReportRange(
+        conn,
+        input.userId,
+        occurredAtMs,
+        input.type === "income" ? input.amountVnd : 0,
+        input.type === "payment" ? input.amountVnd : 0,
+      );
       const ledgerId = await insertLedgerRow(conn, {
         userId: input.userId,
         type: input.type,
@@ -269,6 +297,17 @@ export async function createCorrection(db: Db, input: CreateCorrectionInput): Pr
       const delta = walletDeltaForCorrection(target.type, input.role, newAmountVnd, target.amountVnd);
       const newBalance = balance + delta;
       if (newBalance < 0) throw insufficientWalletBalance();
+      if (!isNonNegativeVnd(newBalance)) {
+        throw invalidInput("resulting wallet balance is outside the supported range");
+      }
+      const correctionAmountDelta = (input.role === "reversal" ? 0 : newAmountVnd) - target.amountVnd;
+      await ensureLedgerReportRange(
+        conn,
+        input.userId,
+        Date.parse(target.occurredAt),
+        target.type === "income" ? correctionAmountDelta : 0,
+        target.type === "payment" ? correctionAmountDelta : 0,
+      );
 
       // Correction ghi vào cùng kỳ của target (occurred_at = target's) — default pending Team Leader
       // (API-REVIEW: correction timestamp/report semantics chưa chốt; không tự đổi kỳ).

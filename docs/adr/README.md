@@ -13,5 +13,6 @@
 | [0007](0007-five-day-thin-slice.md) | Phạm vi thin-slice năm ngày và quyền sở hữu | Đã chấp nhận | 2026-09-24 |
 | [0008](0008-email-password-otp-auth.md) | Email, mật khẩu và OTP | Đã chấp nhận; luồng email tiếp tục có hiệu lực | 2026-09-24 |
 | [0009](0009-optional-google-sign-in.md) | Google Sign-In là phương thức bổ sung | Đã chấp nhận bởi Team Leader; bổ sung Google vào ADR-0008 | 2026-09-24 |
+| [0010](0010-safe-integer-money-range.md) | Miền integer an toàn cho số tiền VND | Đã chấp nhận | 2026-09-26 |
 
 Mọi thay đổi đối với phương thức xác thực, bất biến tiền, quyền của JEV, nền tảng triển khai hoặc phạm vi MVP phải tạo ADR mới hoặc đánh dấu ADR cũ bị thay thế. ADR-0001 và ADR-0007 được giữ nguyên nội dung lịch sử; email/password/OTP theo ADR-0008 và Google Sign-In bổ sung theo ADR-0009 là quyết định auth hiện hành. Không sửa lịch sử để che giấu quyết định trước đó.

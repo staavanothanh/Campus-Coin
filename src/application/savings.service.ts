@@ -14,7 +14,7 @@ import {
 } from "../infrastructure/persistence/savings.repository.ts";
 import { insertAuditEvent } from "../infrastructure/persistence/audit.repository.ts";
 import { decodeCursor, encodeCursor } from "../domain/period.ts";
-import { isPositiveVnd, isTransferDirection, type TransferDirection } from "../domain/money.ts";
+import { isNonNegativeVnd, isPositiveVnd, isTransferDirection, type TransferDirection } from "../domain/money.ts";
 import {
   insufficientSavingsBalance,
   insufficientWalletBalance,
@@ -80,6 +80,9 @@ export async function createTransfer(db: Db, input: CreateTransferInput): Promis
         if (savingsBalance < input.amountVnd) throw insufficientSavingsBalance();
         walletBalance += input.amountVnd;
         savingsBalance -= input.amountVnd;
+      }
+      if (!isNonNegativeVnd(walletBalance) || !isNonNegativeVnd(savingsBalance)) {
+        throw invalidInput("resulting balance is outside the supported range");
       }
       await updateWalletBalance(conn, input.userId, walletBalance);
       await updateSavingsBalance(conn, input.userId, savingsBalance);

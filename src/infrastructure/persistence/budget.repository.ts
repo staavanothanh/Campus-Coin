@@ -74,3 +74,12 @@ export async function listBudgetsByMonth(db: BudgetScalar, userId: number, month
     limitVnd: amountFromDb(row.limit_vnd),
   }));
 }
+
+/** Lock a stable owner row before reading and changing a monthly budget total. */
+export async function lockBudgetOwner(db: BudgetScalar, userId: number): Promise<boolean> {
+  const [rows] = (await db.query(
+    "SELECT id FROM users WHERE id = ? FOR UPDATE",
+    [userId],
+  )) as [[{ id: number | string }], unknown];
+  return rows.length === 1;
+}

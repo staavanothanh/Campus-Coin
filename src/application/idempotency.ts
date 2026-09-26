@@ -22,6 +22,8 @@ export interface IdempotentMutationOptions<T> {
   scope: string;
   idempotencyKey: string;
   requestHash: string;
+  /** Acquire required owner/domain locks before writing the idempotency row. */
+  lockBeforeClaim?: (conn: PoolConnection) => Promise<void>;
   /**
    * Chạy trong transaction ngắn với idempotency_id để ghi vào row money.
    * Response phải JSON-serializable (dùng cho replay).
@@ -45,6 +47,7 @@ export async function withIdempotentMutation<T>(opts: IdempotentMutationOptions<
     }
     try {
       return await withTransaction(async (conn) => {
+        if (opts.lockBeforeClaim !== undefined) await opts.lockBeforeClaim(conn);
         const id = await insertIdempotencyPlaceholder(conn, userId, scope, idempotencyKey, requestHash);
         if (id === null) throw new DuplicateIdempotency();
         const response = await opts.mutate(conn, id);

@@ -2634,12 +2634,14 @@
       "MoneyVnd": {
         "type": "integer",
         "minimum": 0,
-        "description": "Số nguyên VND; không dùng floating point"
+        "maximum": 9007199254740991,
+        "description": "Số nguyên VND trong miền integer an toàn của JavaScript; không dùng floating point"
       },
       "PositiveMoneyVnd": {
         "type": "integer",
         "minimum": 1,
-        "description": "Số nguyên VND dương"
+        "maximum": 9007199254740991,
+        "description": "Số nguyên VND dương trong miền integer an toàn của JavaScript"
       },
       "User": {
         "type": "object",

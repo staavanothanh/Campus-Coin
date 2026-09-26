@@ -15,6 +15,7 @@ Các quyết định chi tiết được chuẩn hóa theo ADR trong [`docs/adr/
 | [0007](./adr/0007-five-day-thin-slice.md) | Thin-slice 4–5 ngày | Đã chấp nhận | Bốn developer; Team Leader sở hữu tích hợp và GO/NO-GO |
 | [0008](./adr/0008-email-password-otp-auth.md) | Email + mật khẩu + OTP | Đã chấp nhận bởi Team Leader ngày 2026-09-24 | Luồng email tiếp tục hoạt động; production gates vẫn mở |
 | [0009](./adr/0009-optional-google-sign-in.md) | Google Sign-In tùy chọn | Đã chấp nhận bởi Team Leader ngày 2026-09-24 | Thêm Google OIDC; không Gmail API; không tự động gộp theo email |
+| [0010](./adr/0010-safe-integer-money-range.md) | Miền integer an toàn cho tiền VND | Đã chấp nhận ngày 2026-09-26 | Application, OpenAPI và MySQL đều chặn số tiền vượt `9007199254740991` |
 
 ## Quản trị quyết định
 

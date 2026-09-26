@@ -1,5 +1,5 @@
 // Integration MySQL — gated: chỉ chạy khi CAMPUS_COIN_TEST_DB=1 và có CAMPUS_COIN_DB_*.
-// Tạo database tạm, migrate mọi version hiện có (0001–0005), chạy services thật, drop database sau cùng.
+// Tạo database tạm, migrate mọi version hiện có (0001–0010), chạy services thật, drop database sau cùng.
 // Chạy: set CAMPUS_COIN_TEST_DB=1 && npm test -- test/mysql.integration.test.ts
 
 import { test, before, after, describe } from "node:test";
@@ -57,8 +57,14 @@ if (!ENABLED) {
     return harness.newUserId();
   }
 
-  async function createTx(userId: number, type: "income" | "payment", amountVnd: number, categoryId: number) {
-    const body = { type, amountVnd, categoryId, occurredAt: new Date().toISOString() };
+  async function createTx(
+    userId: number,
+    type: "income" | "payment",
+    amountVnd: number,
+    categoryId: number,
+    occurredAt = new Date().toISOString(),
+  ) {
+    const body = { type, amountVnd, categoryId, occurredAt };
     return createTransaction(getPool(), {
       userId,
       type,
@@ -77,6 +83,72 @@ if (!ENABLED) {
       [userId],
     )) as [{ n: number | string }[], unknown];
     return Number(rows[0]!.n);
+  }
+
+  async function countUserRowsFor(
+    table: "mutation_idempotency" | "audit_events" | "savings_transfers",
+    userId: number,
+  ): Promise<number> {
+    const [rows] = (await getPool().query(
+      `SELECT COUNT(*) AS n FROM \`${harness.dbName}\`.\`${table}\` WHERE user_id = ?`,
+      [userId],
+    )) as [{ n: number | string }[], unknown];
+    return Number(rows[0]!.n);
+  }
+
+  async function assertBalancesMatchHistory(userId: number): Promise<void> {
+    const [walletRows] = (await getPool().query(
+      `SELECT initial_balance_vnd, available_balance_vnd
+       FROM \`${harness.dbName}\`.wallet_accounts WHERE user_id = ?`,
+      [userId],
+    )) as [{ initial_balance_vnd: number | string; available_balance_vnd: number | string }[], unknown];
+    assert.equal(walletRows.length, 1);
+    let expectedWallet = BigInt(String(walletRows[0]!.initial_balance_vnd));
+
+    const [ledgerRows] = (await getPool().query(
+      `SELECT t.type, t.amount_vnd, t.role, target.amount_vnd AS target_amount_vnd
+       FROM \`${harness.dbName}\`.ledger_transactions t
+       LEFT JOIN \`${harness.dbName}\`.ledger_transactions target
+         ON target.user_id = t.user_id AND target.id = t.reference_id
+       WHERE t.user_id = ? ORDER BY t.id`,
+      [userId],
+    )) as [{
+      type: "income" | "payment";
+      amount_vnd: number | string;
+      role: "original" | "reversal" | "adjustment" | "replacement";
+      target_amount_vnd: number | string | null;
+    }[], unknown];
+    for (const row of ledgerRows) {
+      const amount = BigInt(String(row.amount_vnd));
+      if (row.role === "original") {
+        expectedWallet += row.type === "income" ? amount : -amount;
+      } else if (row.role === "reversal") {
+        expectedWallet += row.type === "income" ? -amount : amount;
+      } else {
+        assert.notEqual(row.target_amount_vnd, null);
+        const difference = amount - BigInt(String(row.target_amount_vnd));
+        expectedWallet += row.type === "income" ? difference : -difference;
+      }
+    }
+
+    const [transferRows] = (await getPool().query(
+      `SELECT direction, amount_vnd FROM \`${harness.dbName}\`.savings_transfers WHERE user_id = ?`,
+      [userId],
+    )) as [{ direction: "deposit" | "withdraw"; amount_vnd: number | string }[], unknown];
+    let expectedSavings = 0n;
+    for (const row of transferRows) {
+      const amount = BigInt(String(row.amount_vnd));
+      expectedWallet += row.direction === "deposit" ? -amount : amount;
+      expectedSavings += row.direction === "deposit" ? amount : -amount;
+    }
+
+    assert.equal(expectedWallet, BigInt(String(walletRows[0]!.available_balance_vnd)));
+    const [savingsRows] = (await getPool().query(
+      `SELECT balance_vnd FROM \`${harness.dbName}\`.savings_accounts WHERE user_id = ?`,
+      [userId],
+    )) as [{ balance_vnd: number | string }[], unknown];
+    assert.equal(savingsRows.length, 1);
+    assert.equal(expectedSavings, BigInt(String(savingsRows[0]!.balance_vnd)));
   }
 
   before(async () => {
@@ -224,6 +296,37 @@ if (!ENABLED) {
       assert.equal(await ledgerCountFor(userId), 0);
     });
 
+    test("income vượt safe integer boundary bị rollback", async () => {
+      const userId = await newUserId();
+      await initWalletFor(userId, Number.MAX_SAFE_INTEGER);
+      const idempotencyCount = await countUserRowsFor("mutation_idempotency", userId);
+      const auditCount = await countUserRowsFor("audit_events", userId);
+
+      await assert.rejects(createTx(userId, "income", 1, 1), expectCode("INVALID_INPUT"));
+
+      assert.equal((await getWalletFor(userId)).availableBalanceVnd, Number.MAX_SAFE_INTEGER);
+      assert.equal(await ledgerCountFor(userId), 0);
+      assert.equal(await countUserRowsFor("mutation_idempotency", userId), idempotencyCount);
+      assert.equal(await countUserRowsFor("audit_events", userId), auditCount);
+    });
+
+    test("tổng payment trong tháng vượt safe integer boundary bị từ chối", async () => {
+      const userId = await newUserId();
+      await initWalletFor(userId, Number.MAX_SAFE_INTEGER);
+      await createTx(userId, "payment", Number.MAX_SAFE_INTEGER, 5);
+      await createTx(userId, "income", Number.MAX_SAFE_INTEGER, 1);
+      const idempotencyCount = await countUserRowsFor("mutation_idempotency", userId);
+      const auditCount = await countUserRowsFor("audit_events", userId);
+
+      await assert.rejects(createTx(userId, "payment", 1, 6), expectCode("INVALID_INPUT"));
+
+      assert.equal((await getWalletFor(userId)).availableBalanceVnd, Number.MAX_SAFE_INTEGER);
+      assert.equal(await ledgerCountFor(userId), 2);
+      assert.equal(await countUserRowsFor("mutation_idempotency", userId), idempotencyCount);
+      assert.equal(await countUserRowsFor("audit_events", userId), auditCount);
+      assert.equal((await monthlyReport(getPool(), userId, currentMonthKey())).totalPaymentVnd, Number.MAX_SAFE_INTEGER);
+    });
+
     test("hai payment đồng thời trên wallet 100000: chỉ một commit", async () => {
       const userId = await newUserId();
       await initWalletFor(userId, 100_000);
@@ -349,9 +452,121 @@ if (!ENABLED) {
       const wallet = await getWalletFor(userId);
       assert.equal(wallet.availableBalanceVnd, 500_000);
     });
+
+    test("adjustment vượt safe integer boundary bị rollback", async () => {
+      const userId = await newUserId();
+      await initWalletFor(userId, Number.MAX_SAFE_INTEGER - 100);
+      const income = await createTx(userId, "income", 100, 1);
+      const idempotencyCount = await countUserRowsFor("mutation_idempotency", userId);
+      const auditCount = await countUserRowsFor("audit_events", userId);
+
+      await assert.rejects(
+        createCorrection(getPool(), {
+          userId,
+          targetId: Number(income.transaction.id),
+          role: "adjustment",
+          reason: "safe integer boundary test",
+          newAmountVnd: 101,
+          newCategoryId: null,
+          idempotencyKey: randomUUID(),
+          requestHash: canonicalHash({ targetId: income.transaction.id, role: "adjustment", newAmountVnd: 101 }),
+        }),
+        expectCode("INVALID_INPUT"),
+      );
+
+      assert.equal((await getWalletFor(userId)).availableBalanceVnd, Number.MAX_SAFE_INTEGER);
+      assert.equal(await ledgerCountFor(userId), 1);
+      assert.equal(await countUserRowsFor("mutation_idempotency", userId), idempotencyCount);
+      assert.equal(await countUserRowsFor("audit_events", userId), auditCount);
+    });
+
+    test("correction không được làm tổng payment tháng vượt safe integer boundary", async () => {
+      const userId = await newUserId();
+      await initWalletFor(userId, Number.MAX_SAFE_INTEGER);
+      await createTx(userId, "payment", Number.MAX_SAFE_INTEGER - 1, 5);
+      const smallPayment = await createTx(userId, "payment", 1, 5);
+      await createTx(userId, "income", Number.MAX_SAFE_INTEGER, 1);
+      const idempotencyCount = await countUserRowsFor("mutation_idempotency", userId);
+      const auditCount = await countUserRowsFor("audit_events", userId);
+
+      await assert.rejects(
+        createCorrection(getPool(), {
+          userId,
+          targetId: Number(smallPayment.transaction.id),
+          role: "adjustment",
+          reason: "monthly safe integer boundary test",
+          newAmountVnd: 2,
+          newCategoryId: null,
+          idempotencyKey: randomUUID(),
+          requestHash: canonicalHash({ targetId: smallPayment.transaction.id, role: "adjustment", newAmountVnd: 2 }),
+        }),
+        expectCode("INVALID_INPUT"),
+      );
+
+      assert.equal((await getWalletFor(userId)).availableBalanceVnd, Number.MAX_SAFE_INTEGER);
+      assert.equal(await ledgerCountFor(userId), 3);
+      assert.equal(await countUserRowsFor("mutation_idempotency", userId), idempotencyCount);
+      assert.equal(await countUserRowsFor("audit_events", userId), auditCount);
+    });
   });
 
   describe("savings", () => {
+    test("deposit or withdrawal that overflows a balance is rejected atomically", async () => {
+      const depositUserId = await newUserId();
+      await initWalletFor(depositUserId, 1);
+      await getPool().query(
+        `UPDATE \`${harness.dbName}\`.savings_accounts SET balance_vnd = ? WHERE user_id = ?`,
+        [Number.MAX_SAFE_INTEGER, depositUserId],
+      );
+      const depositIdempotencyCount = await countUserRowsFor("mutation_idempotency", depositUserId);
+      const depositAuditCount = await countUserRowsFor("audit_events", depositUserId);
+      const depositTransferCount = await countUserRowsFor("savings_transfers", depositUserId);
+
+      await assert.rejects(
+        createTransfer(getPool(), {
+          userId: depositUserId,
+          direction: "deposit",
+          amountVnd: 1,
+          note: null,
+          idempotencyKey: randomUUID(),
+          requestHash: canonicalHash({ direction: "deposit", amountVnd: 1 }),
+        }),
+        expectCode("INVALID_INPUT"),
+      );
+      assert.equal((await getWalletFor(depositUserId)).availableBalanceVnd, 1);
+      assert.equal((await getSavings(getPool(), depositUserId))?.balanceVnd, Number.MAX_SAFE_INTEGER);
+      assert.equal(await countUserRowsFor("mutation_idempotency", depositUserId), depositIdempotencyCount);
+      assert.equal(await countUserRowsFor("audit_events", depositUserId), depositAuditCount);
+      assert.equal(await countUserRowsFor("savings_transfers", depositUserId), depositTransferCount);
+
+      const withdrawUserId = await newUserId();
+      await initWalletFor(withdrawUserId, Number.MAX_SAFE_INTEGER);
+      await getPool().query(
+        `UPDATE \`${harness.dbName}\`.savings_accounts SET balance_vnd = ? WHERE user_id = ?`,
+        [1, withdrawUserId],
+      );
+      const withdrawIdempotencyCount = await countUserRowsFor("mutation_idempotency", withdrawUserId);
+      const withdrawAuditCount = await countUserRowsFor("audit_events", withdrawUserId);
+      const withdrawTransferCount = await countUserRowsFor("savings_transfers", withdrawUserId);
+
+      await assert.rejects(
+        createTransfer(getPool(), {
+          userId: withdrawUserId,
+          direction: "withdraw",
+          amountVnd: 1,
+          note: null,
+          idempotencyKey: randomUUID(),
+          requestHash: canonicalHash({ direction: "withdraw", amountVnd: 1 }),
+        }),
+        expectCode("INVALID_INPUT"),
+      );
+      assert.equal((await getWalletFor(withdrawUserId)).availableBalanceVnd, Number.MAX_SAFE_INTEGER);
+      assert.equal((await getSavings(getPool(), withdrawUserId))?.balanceVnd, 1);
+      assert.equal(await countUserRowsFor("mutation_idempotency", withdrawUserId), withdrawIdempotencyCount);
+      assert.equal(await countUserRowsFor("audit_events", withdrawUserId), withdrawAuditCount);
+      assert.equal(await countUserRowsFor("savings_transfers", withdrawUserId), withdrawTransferCount);
+    });
+
     test("deposit/withdraw atomic; không vào income/payment/budget", async () => {
       const userId = await newUserId();
       await initWalletFor(userId, 100_000);
@@ -394,6 +609,43 @@ if (!ENABLED) {
       const transfers = await listTransfers(getPool(), userId, undefined, 20);
       assert.equal(transfers.data.length, 2);
     });
+
+    test("wallet và savings projection khớp lịch sử ledger và transfer", async () => {
+      const userId = await newUserId();
+      await initWalletFor(userId, 100_000);
+      await createTx(userId, "income", 50_000, 1);
+      const payment = await createTx(userId, "payment", 20_000, 5);
+      await createCorrection(getPool(), {
+        userId,
+        targetId: Number(payment.transaction.id),
+        role: "reversal",
+        reason: "reconciliation test",
+        newAmountVnd: null,
+        newCategoryId: null,
+        idempotencyKey: randomUUID(),
+        requestHash: canonicalHash({ targetId: payment.transaction.id, role: "reversal" }),
+      });
+      await createTransfer(getPool(), {
+        userId,
+        direction: "deposit",
+        amountVnd: 30_000,
+        note: null,
+        idempotencyKey: randomUUID(),
+        requestHash: canonicalHash({ direction: "deposit", amountVnd: 30_000 }),
+      });
+      await createTransfer(getPool(), {
+        userId,
+        direction: "withdraw",
+        amountVnd: 5_000,
+        note: null,
+        idempotencyKey: randomUUID(),
+        requestHash: canonicalHash({ direction: "withdraw", amountVnd: 5_000 }),
+      });
+
+      await assertBalancesMatchHistory(userId);
+      assert.equal((await getWalletFor(userId)).availableBalanceVnd, 125_000);
+      assert.equal((await getSavings(getPool(), userId))?.balanceVnd, 25_000);
+    });
   });
 
   describe("budget warning-only", () => {
@@ -423,6 +675,74 @@ if (!ENABLED) {
       const summary = await monthBudgetSummary(getPool(), userId, month);
       assert.equal(summary.exceededCategoryCount, 1);
       assert.equal(summary.totalUsedVnd, 250_000);
+    });
+
+    test("budget upsert từ chối tổng limit tháng vượt safe integer boundary", async () => {
+      const userId = await newUserId();
+      const month = currentMonthKey();
+      const [rows] = (await getPool().query(
+        `SELECT id FROM \`${harness.dbName}\`.categories WHERE is_default = 1 AND applies_to = 'payment' ORDER BY id LIMIT 2`,
+      )) as [{ id: number | string }[], unknown];
+      assert.equal(rows.length, 2);
+
+      const firstCategoryId = Number(rows[0]!.id);
+      const secondCategoryId = Number(rows[1]!.id);
+      await upsertUserBudget(getPool(), {
+        userId,
+        categoryId: firstCategoryId,
+        month,
+        limitVnd: Number.MAX_SAFE_INTEGER,
+        idempotencyKey: randomUUID(),
+        requestHash: canonicalHash({ categoryId: firstCategoryId, month, limitVnd: Number.MAX_SAFE_INTEGER }),
+      });
+
+      await assert.rejects(
+        upsertUserBudget(getPool(), {
+          userId,
+          categoryId: secondCategoryId,
+          month,
+          limitVnd: 1,
+          idempotencyKey: randomUUID(),
+          requestHash: canonicalHash({ categoryId: secondCategoryId, month, limitVnd: 1 }),
+        }),
+        expectCode("INVALID_INPUT"),
+      );
+      const summary = await monthBudgetSummary(getPool(), userId, month);
+      assert.equal(summary.totalLimitVnd, Number.MAX_SAFE_INTEGER);
+    });
+
+    test("budget upsert đồng thời vẫn giữ tổng limit trong safe integer boundary", async () => {
+      const userId = await newUserId();
+      const month = currentMonthKey();
+      const [rows] = (await getPool().query(
+        `SELECT id FROM \`${harness.dbName}\`.categories WHERE is_default = 1 AND applies_to = 'payment' ORDER BY id LIMIT 2`,
+      )) as [{ id: number | string }[], unknown];
+      assert.equal(rows.length, 2);
+      const firstCategoryId = Number(rows[0]!.id);
+      const secondCategoryId = Number(rows[1]!.id);
+      const results = await Promise.allSettled([
+        upsertUserBudget(getPool(), {
+          userId,
+          categoryId: firstCategoryId,
+          month,
+          limitVnd: Number.MAX_SAFE_INTEGER,
+          idempotencyKey: randomUUID(),
+          requestHash: canonicalHash({ categoryId: firstCategoryId, month, limitVnd: Number.MAX_SAFE_INTEGER }),
+        }),
+        upsertUserBudget(getPool(), {
+          userId,
+          categoryId: secondCategoryId,
+          month,
+          limitVnd: 1,
+          idempotencyKey: randomUUID(),
+          requestHash: canonicalHash({ categoryId: secondCategoryId, month, limitVnd: 1 }),
+        }),
+      ]);
+      assert.equal(results.filter((result) => result.status === "fulfilled").length, 1);
+      const rejected = results.find((result) => result.status === "rejected");
+      assert.ok(rejected?.status === "rejected");
+      assert.ok(expectCode("INVALID_INPUT")(rejected.reason), String(rejected.reason));
+      assert.ok((await monthBudgetSummary(getPool(), userId, month)).totalLimitVnd <= Number.MAX_SAFE_INTEGER);
     });
   });
 
@@ -461,6 +781,31 @@ if (!ENABLED) {
       assert.equal(report.openingWalletBalanceVnd, 700_000);
       assert.equal(report.totalPaymentVnd, 0);
       assert.equal(report.closingWalletBalanceVnd, 700_000);
+    });
+
+    test("từ chối giao dịch nhập lùi ngày làm opening report vượt safe integer", async () => {
+      const userId = await newUserId();
+      await initWalletFor(userId, 0);
+      await createTx(userId, "income", Number.MAX_SAFE_INTEGER, 1, "2026-04-15T03:00:00.000Z");
+      await createTx(userId, "payment", Number.MAX_SAFE_INTEGER, 5, "2026-01-15T03:00:00.000Z");
+      await createTx(userId, "income", Number.MAX_SAFE_INTEGER, 1, "2026-05-15T03:00:00.000Z");
+
+      const ledgerCount = await ledgerCountFor(userId);
+      const idempotencyCount = await countUserRowsFor("mutation_idempotency", userId);
+      const auditCount = await countUserRowsFor("audit_events", userId);
+      await assert.rejects(
+        createTx(userId, "payment", Number.MAX_SAFE_INTEGER, 5, "2026-02-15T03:00:00.000Z"),
+        expectCode("INVALID_INPUT"),
+      );
+
+      assert.equal((await getWalletFor(userId)).availableBalanceVnd, Number.MAX_SAFE_INTEGER);
+      assert.equal(await ledgerCountFor(userId), ledgerCount);
+      assert.equal(await countUserRowsFor("mutation_idempotency", userId), idempotencyCount);
+      assert.equal(await countUserRowsFor("audit_events", userId), auditCount);
+      const februaryReport = await monthlyReport(getPool(), userId, "2026-02");
+      assert.equal(februaryReport.openingWalletBalanceVnd, -Number.MAX_SAFE_INTEGER);
+      assert.equal(februaryReport.closingWalletBalanceVnd, -Number.MAX_SAFE_INTEGER);
+      assert.equal((await monthlyReport(getPool(), userId, "2026-05")).closingWalletBalanceVnd, Number.MAX_SAFE_INTEGER);
     });
   });
 

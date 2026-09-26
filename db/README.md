@@ -11,7 +11,12 @@ db/
 │   └── 0002_seed_default_categories.sql
 │   ├── 0003_ledger_owner_reference_index.sql
 │   ├── 0004_email_auth.sql
-│   └── 0005_auth_rate_limits.sql
+│   ├── 0005_auth_rate_limits.sql
+│   ├── 0006_wallet_safe_integer.sql
+│   ├── 0007_ledger_safe_integer.sql
+│   ├── 0008_budget_safe_integer.sql
+│   ├── 0009_savings_account_safe_integer.sql
+│   └── 0010_savings_transfer_safe_integer.sql
 ├── grants.example.sql     # Least-privilege template (chạy tay bởi DBA/provider)
 └── README.md
 src/
@@ -74,7 +79,7 @@ Chạy: `npm run db:preflight` → `db:migrate` → `npm test` với `CAMPUS_COI
 
 ## Invariant đã mã hóa
 
-- Tiền: `BIGINT UNSIGNED` integer VND; CHECK `amount > 0`; wallet/savings CHECK `>= 0`; không floating point.
+- Tiền: `BIGINT UNSIGNED` integer VND; CHECK `amount > 0`; wallet/savings CHECK `>= 0`; mọi cột tiền không vượt `Number.MAX_SAFE_INTEGER` để API JSON không làm tròn; không floating point.
 - Append-only: trigger chặn UPDATE/DELETE trên `ledger_transactions`, `savings_transfers`, `audit_events`, `issue_events`.
 - Ledger correction: row mới có `reference_id` + `reason`; CHECK chặn original có reference; service chặn chain (target phải original, một correction duy nhất).
 - Owner scope: mọi query có `user_id` predicate; category custom scope theo owner; system category `user_id NULL`. Antijoin correction trong report/budget phải kèm `c.user_id = t.user_id` (index `idx_ledger_user_reference`) — thiếu predicate đó khiến MySQL dò `DISTINCT reference_id` toàn bảng, chi phí theo tổng tenant thay vì theo owner, và dữ liệu tenant khác lọt vào đường tính tiền.

@@ -679,9 +679,9 @@ export interface components {
         TransactionType: "income" | "payment";
         /** @enum {string} */
         Locale: "en" | "vi";
-        /** @description Số nguyên VND; không dùng floating point */
+        /** @description Số nguyên VND trong miền integer an toàn của JavaScript; không dùng floating point */
         MoneyVnd: number;
-        /** @description Số nguyên VND dương */
+        /** @description Số nguyên VND dương trong miền integer an toàn của JavaScript */
         PositiveMoneyVnd: number;
         User: {
             id: string;

@@ -172,6 +172,32 @@ Phần này chỉ là boundary thiết kế cho JEV tùy chọn. JEV hiện defa
 - Câu 111–126 chỉ áp dụng khi JEV được bật. JEV hiện optional và default-off, nên các câu này đang là guardrail thiết kế; không phải bằng chứng JEV đã được triển khai hoặc kiểm thử.
 - Vì vậy, câu trả lời cho từng nguyên lý đã có trong tài liệu, nhưng trạng thái triển khai khác nhau: có phần đã sửa code, có phần là quyết định/acceptance, có phần chờ sản phẩm hoặc provider được bật. Chỉ ghi “đã áp dụng” khi có code hoặc test evidence tương ứng.
 
+## Nghiên cứu repo và cách áp dụng
+
+Các dự án sau được xem như nguồn học nguyên lý, không phải template để sao chép. Campus Coin giữ React, Node.js, MySQL và code nghiệp vụ ngắn, có thể đọc từng bước.
+
+| Nguồn | Nguyên lý hữu ích | Cách áp dụng hoặc giới hạn |
+|---|---|---|
+| [TigerBeetle](https://github.com/tigerbeetle/tigerbeetle), [sửa giao dịch](https://docs.tigerbeetle.com/coding/recipes/correcting-transfers/) | Ghi sự kiện tiền bất biến; sửa bằng event mới có liên kết; idempotency bảo vệ retry. | Đang phù hợp với ledger append-only, correction và transaction MySQL hiện tại. Không cần thay app bằng cluster ledger chuyên dụng. |
+| [Formance Ledger](https://github.com/formancehq/ledger), [ledger schema](https://docs.formance.com/v3.2/modules/ledger/working-with/ledger-schema) | Nhiều posting của một nghiệp vụ phải commit cùng nhau; giao dịch có contract rõ. | Mượn nguyên tắc atomicity cho ledger, wallet, savings, idempotency và audit. Không thêm dịch vụ ledger hoặc đổi MySQL/PostgreSQL cho đồ án này. |
+| [Apache Fineract](https://github.com/apache/fineract) | Bao quát nghiệp vụ savings, accounting, validation và báo cáo. | Dùng để rà các trường hợp nghiệp vụ và đối soát; không bê cả core-banking platform vào phạm vi sinh viên. |
+| [Beancount](https://github.com/beancount/beancount), [double-entry guide](https://github.com/beancount/docs/blob/master/docs/the_double_entry_counting_method.md) | Giao dịch phải cân bằng; số dư có thể được đối chiếu từ lịch sử và assertion. | Áp dụng ý tưởng tính lại projection từ ledger/transfer trong test; không đổi dữ liệu Campus Coin sang sổ kế toán dạng text hoặc giả định app là hệ thống kế toán kép. |
+| [fast-check](https://github.com/dubzzz/fast-check) | Property/model-based test sinh nhiều chuỗi thao tác và biên đầu vào. | Ứng viên tiếp theo cho phép tính tiền thuần và mô hình wallet. Chưa thêm dependency; giữ các regression test dễ đọc trước. |
+| [Testcontainers MySQL](https://node.testcontainers.org/modules/mysql/) | Chạy migration và integration test trên MySQL dùng một lần. | Có thể giúp CI local tái lập mà không đụng DB chia sẻ; cần Docker. Harness hiện có đã tạo schema tạm trên DB test được cấp quyền, nên chỉ chuyển khi có lợi rõ. |
+| [Schemathesis](https://github.com/schemathesis/schemathesis) và [OWASP API Security](https://github.com/OWASP/API-Security) | Tạo request biên theo OpenAPI và checklist cho IDOR, auth, resource limit. | Xem xét khi có API staging/local disposable ổn định; kiểm thử tự động vẫn cần kịch bản hai owner và CSRF cụ thể. |
+| [OWASP ZAP API Scan](https://github.com/zaproxy/action-api-scan) | Rà API bằng request tấn công dựa trên OpenAPI. | Chỉ chạy trên local/CI cùng DB dùng một lần; không chạy active scan lên Aiven dùng chung hoặc dữ liệu thật. |
+| [TLA+](https://github.com/tlaplus/tlaplus) | Mô hình hóa trạng thái hữu hạn và interleaving cạnh tranh. | Chưa ưu tiên: đòi hỏi duy trì mô hình thứ hai; chỉ cân nhắc khi test đồng thời TypeScript chưa giải thích đủ được lock/order. |
+
+### Các quyết định đã áp dụng vào Campus Coin
+
+- Wallet/savings/ledger/audit/idempotency của một mutation được ghi trong SQL transaction; wallet khóa `FOR UPDATE`, ledger chỉ thêm row, sửa sai bằng correction liên kết.
+- VND dùng số nguyên và bị giới hạn ở `Number.MAX_SAFE_INTEGER` trong input, phép tính, OpenAPI và CHECK constraints MySQL. Tổng giao dịch/budget theo tháng cũng phải còn biểu diễn chính xác.
+- Budget upsert khóa một hàng `users` ổn định trước khi đọc tổng tháng, nên hai request cùng owner không thể cùng tính tổng cũ rồi ghi vượt giới hạn.
+- Integration test mới tính lại wallet/savings từ ledger và savings transfer, rồi so với các projection đã lưu; test đồng thời budget kiểm tra chỉ một tổng hợp hợp lệ được commit.
+- Migrations `0006`–`0010` là migration forward-only riêng theo bảng. Chúng chưa được xác nhận áp dụng trên clone; phải chạy datatest, kiểm tra dữ liệu cũ và migration trên schema được phép trước khi coi gate DB hoàn tất.
+
+Không có repository, property test, model checker hay scanner nào chứng minh “đúng 100%”. Mục tiêu là giảm lỗi có thể biết trước bằng invariant đơn giản, transaction nguyên tử, DB constraint, test biên/đồng thời/rollback, đối soát và review có evidence. Không chép source code từ repo tham khảo; trước khi thêm dependency hoặc dùng đoạn mã bên ngoài, cần ghi nguồn và kiểm tra license của đúng phiên bản.
+
 ## Thay đổi áp dụng trong code lần này
 
 - Auth form dùng `fieldset`/`legend` để nhóm controls, `label` tiếp tục gắn từng input; form có accessible name từ heading.
