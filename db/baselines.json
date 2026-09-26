@@ -7,7 +7,7 @@
       "acceptedChecksums": [
         "a351b03465ff9e22ca4ffcb67d42b9d313e79162cbb4ae8d64cd0d1bd57ca502"
       ],
-      "reason": "Slot owned by another chain (0004_email_auth.sql, applied 2026-09-24). Our DDL moved to 0031. No local file may use this version."
+      "reason": "Slot owned by another chain (0004_email_auth.sql, applied 2026-09-24). Local 0004 file kept; its DDL was applied manually to Aiven during converge 2026-09-25 (ADR-0009 §4), so the slot is external."
     },
     {
       "version": "0005",
@@ -15,7 +15,7 @@
       "acceptedChecksums": [
         "c4309279fed9e3328f596c5861bfc3108a230d2fd5cfd7183bf17a3553014e84"
       ],
-      "reason": "Slot owned by another chain (0005_auth_rate_limits.sql, applied 2026-09-24). Our DDL moved to 0032. No local file may use this version."
+      "reason": "Slot owned by another chain (0005_auth_rate_limits.sql, applied 2026-09-24). Local 0005 file kept; its DDL was applied manually to Aiven during converge 2026-09-25 (ADR-0009 §4), so the slot is external."
     }
   ]
 }

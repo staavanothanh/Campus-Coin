@@ -15,5 +15,8 @@ node_modules/
 .env*
 .vercel-env-sync/
 
+# DB TLS CA bundle (provider cert; không commit — xem docs/DB-RESTORE-RUNBOOK.md)
+ca.pem
+
 # temp
 .tmp/
