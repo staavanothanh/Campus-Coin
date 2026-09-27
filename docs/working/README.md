@@ -23,6 +23,8 @@
 - [`student-cashflow-research-2026-09-26.md`](student-cashflow-research-2026-09-26.md): nghiên cứu weekly cashflow, mô phỏng khoản chi và benchmark cá nhân; advisory, chưa phải quyết định sản phẩm.
 - [`repository-review-2026-09-27.md`](repository-review-2026-09-27.md): đánh giá 23 repository, nhánh mới, license/rủi ro và phần áp dụng vào sản phẩm.
 
+- Đề xuất tính năng chờ quyết định: [gợi ý mặt hàng, khoản cố định và so sánh chi tiêu](student-finance-feature-proposal-2026-09-27.md).
+
 ## Quy tắc cập nhật
 
 - Không ghi secret, token, raw PII hoặc raw provider payload.

@@ -49,6 +49,8 @@ Root `docs/` là canonical product docs; `adr/` là canonical history; `working/
 
 ## 3. Bản đồ tài liệu chuẩn
 
+Đề xuất sản phẩm đang chờ quyết định: [gợi ý mặt hàng, khoản cố định và so sánh chi tiêu](./working/student-finance-feature-proposal-2026-09-27.md).
+
 | Tài liệu | Vai trò |
 |---|---|
 | [`PRD.md`](./PRD.md) | Mục tiêu, phạm vi MVP, acceptance và scope cut |
