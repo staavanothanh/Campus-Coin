@@ -2,7 +2,7 @@
 
 > Ngày ghi nhận: 2026-09-27
 > Người đề xuất: Team Leader — Hiệp
-> Trạng thái: Advisory, cần Team Leader chốt trước khi đưa vào PRD/roadmap hoặc code
+> Trạng thái: Team Leader đã chấp thuận bốn nguyên tắc ở mục 7; phạm vi release và lịch triển khai chưa được lên kế hoạch
 > Nguồn hình ảnh: bốn ảnh Notion do Team Leader cung cấp; mô tả bên dưới là điều rút ra từ ảnh, không sao chép giao diện/CSS.
 
 ## 1. Mục tiêu
@@ -132,7 +132,7 @@ Không đưa kỳ income vào bản đầu nếu cách chia kỳ chưa được 
 4. Thiết kế planned obligations và cảnh báo ngày đến hạn. Đây là feature mới, cần migration, API, authorization, reminder behavior và cách liên kết payment thật.
 5. Cân nhắc comparison theo kỳ income sau khi thống nhất cách chia kỳ. Không trộn số tháng với số kỳ income trong cùng nhãn.
 
-Ưu tiên chỉ là đề xuất. Team Leader quyết định phạm vi/roadmap; chưa yêu cầu DevB/DevC tạo migration hoặc implementation từ file này.
+Bốn nguyên tắc nghiệp vụ ở mục 7 được Team Leader chấp thuận ngày 2026-09-27. Danh sách trên là các hướng khả thi, chưa phải lịch release hoặc phân công implementation. Cần ghi phạm vi và owner ở delivery plan trước khi bắt đầu thay schema hoặc triển khai.
 
 ## 6. Bất biến và riêng tư
 
@@ -144,19 +144,22 @@ Không đưa kỳ income vào bản đầu nếu cách chia kỳ chưa được 
 - Không tạo benchmark giữa sinh viên. Chỉ so sánh với dữ liệu của chính người đang đăng nhập.
 - Giao diện nói rõ khi dữ liệu thiếu, ghi chú là do người dùng tự nhập và khoản cố định là kế hoạch; không hứa dự đoán chắc chắn hoặc đưa lời khuyên phán xét.
 
-## 7. Câu hỏi cần Team Leader chốt
+## 7. Quyết định đã chốt và phần còn mở
 
-Các câu hỏi này không chặn việc nghiên cứu UI/API hiện tại nhưng phải trả lời trước khi đổi schema hoặc coi logic là quyết định:
+### Đã được Team Leader chấp thuận ngày 2026-09-27
 
-1. Tên mặt hàng có phải trường riêng không? Đề xuất: có itemName riêng; description dùng làm ghi chú tự do.
-2. Top 10 tính trên toàn bộ lịch sử hay một khoảng gần đây? Đề xuất ban đầu: toàn bộ payment còn hiệu lực của chính user; sort theo tần suất giảm dần, lần mua gần nhất dùng để phá hòa.
-3. Khoản cố định có chỉ là kế hoạch/nhắc nhở, không tự trừ số dư không? Đề xuất: đúng; wallet chỉ đổi khi payment thật được ghi.
-4. Sau khi thêm income, khoảng thời gian xem khoản cố định kết thúc ở đâu nếu chưa có ngày income kế tiếp? Đề xuất: 30 ngày tới với nhãn mốc xem mặc định; không gọi là “tới kỳ lương sau”.
-5. Với hóa đơn đến hạn ngày 29–31 trong tháng ngắn, dùng ngày cuối tháng đó có phù hợp không?
-6. Bản đầu có cần trạng thái cảm nhận “hài lòng/còn do dự” như ảnh Notion không? Đề xuất: chưa thêm cho tới khi thử với sinh viên.
-7. So sánh danh mục theo tháng có nên làm trước so sánh theo income cycle không? Đề xuất: có; income cycle để giai đoạn sau vì cách chia kỳ chưa được chốt.
+1. Tên mặt hàng là trường itemName riêng; description giữ vai trò ghi chú tự do. Nếu thêm trường, dùng migration mới, nullable và không tự backfill description lịch sử.
+2. Khoản cố định là kế hoạch/nhắc nhở; không tự trừ wallet, không tạo ledger/payment, không cộng vào budget đã dùng. Chỉ payment thật được người dùng xác nhận mới tác động số liệu authoritative.
+3. Nếu chưa biết ngày income tiếp theo, phần khoản cố định sắp tới mặc định xem 30 ngày và phải ghi rõ đó là khoảng xem tham khảo, không gọi là “đến kỳ lương sau”.
+4. Ưu tiên so sánh chi theo tháng trước. So sánh theo income cycle để giai đoạn sau khi đã chốt cách chia kỳ.
 
-## 8. Tiêu chí thử nghiệm khi được phê duyệt
+### Còn cần quyết định trước khi làm các phần tương ứng
+
+1. Top 10 mặt hàng tính trên toàn bộ lịch sử hay một khoảng gần đây? Đề xuất ban đầu: toàn bộ payment còn hiệu lực của chính user; sort theo tần suất giảm dần, lần mua gần nhất dùng để phá hòa.
+2. Với hóa đơn đến hạn ngày 29–31 trong tháng ngắn, dùng ngày cuối tháng đó có phù hợp không?
+3. Bản đầu có cần trạng thái cảm nhận “hài lòng/còn do dự” như ảnh Notion không? Đề xuất: chưa thêm cho tới khi thử với sinh viên.
+
+## 8. Tiêu chí thử nghiệm khi triển khai
 
 - Gợi ý chỉ chứa mặt hàng của user hiện tại, tối đa 10 kết quả, không lộ dữ liệu user khác.
 - Tên gần giống nhưng khác theo normalization đã chốt không bị tự gộp âm thầm.
