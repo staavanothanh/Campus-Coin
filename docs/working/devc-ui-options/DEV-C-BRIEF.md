@@ -1,4 +1,6 @@
-# Gói bàn giao giao diện cho DevC
+# Gói bàn giao giao diện cho DevC — ghi chú lịch sử
+
+> Ghi chú này được soạn trước khi giao diện mới được tích hợp vào `src/web/`. Hiện tại không còn là yêu cầu đang mở để dựng ba bản preview hoặc tạo UI thay thế. Chỉ dùng các quyết định trong tài liệu làm bối cảnh khi được giao một phần giao diện cụ thể; kiểm tra `docs/CURRENT-STATUS.md` và `docs/DELIVERY-PLAN.md` để biết trạng thái mới nhất.
 
 ## File cần đọc
 
@@ -20,8 +22,11 @@
 
 - `src/app/App.tsx`
 - `src/app/text.ts`
-- `src/app/main.tsx`
-- `src/styles/main.css`
+- `src/web/main.tsx`
+- `src/web/App.tsx`
+- `src/web/i18n.ts`
+- `src/web/api-client.ts`
+- `src/web/styles.css`
 - `src/features/auth/auth.api.ts`
 
 **Chỉ đọc để nối đúng API và quyền:**

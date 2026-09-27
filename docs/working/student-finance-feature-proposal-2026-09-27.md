@@ -2,7 +2,7 @@
 
 > Ngày ghi nhận: 2026-09-27
 > Người đề xuất: Team Leader — Hiệp
-> Trạng thái: Team Leader đã chấp thuận năm nguyên tắc ở mục 7; ba ý tưởng bổ sung ở mục 9 đang được đề xuất, chưa thành phạm vi release
+> Trạng thái: Team Leader đã chấp thuận năm nguyên tắc ở mục 7; các ý tưởng ở mục 9 và đề xuất OCR hóa đơn ở mục 10 vẫn là hướng tham khảo, chưa thành phạm vi release
 > Nguồn hình ảnh: bốn ảnh Notion do Team Leader cung cấp; mô tả bên dưới là điều rút ra từ ảnh, không sao chép giao diện/CSS.
 
 ## 1. Mục tiêu
@@ -219,3 +219,43 @@ Ba ý tưởng tạo thành một vòng hỗ trợ quyết định: nhìn kế h
 3. Chỉ hiển thị so sánh kế hoạch với thực tế sau khi có kỳ đã kết thúc, dữ liệu nhập đủ dùng và cách báo dữ liệu thiếu được kiểm tra với sinh viên.
 
 Trước khi đổi schema hoặc code, cần ghi phạm vi, owner, acceptance và migration/test plan vào PRD/delivery plan. Ba ý tưởng ở mục này chưa được Team Leader chốt thành yêu cầu triển khai.
+
+## 10. Chụp hóa đơn để tạo bản nháp payment
+
+### Mục tiêu
+
+Giảm việc gõ lại thông tin khi sinh viên có hóa đơn giấy hoặc hóa đơn điện tử. OCR chỉ đọc nội dung ảnh và điền trước dữ liệu; người dùng vẫn quyết định có ghi khoản `payment` hay không.
+
+### Luồng đề xuất
+
+1. Người dùng chọn chụp ảnh hoặc tải ảnh hóa đơn lên. Nhập tay vẫn luôn dùng được.
+2. Server kiểm tra loại file, dung lượng và kích thước ảnh trước khi gửi tới OCR adapter. Browser không gọi nhà cung cấp OCR trực tiếp.
+3. OCR tạo bản nháp gồm các trường nhận diện được như tên cửa hàng, ngày, tổng tiền và có thể là các dòng mặt hàng. Mỗi giá trị chưa chắc chắn phải được trình bày để người dùng kiểm tra, không được coi là dữ liệu đã xác nhận.
+4. Giao diện cho sửa trường, chọn danh mục và xem tổng tiền trước khi lưu. Với model hiện tại, bản đầu chỉ tạo một `payment` có một tổng tiền và một danh mục; không tự tách hóa đơn thành nhiều giao dịch hoặc tự phân bổ danh mục cho từng món.
+5. Chỉ khi người dùng bấm xác nhận thì ứng dụng mới gọi API tạo payment. Hủy hoặc lỗi OCR không tạo ledger row; người dùng có thể chuyển sang nhập tay.
+
+### Quyền quyết định và tự động hóa
+
+- Sau khi người dùng chủ động chọn ảnh, có thể tự động nhận diện và điền các trường đọc được để giảm thao tác.
+- Người dùng có thể sửa hoặc xóa từng giá trị nhận diện, chọn danh mục khác, bỏ bản nháp hoặc xác nhận tạo `payment`.
+- Không tự ghi payment, không tự trừ wallet, không coi hóa đơn là bằng chứng giao dịch đã thanh toán và không dùng OCR để quyết định người dùng có đủ tiền hay không.
+- Lưu ảnh hóa đơn là lựa chọn riêng, mặc định tắt. Nếu người dùng không chọn lưu ảnh, xóa ảnh tạm sau khi OCR hoàn tất hoặc thất bại; không ghi ảnh hay toàn văn OCR vào application log.
+
+### Giới hạn và an toàn dữ liệu
+
+- OCR có thể đọc sai số tiền, ngày, dấu phân cách hàng nghìn hoặc tổng tiền sau giảm giá. Không được âm thầm sửa số người dùng nhập hay tạo giao dịch tự động.
+- `amountVnd` cuối cùng phải là số nguyên VND hợp lệ theo contract; ngày phải theo semantics `Asia/Ho_Chi_Minh`. Giá trị không đọc chắc chắn phải để người dùng xác nhận hoặc nhập lại.
+- File upload cần giới hạn dung lượng/kích thước, kiểm tra định dạng thật, timeout và lỗi provider có thông báo cùng đường nhập tay. Không log ảnh, toàn văn hóa đơn, token hay dữ liệu nhận diện thô.
+- Ảnh có thể chứa tên, địa chỉ hoặc thông tin thanh toán. Chỉ chọn provider sau khi xem điều khoản xử lý/lưu giữ dữ liệu và thử độ chính xác trên bộ hóa đơn mẫu được phép sử dụng.
+- Không dùng JEV để thay OCR adapter. JEV đang có mục đích riêng là gợi ý danh mục; OCR đọc tài liệu và trích các giá trị ứng viên, không tính toán hay authorize money state.
+
+### Thử nghiệm trước khi quyết định triển khai
+
+1. Tạo bộ hóa đơn mẫu đa dạng, đã được phép sử dụng và đã che thông tin cá nhân không cần cho thử nghiệm.
+2. Đo riêng độ chính xác exact-match của tổng tiền/ngày, tỷ lệ người dùng phải sửa từng trường và thời gian hoàn thành so với nhập tay. Không kết luận chất lượng chỉ từ việc OCR có trả ra chữ.
+3. Kiểm tra hóa đơn mờ, nghiêng, nhiều định dạng ngày, giảm giá, thuế, nhiều dòng hàng, thiếu tổng tiền và provider timeout; tất cả phải có đường sửa hoặc nhập tay.
+4. Kiểm tra rằng không có ledger mutation trước bước xác nhận, request retry không tạo payment trùng và dữ liệu của user khác không thể xem lại.
+
+Tài liệu provider hiện cho biết Google Cloud Vision OCR có hỗ trợ ngôn ngữ tiếng Việt; đó là khả năng nhận dạng chữ, không đảm bảo tự hiểu chính xác trường tổng tiền/ngày trên hóa đơn. Google Document AI cũng phân biệt bộ nhận dạng OCR đa ngôn ngữ với Expense Parser; danh sách ngôn ngữ của Expense Parser hiện không nêu tiếng Việt. Đây chỉ là căn cứ để thử nghiệm, chưa phải quyết định dùng Google hay một provider cụ thể: [Vision OCR languages](https://docs.cloud.google.com/vision/docs/languages), [Vision OCR features](https://docs.cloud.google.com/vision/docs/features-list), [Document AI processors and languages](https://docs.cloud.google.com/document-ai/docs/processors-list), [Document AI response fields](https://docs.cloud.google.com/document-ai/docs/handle-response).
+
+Ý tưởng này cần product owner chốt phạm vi, provider, quyền lưu ảnh và acceptance trước khi thêm vào PRD/delivery plan hoặc bắt đầu thay schema/code.

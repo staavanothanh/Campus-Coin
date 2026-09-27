@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { api, ApiError, type User } from '../features/auth/auth.api';
-import { DomainDashboard } from '../features/domain/DomainDashboard';
 import { errorText, text, type Language } from './text';
 
 type Page = 'login' | 'register' | 'verify' | 'forgot' | 'reset';
@@ -15,7 +14,14 @@ const fieldsByPage: Record<Page, AuthField[]> = {
   reset: ['otp', 'password', 'confirm'],
 };
 
-export function App() {
+export type AuthenticatedSession = { user: User; csrfToken: string; googleLinked?: boolean | undefined };
+export type AuthAppProps = {
+  onAuthenticated(session: AuthenticatedSession | null): void;
+  initialNotice?: string;
+  noticeKind?: MessageKind;
+};
+
+export function App({ onAuthenticated, initialNotice = '', noticeKind = 'status' }: AuthAppProps) {
   const [language, setLanguage] = useState<Language>('vi');
   const [page, setPage] = useState<Page>('login');
   const [email, setEmail] = useState(localStorage.getItem('campus_email') || '');
@@ -29,14 +35,11 @@ export function App() {
   const [touched, setTouched] = useState<Record<AuthField, boolean>>({
     email: false, name: false, otp: false, password: false, confirm: false,
   });
-  const [submitted, setSubmitted] = useState(false);
-  const [user, setUser] = useState<User | null>(null);
-  const [googleEnabled, setGoogleEnabled] = useState(false);
-  const [googleLinked, setGoogleLinked] = useState(false);
-  const [oauthResult, setOauthResult] = useState<{ kind: 'success' | 'error'; code: string } | null>(null);
-  const [message, setMessage] = useState('');
+  const [message, setMessage] = useState(initialNotice);
   const [busy, setBusy] = useState(false);
-  const [messageKind, setMessageKind] = useState<MessageKind>('status');
+  const [messageKind, setMessageKind] = useState<MessageKind>(noticeKind);
+  const [submitted, setSubmitted] = useState(false);
+  const [googleEnabled, setGoogleEnabled] = useState(false);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const requestInProgress = useRef(false);
   const t = text[language];
@@ -44,57 +47,27 @@ export function App() {
   useEffect(() => {
     document.documentElement.lang = language;
   }, [language]);
-
   useEffect(() => {
-    const query = new URLSearchParams(window.location.search);
-    const success = query.get('auth');
-    const failure = query.get('auth_error');
-    if (success) setOauthResult({ kind: 'success', code: success });
-    if (failure) setOauthResult({ kind: 'error', code: failure });
-    if (success || failure) window.history.replaceState({}, '', window.location.pathname);
+    let active = true;
+    api<{ google: boolean }>('/auth/providers')
+      .then(providers => {
+        if (active) setGoogleEnabled(providers.google === true);
+      })
+      .catch(() => {
+        if (active) setGoogleEnabled(false);
+      });
+    return () => { active = false; };
   }, []);
 
   useEffect(() => {
-    if (!oauthResult) return;
-    const messages = text[language];
-    const successMessages: Record<string, string> = {
-      google_login: messages.googleLoginSuccess,
-      google_linked: messages.googleLinkSuccess,
-    };
-    const errorMessages: Record<string, string> = {
-      cancelled: messages.googleCancelled,
-      invalid_flow: messages.googleFailed,
-      provider_error: messages.googleFailed,
-      provider_unavailable: messages.googleUnavailable,
-      link_required: messages.googleLinkRequired,
-      account_conflict: messages.googleConflict,
-      login_required: messages.googleLoginRequired,
-      rate_limited: messages.rateLimited,
-      failed: messages.googleFailed,
-    };
-    setMessageKind(oauthResult.kind === 'error' ? 'error' : 'status');
-    setMessage(oauthResult.kind === 'error'
-      ? errorMessages[oauthResult.code] || messages.googleFailed
-      : successMessages[oauthResult.code] || '');
-  }, [oauthResult, language]);
-
+    if (!initialNotice) return;
+    setMessage(initialNotice);
+    setMessageKind(noticeKind);
+  }, [initialNotice, noticeKind]);
   useEffect(() => {
     headingRef.current?.focus();
-  }, [page, user]);
+  }, [page]);
 
-  useEffect(() => {
-    api<{ google: boolean }>('/auth/providers')
-      .then(result => setGoogleEnabled(result.google))
-      .catch(() => setGoogleEnabled(false));
-    api<{ user: User; googleLinked: boolean }>('/auth/session')
-      .then(result => {
-        setUser(result.user);
-        setGoogleLinked(result.googleLinked);
-      })
-      .catch(error => {
-        if (!(error instanceof ApiError) || error.status !== 401) setMessage(text.vi.error);
-      });
-  }, []);
 
   function openPage(nextPage: Page) {
     setPage(nextPage);
@@ -173,12 +146,11 @@ export function App() {
     setBusy(true);
     try {
       if (page === 'login') {
-        const result = await api<{ user: User; googleLinked: boolean }>('/auth/login', { email, password });
-        setUser(result.user);
-        setGoogleLinked(result.googleLinked);
-        setPassword('');
+        const result = await api<{ user: User; csrfToken: string; googleLinked?: boolean }>('/auth/login', { email, password });
+        if (!result.csrfToken) throw new ApiError(500, 'INVALID_RESPONSE', t.error);
         if (remember) localStorage.setItem('campus_email', email);
         else localStorage.removeItem('campus_email');
+        onAuthenticated({ user: result.user, csrfToken: result.csrfToken, googleLinked: result.googleLinked });
       }
       if (page === 'register') {
         await api('/auth/register', { email });
@@ -226,45 +198,6 @@ export function App() {
     }
   }
 
-  async function signOut() {
-    if (requestInProgress.current) return;
-    requestInProgress.current = true;
-    setBusy(true);
-    setMessage('');
-    try {
-      await api('/auth/logout', {});
-      setUser(null);
-      setGoogleLinked(false);
-      openPage('login');
-    } catch (error) {
-      showError(error);
-    } finally {
-      requestInProgress.current = false;
-      setBusy(false);
-    }
-  }
-
-  async function connectGoogle() {
-    if (requestInProgress.current) return;
-    requestInProgress.current = true;
-    setBusy(true);
-    setMessage('');
-    try {
-      const result = await api<{ url: string }>('/auth/google/link', undefined, 'POST');
-      window.location.assign(result.url);
-    } catch (error) {
-      showError(error);
-      requestInProgress.current = false;
-      setBusy(false);
-    }
-  }
-
-  function sessionExpired() {
-    setUser(null);
-    openPage('login');
-    setMessage(text[language].sessionExpired);
-    setMessageKind('error');
-  }
 
   let title = t.login;
   let buttonText = t.login;
@@ -273,7 +206,7 @@ export function App() {
   if (page === 'forgot') { title = t.forgot; buttonText = t.sendCode; }
   if (page === 'reset') { title = t.reset; buttonText = t.change; }
 
-  return <main className="screen">
+  return <main className="screen auth-screen">
     <div className="topbar">
       <strong>Campus Coin</strong>
       <button type="button" onClick={() => setLanguage(language === 'vi' ? 'en' : 'vi')}>
@@ -281,19 +214,7 @@ export function App() {
       </button>
     </div>
 
-    {user ? <DomainDashboard
-      user={user}
-      language={language}
-      googleEnabled={googleEnabled}
-      googleLinked={googleLinked}
-      authBusy={busy}
-      authMessage={message}
-      authMessageKind={messageKind}
-      onLogout={signOut}
-      onConnectGoogle={connectGoogle}
-      onSessionExpired={sessionExpired}
-    /> : <>
-      <section className="authCard">
+    <section className="authCard">
         <h1 id="auth-title" ref={headingRef} tabIndex={-1}>{title}</h1>
         {page === 'verify' && <p className="emailHint">{t.email}: {email}</p>}
         <form aria-labelledby="auth-title" onInvalid={() => setSubmitted(true)} onSubmit={submit}>
@@ -433,8 +354,7 @@ export function App() {
         </>}
         {page !== 'login' && <button className="textButton" onClick={() => openPage('login')}>{t.back}</button>}
       {message && <p className="message" role={messageKind === 'error' ? 'alert' : 'status'} aria-live={messageKind === 'error' ? 'assertive' : 'polite'}>{message}</p>}
-      </section>
-      <p className="subtitle">{t.subtitle}</p>
-    </>}
+    </section>
+    <p className="subtitle">{t.subtitle}</p>
   </main>;
 }

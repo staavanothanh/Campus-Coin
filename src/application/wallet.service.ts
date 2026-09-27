@@ -4,7 +4,7 @@ import type { Db } from "../infrastructure/db/pool.ts";
 import { withIdempotentMutation } from "./idempotency.ts";
 import { amountFromDb } from "../infrastructure/persistence/rows.ts";
 import { findWalletByUserId, insertWallet } from "../infrastructure/persistence/wallet.repository.ts";
-import { insertSavingsAccount } from "../infrastructure/persistence/savings.repository.ts";
+import { findSavingsByUserId, insertSavingsAccount } from "../infrastructure/persistence/savings.repository.ts";
 import { insertAuditEvent } from "../infrastructure/persistence/audit.repository.ts";
 import { isNonNegativeVnd } from "../domain/money.ts";
 import { invalidInput, walletAlreadyInitialized } from "../domain/errors.ts";
@@ -34,11 +34,15 @@ export async function initializeWallet(
     scope: "wallet.baseline",
     idempotencyKey: input.idempotencyKey,
     requestHash: input.requestHash,
-    mutate: async (conn, _idempotencyId) => {
+    mutate: async (conn, idempotencyId) => {
       const existing = await findWalletByUserId(conn, input.userId);
       if (existing !== null) throw walletAlreadyInitialized();
-      await insertWallet(conn, input.userId, input.initialBalanceVnd);
-      await insertSavingsAccount(conn, input.userId);
+      await insertWallet(conn, input.userId, input.initialBalanceVnd, idempotencyId);
+      // Some deployed clones create the savings row from a wallet trigger.
+      // The plain schema does not, so create it only when it is still missing.
+      if (await findSavingsByUserId(conn, input.userId) === null) {
+        await insertSavingsAccount(conn, input.userId);
+      }
       await insertAuditEvent(conn, {
         userId: input.userId,
         actorType: "user",

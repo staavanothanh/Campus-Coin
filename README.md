@@ -77,7 +77,11 @@ npm run dev:api
 npm run dev
 ```
 
-API ở `http://127.0.0.1:3000/api/v1/health`; giao diện Vite ở `http://127.0.0.1:5173`. Chưa có cấu hình deploy Vercel cho runtime này.
+API ở `http://127.0.0.1:3000/api/v1/health`; giao diện Vite ở `http://127.0.0.1:5173`. Trên Windows có thể chạy `Campus-Coin-Start.bat` để tự kiểm tra dependency/cổng, bật hai dịch vụ local nếu cần và mở giao diện. Đóng hai cửa sổ API/Web để dừng dịch vụ.
+
+Project đã có Vercel Node.js Function adapter, SPA/API routing và workflow deploy thủ công. Các file cấu hình chưa chứng minh Preview/Production đã được deploy; xem gate ở [`docs/DELIVERY-PLAN.md`](docs/DELIVERY-PLAN.md).
+
+Các bước kiểm tra giao diện domain: `npm run test:web`, `npm run typecheck` và `npm run build`. Luồng MySQL integration cần bật test gate và chỉ tạo schema tạm trên MySQL thử nghiệm đã được xác nhận; xem [`docs/DB-STAGING-TESTING.md`](docs/DB-STAGING-TESTING.md).
 
 Lane MySQL của Developer B gồm migrations, repository, service tiền và test; xem [`db/README.md`](db/README.md). Auth và API domain hiện đã được nối qua application services; MySQL E2E, browser accessibility và môi trường thật vẫn là gate đang chờ xác minh.
 

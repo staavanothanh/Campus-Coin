@@ -14,7 +14,7 @@ import {
   listTransactionsPage,
   type LedgerRow,
 } from "../infrastructure/persistence/ledger.repository.ts";
-import { lockWalletForUpdate, updateWalletBalance } from "../infrastructure/persistence/wallet.repository.ts";
+import { findWalletByUserId, lockWalletForUpdate, updateWalletBalance } from "../infrastructure/persistence/wallet.repository.ts";
 import { insertAuditEvent } from "../infrastructure/persistence/audit.repository.ts";
 import { findBudget } from "../infrastructure/persistence/budget.repository.ts";
 import {
@@ -105,6 +105,21 @@ async function lockWalletWithCheck(conn: PoolConnection, userId: number): Promis
   return { balance: wallet.availableBalanceVnd };
 }
 
+async function reconcileWalletProjection(
+  conn: PoolConnection,
+  userId: number,
+  previousBalance: number,
+  expectedBalance: number,
+): Promise<void> {
+  const wallet = await findWalletByUserId(conn, userId);
+  if (wallet === null) throw new Error("wallet missing after ledger insert");
+  if (wallet.availableBalanceVnd === expectedBalance) return;
+  if (wallet.availableBalanceVnd !== previousBalance) {
+    throw new Error("wallet projection mismatch after ledger insert");
+  }
+  await updateWalletBalance(conn, userId, expectedBalance);
+}
+
 async function validateCategoryForType(
   conn: PoolConnection,
   userId: number,
@@ -171,7 +186,7 @@ export async function createTransaction(
         reason: null,
         idempotencyId,
       });
-      await updateWalletBalance(conn, input.userId, newBalance);
+      await reconcileWalletProjection(conn, input.userId, balance, newBalance);
       await insertAuditEvent(conn, {
         userId: input.userId,
         actorType: "user",
@@ -323,7 +338,7 @@ export async function createCorrection(db: Db, input: CreateCorrectionInput): Pr
         reason: input.reason,
         idempotencyId,
       });
-      await updateWalletBalance(conn, input.userId, newBalance);
+      await reconcileWalletProjection(conn, input.userId, balance, newBalance);
       await insertAuditEvent(conn, {
         userId: input.userId,
         actorType: "user",

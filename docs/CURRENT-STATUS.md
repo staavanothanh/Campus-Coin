@@ -16,6 +16,8 @@ Tài liệu này giúp thành viên mới nắm quyết định hiện hành, ph
 
 ## Đã push lên `hiep`
 
+> Các commit và GitHub Actions liệt kê trong mục này là lịch sử trước đợt hoàn thiện hiện tại. Xem mục “Hoàn thiện và kiểm tra trước push ngày 2026-09-27” bên dưới để biết trạng thái diff và blocker mới nhất.
+
 - `8884687` — thêm domain dashboard và test client/format; [GitHub Actions run #17](https://github.com/staavanothanh/Campus-Coin/actions/runs/36269420560) pass toàn workflow.
 - `6cc27dc` — thêm Vercel Function adapter, cấu hình routing và deploy workflow; GitHub Actions run #14 pass toàn workflow.
 - `4bbdb61` — cập nhật trạng thái nhánh, rubric, cách áp dụng nguyên lý web và checklist phối hợp.
@@ -50,13 +52,18 @@ Tài liệu này giúp thành viên mới nắm quyết định hiện hành, ph
 - [Workflow run #6](https://github.com/staavanothanh/Campus-Coin/actions/runs/36113454931) trên commit code `5ee8858` pass typecheck, build, API validation/artifacts, unit tests, `db:datatest`, MySQL domain integration, HTTP contract smoke và Auth MySQL integration trên MySQL cô lập. Run #7 xác nhận lại toàn workflow sau cập nhật docs.
 - Trước đó CI tìm ra budget của category ngoài owner trả `422` thay vì `404` và Google integration test tự theo redirect đến hostname giả. Đã sửa budget thành `404 NOT_FOUND`, giữ redirect ở response trong test; run #6 xác nhận auth/owner integration pass.
 
-### Bổ sung ngày 2026-09-27
+### Hoàn thiện và kiểm tra trước push ngày 2026-09-27
 
-- Remote được fetch lại trước khi xem xét hợp nhất: `origin/hiep=563eaae`, `origin/thien-merge=77ad3dd`, `origin/main=1a1822f`, `origin/thien=55df41e`; nhóm DB gồm `origin/database-ingest=48f8cd4`, `.2=ce984ae`, `.3=9df1c97`, `.4=053a434`. Nhánh DB là chuỗi tổ tiên theo thứ tự đến `.4`, nên `.4` đã chứa các commit của ba refs DB cũ. `hiep` là sản phẩm chính; không có merge nguyên nhánh phù hợp. Lý do và phạm vi từng repo/nhánh nằm trong [repository review](./working/repository-review-2026-09-27.md).
-- Đã thêm giao diện domain sau đăng nhập: wallet setup, tổng quan, thu/chi, savings transfer, lịch sử phân trang, báo cáo tháng và ngân sách. Client dùng typed API wrapper, Idempotency-Key và giờ/ngày theo `Asia/Ho_Chi_Minh`; không tính lại authoritative balance/budget ở browser.
-- CI workflow hiện có bước chạy `test/domain.format.test.ts` và `test/domain.api.test.ts`.
-- Lượt kiểm tra cục bộ ngày 2026-09-27: `npm run typecheck` và `npm run build` pass; `npm run api:validate` hợp lệ với 5 warning 4xx lịch sử; domain unit tests 6/6 pass; 53 test trong các bước CI không cần MySQL pass. `npm run api:bundle` và `npm run api:types` đã sinh lại artifacts để thể hiện `wallet`, `savings`, `currentMonth` có thể là `null` trước khi khởi tạo ví. Sau push, GitHub Actions run #17 trên commit `8884687` pass job `verify` toàn workflow.
-- Không chạy migration, `db:datatest`, MySQL integration, SMTP/provider staging, benchmark hoặc Vercel deploy trong lượt này. Không dùng database được cấu hình trong môi trường local.
+- Giữ `hiep` làm nhánh sản phẩm. Trước khi tạo commit, `HEAD` và `origin/hiep` đều là `5945ab7`; đã fetch lại remote và xác nhận `origin/main` có các commit khác, không merge nguyên nhánh vì kiến trúc/migration khác.
+- Remote refs lần fetch này: `origin/main=e6d031c`, `origin/thien-merge=9234544`, `origin/database-ingest-0.4=a58c33e`. `origin/main` có thay đổi CI/test setup sau snapshot cũ; workflow `hiep` chạy test schema riêng bằng cặp `CAMPUS_COIN_DB_MIGRATE_USER/PASSWORD` mà harness đang đọc, còn ref không được merge nguyên nhánh.
+- Giao diện domain chạy từ `src/web/main.tsx`; entrypoint cũ `src/app/main.tsx` được bỏ để không có hai ứng dụng cạnh tranh. `Campus-Coin-Start.bat` mở API/Web local và trình duyệt; cửa sổ khởi chạy tự đóng sau khi sẵn sàng, còn hai cửa sổ dịch vụ giữ log.
+- CI bổ sung `npm run test:web`; workflow dùng `CAMPUS_COIN_DB_MIGRATE_USER/PASSWORD` để tạo schema thử nghiệm cô lập. Hướng dẫn DevC được sửa theo đường dẫn source thật; [bộ query DBeaver](./working/DBEAVER-REVIEW-QUERIES.sql) mặc định chỉ đọc dữ liệu của một tài khoản demo được chọn, giới hạn số dòng và bỏ các cột bí mật.
+- `npm run typecheck`: pass; `npm run build`: pass; `npm run test:web`: 33/33 pass; `npm run api:validate`: hợp lệ, còn 5 cảnh báo 4xx ở discovery/redirect/health. API bundle/types được sinh lại và `git diff --exit-code -- artifacts/openapi.json artifacts/api.d.ts` pass.
+- Nhóm unit/adapter/guard không dùng MySQL đạt 52/52 pass; nhóm MySQL domain/contract/auth đạt 53/53 pass; `npm run db:datatest` đạt 23/23 pass. Đây là các lượt kiểm tra local trên harness/schema tạm, không phải kết quả CI mới.
+- Ba MySQL suite trên schema tạm: `test/mysql.integration.test.ts` 32/32, `test/e2e.contract.smoke.test.ts` 13/13, `test/auth.mysql.integration.test.ts` 8/8. Regression dựng trigger trong schema tạm để xác nhận income, reversal, deposit và withdraw không cập nhật ví/savings hai lần.
+- Góp ý ở trang trợ giúp nay gửi vào issue API với CSRF và idempotency; FAQ mô tả đúng email/OTP cùng Google tùy chọn. Báo cáo bỏ qua phản hồi tháng cũ; có thể mở form ngân sách cả khi danh mục chưa có giao dịch. Theme lưu như tùy chọn giao diện trong trình duyệt; toast tự ẩn và được đọc bởi công nghệ hỗ trợ.
+- Kiểm tra chỉ đọc `npm run db:preflight` và `npm run db:status` tới `campus_coin_clone` vẫn FAIL checksum `0006`–`0010`. TLS/database connection pass; không chạy migration hoặc suite ghi trên clone. Clone cần DevB đối chiếu riêng trước deploy; chi tiết ở [DB-STAGING-TESTING.md](./DB-STAGING-TESTING.md).
+- Các kết quả trên là local evidence trước push. GitHub Actions chưa chạy trên commit mới; CI sẽ được theo dõi sau khi push. SMTP outage thật, Vercel Preview, backup/restore, benchmark cloud và đánh giá browser/accessibility vẫn chưa được chứng minh trong lượt này.
 
 ## Cập nhật kiểm tra và tích hợp ngày 2026-09-25–26
 
@@ -94,7 +101,7 @@ Snapshot remote `2026-09-27`: giữ `hiep` làm nhánh sản phẩm theo quyết
 1. **Hoàn thiện giao diện domain còn thiếu**: category management, correction, savings transfer history và issue/admin/preferences. Các lát cắt wallet/dashboard, income/payment/history, savings, budget và report đã nối API; owner luôn lấy từ session.
 2. **Đối chiếu SRS với tính năng và test**: tạo bảng yêu cầu → màn/API → test → kết quả. Checkout hiện không có bản SRS; dùng bản có thẩm quyền của nhóm và không sửa bản gốc.
 3. **Auth staging**: Team Leader xác nhận Phần 2 đã hoàn tất (register/reset email, OTP sai/hết hạn/resend, logout/session) và cung cấp ảnh Google link/login thành công. Chưa có bằng chứng độc lập cho staging CSRF/Origin hoặc SMTP/provider failure timeout/retry.
-4. **Chốt DB với DevB/DB owner**: clone `campus_coin_clone`, TLS, migration state và các MySQL test đã được xác nhận theo output ngày 2026-09-26. Còn backup/restore rehearsal, runtime role least-privilege và xác nhận các target triển khai khác. Không dùng Aiven `defaultdb` cho test destructive.
+4. **Chốt DB với DevB/DB owner**: `campus_coin_clone` kết nối TLS nhưng `db:preflight`/`db:status` mới nhất báo checksum mismatch `0006`–`0010`. Đối chiếu lineage trước khi migration hoặc deploy. Còn backup/restore rehearsal, runtime role least-privilege và xác nhận các target triển khai khác. Không dùng Aiven `defaultdb` cho test destructive.
 5. **Kiểm tra UI/accessibility/compatibility**: bàn phím, focus, screen reader cơ bản, màn hình nhỏ và Chrome/Firefox/Edge/Opera; ghi phiên bản, viewport, ngày và kết quả.
 6. **Hoàn thiện Project Report và evidence originality**: problem statement, sơ đồ, module/logic, phân công, hướng dẫn cài/chạy/kiểm tra, giới hạn, test evidence và nguồn tham khảo; thành viên cần giải thích được phần mình làm.
 7. **Đóng gói cuối**: chạy CI trên commit chốt, kiểm tra demo/build, lưu commit/tag và chuẩn bị gói nộp.

@@ -48,6 +48,7 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm run build
+      - run: npm run test:web
       - run: npm run api:validate
       - run: npm run api:bundle
       - run: npm run api:types

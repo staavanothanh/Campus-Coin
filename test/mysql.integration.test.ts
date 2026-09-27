@@ -610,6 +610,88 @@ if (!ENABLED) {
       assert.equal(transfers.data.length, 2);
     });
 
+    test("không cập nhật hai lần khi DB trigger tự đồng bộ ví và savings", async () => {
+      const userId = await newUserId();
+      await initWalletFor(userId, 100_000);
+
+      const ledgerTrigger = `\`${harness.dbName}\`.\`test_ledger_wallet_projection\``;
+      const savingsTrigger = `\`${harness.dbName}\`.\`test_savings_projection\``;
+      try {
+        await getPool().query(
+          `CREATE TRIGGER ${ledgerTrigger} AFTER INSERT ON \`${harness.dbName}\`.ledger_transactions
+           FOR EACH ROW
+           BEGIN
+             IF (NEW.role = 'original' AND NEW.type = 'income') OR
+                (NEW.role = 'reversal' AND NEW.type = 'payment') THEN
+               UPDATE \`${harness.dbName}\`.wallet_accounts
+               SET available_balance_vnd = available_balance_vnd + NEW.amount_vnd
+               WHERE user_id = NEW.user_id;
+             ELSEIF (NEW.role = 'original' AND NEW.type = 'payment') OR
+                    (NEW.role = 'reversal' AND NEW.type = 'income') THEN
+               UPDATE \`${harness.dbName}\`.wallet_accounts
+               SET available_balance_vnd = available_balance_vnd - NEW.amount_vnd
+               WHERE user_id = NEW.user_id;
+             END IF;
+           END`,
+        );
+        await getPool().query(
+          `CREATE TRIGGER ${savingsTrigger} AFTER INSERT ON \`${harness.dbName}\`.savings_transfers
+           FOR EACH ROW
+           BEGIN
+             IF NEW.direction = 'deposit' THEN
+               UPDATE \`${harness.dbName}\`.wallet_accounts
+               SET available_balance_vnd = available_balance_vnd - NEW.amount_vnd
+               WHERE user_id = NEW.user_id;
+               UPDATE \`${harness.dbName}\`.savings_accounts
+               SET balance_vnd = balance_vnd + NEW.amount_vnd
+               WHERE user_id = NEW.user_id;
+             ELSE
+               UPDATE \`${harness.dbName}\`.wallet_accounts
+               SET available_balance_vnd = available_balance_vnd + NEW.amount_vnd
+               WHERE user_id = NEW.user_id;
+               UPDATE \`${harness.dbName}\`.savings_accounts
+               SET balance_vnd = balance_vnd - NEW.amount_vnd
+               WHERE user_id = NEW.user_id;
+             END IF;
+           END`,
+        );
+
+        const income = await createTx(userId, "income", 10_000, 1);
+        await createCorrection(getPool(), {
+          userId,
+          targetId: Number(income.transaction.id),
+          role: "reversal",
+          reason: "trigger projection regression test",
+          newAmountVnd: null,
+          newCategoryId: null,
+          idempotencyKey: randomUUID(),
+          requestHash: canonicalHash({ targetId: income.transaction.id, role: "reversal" }),
+        });
+        await createTransfer(getPool(), {
+          userId,
+          direction: "deposit",
+          amountVnd: 30_000,
+          note: null,
+          idempotencyKey: randomUUID(),
+          requestHash: canonicalHash({ direction: "deposit", amountVnd: 30_000 }),
+        });
+        await createTransfer(getPool(), {
+          userId,
+          direction: "withdraw",
+          amountVnd: 10_000,
+          note: null,
+          idempotencyKey: randomUUID(),
+          requestHash: canonicalHash({ direction: "withdraw", amountVnd: 10_000 }),
+        });
+
+        assert.equal((await getWalletFor(userId)).availableBalanceVnd, 80_000);
+        assert.equal((await getSavings(getPool(), userId))?.balanceVnd, 20_000);
+      } finally {
+        await getPool().query(`DROP TRIGGER IF EXISTS ${savingsTrigger}`);
+        await getPool().query(`DROP TRIGGER IF EXISTS ${ledgerTrigger}`);
+      }
+    });
+
     test("wallet và savings projection khớp lịch sử ledger và transfer", async () => {
       const userId = await newUserId();
       await initWalletFor(userId, 100_000);

@@ -64,13 +64,34 @@ export async function insertWallet(
   db: WalletScalar,
   userId: number,
   initialBalanceVnd: number,
+  idempotencyId?: number,
 ): Promise<number> {
+  if (idempotencyId !== undefined) {
+    try {
+      const [result] = (await db.query(
+        `INSERT INTO wallet_accounts
+         (user_id, initialized, initial_balance_vnd, available_balance_vnd, currency, idempotency_id)
+         VALUES (?, 1, ?, ?, 'VND', ?)`,
+        [userId, initialBalanceVnd, initialBalanceVnd, idempotencyId],
+      )) as [{ insertId: number | string }, unknown];
+      return Number(result.insertId);
+    } catch (error) {
+      // A plain MVP schema has no idempotency_id column. The failed INSERT
+      // changes nothing, so retry with that schema's columns.
+      if (!isUnknownColumnError(error)) throw error;
+    }
+  }
   const [result] = (await db.query(
     `INSERT INTO wallet_accounts (user_id, initialized, initial_balance_vnd, available_balance_vnd, currency)
      VALUES (?, 1, ?, ?, 'VND')`,
     [userId, initialBalanceVnd, initialBalanceVnd],
   )) as [{ insertId: number | string }, unknown];
   return Number(result.insertId);
+}
+
+function isUnknownColumnError(error: unknown): boolean {
+  if (typeof error !== "object" || error === null) return false;
+  return "code" in error && error.code === "ER_BAD_FIELD_ERROR";
 }
 
 export async function updateWalletBalance(db: WalletScalar, userId: number, newBalanceVnd: number): Promise<void> {

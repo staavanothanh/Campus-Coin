@@ -29,6 +29,8 @@ docs/
     ├── README.md             # Quy tắc và phân loại working docs
     ├── student-cashflow-research-2026-09-26.md # Đề xuất nghiên cứu, chưa chốt phạm vi
     ├── repository-review-2026-09-27.md # Đánh giá 23 repository, nhánh mới và quyết định áp dụng
+    ├── INTERACTION-QUALITY-2026-09-27.md # Retry, biên nhận mutation, keyboard/focus và trạng thái giao diện
+    ├── DBEAVER-REVIEW-QUERIES.sql # Truy vấn DBeaver chỉ đọc để xem bằng chứng demo
     ├── team-handoff-2026-09-26/ # DB/benchmark, UI và Vercel/SMTP tasks theo owner
     └── replan/               # Bằng chứng của lượt replan hiện tại
 ```
@@ -49,7 +51,7 @@ Root `docs/` là canonical product docs; `adr/` là canonical history; `working/
 
 ## 3. Bản đồ tài liệu chuẩn
 
-Đề xuất sản phẩm ghi năm nguyên tắc đã chấp thuận cùng ba ý tưởng dòng tiền đang tham khảo, chưa phải lịch release: [gợi ý mặt hàng, khoản cố định và so sánh chi tiêu](./working/student-finance-feature-proposal-2026-09-27.md).
+Đề xuất sản phẩm ghi năm nguyên tắc đã chấp thuận cùng các ý tưởng đang tham khảo, trong đó có OCR hóa đơn; đây chưa phải lịch release: [gợi ý mặt hàng, khoản cố định, so sánh chi tiêu và OCR hóa đơn](./working/student-finance-feature-proposal-2026-09-27.md).
 
 | Tài liệu | Vai trò |
 |---|---|
@@ -70,6 +72,7 @@ Root `docs/` là canonical product docs; `adr/` là canonical history; `working/
 | [`working/team-handoff-2026-09-26/`](./working/team-handoff-2026-09-26/README.md) | Hướng dẫn theo owner cho DB/benchmark, UI/accessibility và Vercel/SMTP/release |
 | [`working/student-cashflow-research-2026-09-26.md`](./working/student-cashflow-research-2026-09-26.md) | Nghiên cứu advisory về weekly cashflow, what-if, personal benchmark và nguồn tham khảo |
 | [`working/repository-review-2026-09-27.md`](./working/repository-review-2026-09-27.md) | Đánh giá từng repo, nhánh mới, license/rủi ro và phần áp dụng vào sản phẩm |
+| [`working/INTERACTION-QUALITY-2026-09-27.md`](./working/INTERACTION-QUALITY-2026-09-27.md) | Các chi tiết tương tác/accessibility đã áp dụng và bằng chứng component test |
 
 ## 4. Thứ tự ưu tiên khi mâu thuẫn
 

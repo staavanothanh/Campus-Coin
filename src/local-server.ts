@@ -1,26 +1,52 @@
 import { createApiServer } from './routes/api.js';
-import { assertSchemaReady } from './infrastructure/db/readiness.js';
+import { assertSchemaReady, SchemaNotReadyError } from './infrastructure/db/readiness.js';
 import { assertSmtpConfigured } from './infrastructure/mail.js';
 import { existsSync } from 'node:fs';
 
 if (existsSync('.env')) process.loadEnvFile('.env');
 
+let startupStep = 'cấu hình xác thực';
+
+function getSafeErrorCode(error: unknown): string | undefined {
+  if (typeof error !== 'object' || error === null || !('code' in error)) return undefined;
+  const code = error.code;
+  return typeof code === 'string' && /^[A-Z0-9_]{1,64}$/.test(code) ? code : undefined;
+}
+
 async function main() {
   const requiredSecrets = ['OTP_SECRET', 'SESSION_SECRET', 'AUTH_RATE_LIMIT_SECRET'];
-  const missingSecret = requiredSecrets.some(name => {
+  const invalidSecrets = requiredSecrets.filter(name => {
     const value = process.env[name];
     return !value || Buffer.byteLength(value, 'utf8') < 32;
   });
-  if (missingSecret || !process.env.CLIENT_ORIGIN) {
-    throw new Error('Thiếu hoặc sai định dạng biến cấu hình auth bắt buộc');
-  }
+  if (invalidSecrets.length > 0) throw new Error(`Thiếu hoặc sai định dạng: ${invalidSecrets.join(', ')}`);
+  if (!process.env.CLIENT_ORIGIN) throw new Error('Thiếu CLIENT_ORIGIN');
+
+  startupStep = 'cấu hình SMTP';
   assertSmtpConfigured();
+
+  startupStep = 'kết nối MySQL và kiểm tra schema';
   await assertSchemaReady();
+
   const port = Number(process.env.PORT || 3000);
-  createApiServer().listen(port, () => console.log(`Campus Coin API đang chạy ở cổng ${port}`));
+  const server = createApiServer();
+  server.once('error', error => {
+    const code = getSafeErrorCode(error);
+    console.error(`API không mở được cổng ${port}${code ? ` (${code})` : ''}.`);
+    process.exit(1);
+  });
+  server.listen(port, () => console.log(`Campus Coin API đang chạy ở cổng ${port}`));
 }
 
-main().catch(() => {
-  console.error('Không thể khởi động API. Kiểm tra cấu hình và kết nối MySQL.');
+main().catch(error => {
+  if (error instanceof SchemaNotReadyError) {
+    console.error('Database chưa đủ schema. Chạy npm run db:status để xem migration còn thiếu; API không tự chạy migration.');
+  } else if (startupStep === 'cấu hình xác thực' || startupStep === 'cấu hình SMTP') {
+    const message = error instanceof Error ? error.message : 'Cấu hình không hợp lệ';
+    console.error(`API không khởi động được ở bước ${startupStep}: ${message}`);
+  } else {
+    const code = getSafeErrorCode(error);
+    console.error(`API không khởi động được ở bước ${startupStep}${code ? ` (${code})` : ''}. Kiểm tra cấu hình kết nối DB.`);
+  }
   process.exitCode = 1;
 });

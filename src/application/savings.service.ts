@@ -2,7 +2,7 @@
 
 import type { Db } from "../infrastructure/db/pool.ts";
 import { withIdempotentMutation } from "./idempotency.ts";
-import { lockWalletForUpdate, updateWalletBalance } from "../infrastructure/persistence/wallet.repository.ts";
+import { findWalletByUserId, lockWalletForUpdate, updateWalletBalance } from "../infrastructure/persistence/wallet.repository.ts";
 import {
   findSavingsByUserId,
   findTransferById,
@@ -84,8 +84,6 @@ export async function createTransfer(db: Db, input: CreateTransferInput): Promis
       if (!isNonNegativeVnd(walletBalance) || !isNonNegativeVnd(savingsBalance)) {
         throw invalidInput("resulting balance is outside the supported range");
       }
-      await updateWalletBalance(conn, input.userId, walletBalance);
-      await updateSavingsBalance(conn, input.userId, savingsBalance);
       const transferId = await insertSavingsTransfer(conn, {
         userId: input.userId,
         direction: input.direction,
@@ -93,6 +91,20 @@ export async function createTransfer(db: Db, input: CreateTransferInput): Promis
         note: input.note,
         idempotencyId,
       });
+      const currentWallet = await findWalletByUserId(conn, input.userId);
+      const currentSavings = await findSavingsByUserId(conn, input.userId);
+      if (currentWallet === null || currentSavings === null) throw new Error("savings projection row missing");
+      const projectionAlreadyApplied =
+        currentWallet.availableBalanceVnd === walletBalance && currentSavings.balanceVnd === savingsBalance;
+      const projectionStillOld =
+        currentWallet.availableBalanceVnd === wallet.availableBalanceVnd && currentSavings.balanceVnd === savings.balanceVnd;
+      if (!projectionAlreadyApplied && !projectionStillOld) {
+        throw new Error("savings projection mismatch after transfer insert");
+      }
+      if (projectionStillOld) {
+        await updateWalletBalance(conn, input.userId, walletBalance);
+        await updateSavingsBalance(conn, input.userId, savingsBalance);
+      }
       await insertAuditEvent(conn, {
         userId: input.userId,
         actorType: "user",

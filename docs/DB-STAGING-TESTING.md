@@ -26,6 +26,8 @@ SHOW TABLES;
 
 Xác nhận `selected_database` là schema test và DevB/DB owner đã xác nhận host không phải DB dùng chung. Query này kiểm tra kết nối; nó không tự xác nhận quyền sở hữu hay tính cô lập.
 
+Để trình bày dữ liệu đã ghi cho BTC bằng câu lệnh chỉ đọc, dùng [`working/DBEAVER-REVIEW-QUERIES.sql`](./working/DBEAVER-REVIEW-QUERIES.sql). Các truy vấn bỏ password, OTP, session token, CSRF hash và OAuth secret; chỉ mở trên schema đã xác nhận.
+
 ### Phân biệt schema ứng dụng và máy chủ test
 
 - `CAMPUS_COIN_DB_NAME` trong `.env` là schema mà `db:status`, `db:preflight` và `db:migrate` sử dụng. Xác nhận tên clone với DB owner trước khi chạy các lệnh đó; clone đã kiểm tra ngày 2026-09-26 là `campus_coin_clone`.
@@ -156,3 +158,10 @@ Các kết quả `campus_coin_done` và `3/15` dưới đây là trạng thái c
 - GitHub Actions [run #14 trên commit `6cc27dc`](https://github.com/staavanothanh/Campus-Coin/actions/runs/36169562394) pass toàn workflow. Đây là CI trên MySQL service cô lập; kết quả Aiven clone phía trên là output do Team Leader cung cấp.
 - Team Leader cung cấp ảnh giao diện sau Google link/login thành công. Môi trường staging chưa được xác nhận độc lập; không suy rộng bằng chứng này thành kiểm tra production.
 - Chưa có evidence từ lượt này cho SMTP outage/recovery, CSRF/Origin trên staging, backup/restore hoặc benchmark cloud.
+
+## Kiểm tra chỉ đọc lại ngày 2026-09-27
+
+- Từ working tree nhánh `hiep`, `npm run db:preflight` xác nhận kết nối TLS, MySQL `8.4.8`, schema `campus_coin_clone` tồn tại; còn cảnh báo charset `utf8mb4_0900_ai_ci` và pool `5/76`.
+- Cùng lần kiểm tra, preflight và `db:status` dừng vì checksum `0006`, `0007`, `0008`, `0009`, `0010` khác migration files của `hiep`. Chỉ chạy hai lệnh đọc trạng thái; không chạy migration, seed hoặc test ghi trên clone.
+- Các suite `db:datatest` `23/23` và ba bộ MySQL `53/53` chạy riêng qua harness tạo schema test có tên ngẫu nhiên rồi dọn schema đó. Kết quả chứng minh migration/code của working tree trên schema sạch; không khẳng định clone có cùng schema hay lineage.
+- DevB/DB owner cần đối chiếu file migration/checksum đã áp, trigger và baseline clone; giữ nguyên dữ liệu tài chính, không sửa migration đã chạy. Không deploy code mới lên môi trường dùng clone cho tới khi lineage được giải quyết hoặc có kiểm chứng runtime tương thích riêng.
