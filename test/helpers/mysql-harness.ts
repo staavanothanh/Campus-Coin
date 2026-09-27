@@ -58,10 +58,12 @@ export function createMysqlHarness(): MysqlHarness {
     const readableTables = [
       "users", "auth_identities", "sessions", "wallet_accounts", "mutation_idempotency", "categories",
       "ledger_transactions", "budgets", "savings_accounts", "savings_transfers", "issues", "issue_events", "audit_events",
+      "auth_credentials", "email_otps", "auth_rate_limits",
     ];
     const insertTables = [
       "users", "auth_identities", "sessions", "wallet_accounts", "mutation_idempotency", "categories",
       "ledger_transactions", "budgets", "savings_transfers", "issues", "issue_events", "audit_events",
+      "auth_credentials", "email_otps", "auth_rate_limits",
     ];
     for (const table of readableTables) {
       await admin.query(`GRANT SELECT ON \`${database}\`.\`${table}\` TO ${account}`);
@@ -84,9 +86,19 @@ export function createMysqlHarness(): MysqlHarness {
       ["wallet_accounts", "updated_at"],
       ["savings_accounts", "updated_at"],
       ["ledger_transactions", "description"],
+      // Auth: login tăng attempts, resend/link cập nhật đúng cột OTP/credential/rate-limit;
+      // grants theo cột để không mở rộng quyền ngoài luồng xác thực.
+      ["email_otps", "attempts"],
+      ["auth_credentials", "password_hash, password_salt"],
+      ["auth_rate_limits", "attempt_count, window_started_at, blocked_until"],
     ] as const;
     for (const [table, columns] of updateGrants) {
       await admin.query(`GRANT UPDATE (${columns}) ON \`${database}\`.\`${table}\` TO ${account}`);
+    }
+    // Auth cần DELETE có mục đích (OTP single-use và clean bucket rate-limit);
+    // không cấp DELETE trên bảng money/ledger (append-only vẫn chặn UPDATE/DELETE).
+    for (const table of ["email_otps", "auth_rate_limits"]) {
+      await admin.query(`GRANT DELETE ON \`${database}\`.\`${table}\` TO ${account}`);
     }
   }
 
