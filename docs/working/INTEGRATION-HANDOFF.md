@@ -39,3 +39,14 @@ A+B -> C/D integration -> Day-4 smoke -> Team Leader Day-5 decision
 ## Kết luận
 
 Kế hoạch nhất quán ở mức quyết định. Provider/model/backup/RPO/RTO/cost/latency chưa được claim. Chi tiết chính thức ở [`docs/adr/README.md`](../adr/README.md), [`DELIVERY-PLAN.md`](../DELIVERY-PLAN.md) và [`replan/FINAL-REVIEW.md`](./replan/FINAL-REVIEW.md).
+
+## DevB integration reactivation — 2026-09-26
+
+- **Owner:** DevBIntegrationTeam · **Branch:** `integration/devb-database-ingest-0.3` · **Worktree:** `.agents/worktrees/integration-devb-database-ingest-0.3`.
+- **Base:** `9df1c97bf610faad0330a9428b43a36758f0aaa1` (remote `database-ingest-0.3`).
+- Migration engine targeted unit gate: `node --test test/migration-engine.test.ts` — 20 passed, 0 failed, 0 skipped. This is local-only evidence for migration planning/checksum/baseline behavior; it is not evidence of shared DB state or restore success.
+- Reviewed forward-only migration handling: each version executes then records its checksum; partial DDL/history failure stops without automatic retry, and requires DBA inspection/reconciliation (see `db/README.md`).
+- **Still hard-gated, not verified in this reactivation:** shared MySQL 0004/0005 baseline convergence and exact schema state; deployed grants and trigger `DEFINER` privileges; provider TLS/CA; runtime least-privilege behavior against an isolated database; restore/reconcile/read-only smoke rehearsal. No database connection, migration, grant change, or restore was attempted.
+- Prior historical Aiven/CI/local evidence described elsewhere in `DELIVERY-PLAN.md` is inherited documentation, not re-executed evidence for this branch or this reactivation. Do not infer these gates passed from the unit test.
+- Bounded API/domain issue to retain for integration planning: `docs/DELIVERY-PLAN.md` §12 `BLK-API-01` says production host mount, trusted auth/session adapter and distributed rate-limit integration remain external A+B work; route unit tests alone do not close these.
+- Branch scope remains B-owned. No cross-team route/session contract changes were made.

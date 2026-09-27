@@ -1,6 +1,8 @@
 # JEV — Ranh giới OpenRouter và an toàn
 
-> JEV là tính năng tùy chọn trong MVP, dùng TypeSafe JEV qua OpenRouter nếu qua cổng kiểm chứng. Không tự host. Feature flag mặc định tắt.
+> JEV là tính năng tùy chọn, manual-first trong MVP, dùng TypeSafe JEV qua OpenRouter. Không tự host. Runtime chỉ hoạt động khi được bật rõ ràng bằng `JEV_CATEGORY_SUGGESTION_ENABLED=true` và có server-side OpenRouter key.
+
+**Trạng thái runtime:** API có route gợi ý danh mục đã mount trong local/Vercel handler. Runtime chỉ tạo service hoạt động khi được cấu hình; không có provider key thì tính năng giữ disabled. Route đã được khai báo trong OpenAPI. Xem [API contract](./contracts/README.md) và [Delivery Plan](./DELIVERY-PLAN.md).
 
 ## 1. Bằng chứng cần dùng
 
@@ -55,7 +57,7 @@ Response chuẩn hóa:
   "modelId": "provider snapshot|null",
   "provider": "openrouter|null",
   "usageCostUsd": 0.0,
-  "reasonCode": "low_confidence|timeout|quota|schema|flag_off|null"
+  "reasonCode": "low_confidence|timeout|quota|schema|privacy|flag_off|null"
 }
 ```
 
@@ -64,7 +66,7 @@ Validate schema, candidate membership, `other_or_uncertain`, probability/confide
 ## 5. Chính sách runtime
 
 - Backend-only; `OPENROUTER_API_KEY` không tới browser.
-- `JEV_CATEGORY_SUGGESTION_ENABLED=false` mặc định.
+- `JEV_CATEGORY_SUGGESTION_ENABLED` must be explicitly set to `true`; it defaults to disabled. An enabled service also requires `OPENROUTER_API_KEY`. Minimum confidence/candidate limits default to 0.8/10 when enabled.
 - Timeout, rate, concurrency, input length, candidate count và daily spend phải bounded.
 - Không retry mặc định; retry chỉ khi evidence cost/latency cho phép.
 - Không giữ MySQL money transaction trong lúc chờ OpenRouter.
@@ -88,10 +90,20 @@ Bộ đánh giá gồm 50–100 ví dụ synthetic/anonymized cho `en`/`vi`, inc
 7. Không gọi JEV trong money transaction.
 8. `en`/`vi` do app localization kiểm soát.
 
-## 8. Phần để sau
+## 9. Controlled synthetic probe command
+
+`npm run probe:jev-live` is a one-request, server-only compatibility probe using a fixed synthetic description and candidate set. It refuses by default. The command requires `JEV_LIVE_PROBE_APPROVED=I_APPROVE_ONE_LIVE_JEV_PROBE`, `JEV_CATEGORY_SUGGESTION_ENABLED=true`, `OPENROUTER_API_KEY`, a valid `JEV_MINIMUM_CONFIDENCE`, and `JEV_MAX_CANDIDATES` large enough for the fixed candidate set. Do not use production or personal data; this command makes one external request only after explicit approval and complete configuration. The console emits only normalized status/confidence/reasonCode, never the key, request, response, or provider error details.
+
+This command is not a routine test and must not be run without authorization for a live external call. Fake-adapter route/save tests remain the deterministic verification path. A successful probe proves only compatibility for that one observed request; it does not establish accuracy, calibration, privacy policy compliance, cost/latency budgets, or production readiness.
+### 9.1. Local refusal verification
+
+The offline CLI refusal is covered by `node --test test/tools/jev-category-live-probe.test.js`; the test launches the command with only a sanitized environment and no approval setting, and asserts a non-zero exit with the explicit refusal message. This test uses only fake provider values/fetch; no OpenRouter request occurs. Do not run `npm run probe:jev-live` as a routine check: it can make one external request after explicit approval and complete configuration.
+
+
+## 10. Phần để sau
 
 Monthly prose summary, OCR/CSV extraction, recurring automation, prediction, chat, autonomous action và mọi reasoning về amount/date/balance.
 
-## 9. ADR liên quan
+## 11. ADR liên quan
 
 [ADR-0006](./adr/0006-optional-openrouter-jev.md).

@@ -4,6 +4,91 @@
  */
 
 export interface paths {
+    "/auth/register": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Gửi OTP để bắt đầu đăng ký bằng email */
+        post: operations["postAuthRegister"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/verify-registration": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Xác minh OTP và tạo tài khoản bằng email, họ tên, mật khẩu */
+        post: operations["postAuthVerifyRegistration"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/resend-otp": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Gửi lại mã OTP */
+        post: operations["postAuthResendOtp"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Đăng nhập email và mật khẩu */
+        post: operations["postAuthLogin"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/providers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lấy các phương thức đăng nhập đang được cấu hình */
+        get: operations["getAuthProviders"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/google/start": {
         parameters: {
             query?: never;
@@ -11,28 +96,27 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Bắt đầu Google OAuth */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Redirect tới Google OAuth consent */
-                302: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-                500: components["responses"]["InternalError"];
-            };
-        };
+        /** Bắt đầu Google Sign-In bằng OAuth Authorization Code và PKCE */
+        get: operations["getAuthGoogleStart"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/google/link": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Bắt đầu kết nối Google từ tài khoản đã đăng nhập */
+        post: operations["postAuthGoogleLink"];
         delete?: never;
         options?: never;
         head?: never;
@@ -46,31 +130,93 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Xử lý callback Google OAuth */
-        get: {
-            parameters: {
-                query: {
-                    code: components["parameters"]["OAuthCode"];
-                    state: components["parameters"]["OAuthState"];
-                };
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Redirect tới onboarding hoặc dashboard; response đặt session cookie */
-                302: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-                400: components["responses"]["InvalidOAuthState"];
-                401: components["responses"]["UnverifiedEmail"];
-                500: components["responses"]["OAuthExchangeFailed"];
-            };
+        /** Hoàn tất callback OIDC Google và chuyển về ứng dụng */
+        get: operations["getAuthGoogleCallback"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/forgot-password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
         };
+        get?: never;
+        put?: never;
+        /** Yêu cầu OTP đặt lại mật khẩu */
+        post: operations["postAuthForgotPassword"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/reset-password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Đặt lại mật khẩu với OTP */
+        post: operations["postAuthResetPassword"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/csrf": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lấy CSRF token */
+        get: operations["getAuthCsrf"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/users/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lấy thông tin user hiện tại (owner scope) */
+        get: operations["getUsersMe"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/users/{userId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lấy thông tin user theo ID (chống IDOR - chỉ cho phép lấy id của chính mình) */
+        get: operations["getUsersByUserId"];
         put?: never;
         post?: never;
         delete?: never;
@@ -86,29 +232,8 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Lấy session hiện tại và trạng thái onboarding */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Session hợp lệ */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["SessionResponse"];
-                    };
-                };
-                401: components["responses"]["Unauthorized"];
-                403: components["responses"]["AccountDisabled"];
-            };
-        };
+        /** Lấy người dùng và CSRF token của phiên hiện tại */
+        get: operations["getAuthSession"];
         put?: never;
         post?: never;
         delete?: never;
@@ -126,27 +251,8 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Revoke session hiện tại */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Session đã revoke và cookie được clear */
-                204: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-                401: components["responses"]["Unauthorized"];
-                403: components["responses"]["CsrfInvalid"];
-            };
-        };
+        /** Revoke session hiện tại; yêu cầu CSRF khi phiên còn hiệu lực, thao tác lặp là idempotent */
+        post: operations["postAuthLogout"];
         delete?: never;
         options?: never;
         head?: never;
@@ -167,33 +273,7 @@ export interface paths {
         options?: never;
         head?: never;
         /** Cập nhật preference người dùng */
-        patch: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["UpdatePreferencesRequest"];
-                };
-            };
-            responses: {
-                /** @description Preference đã cập nhật */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["UserResponse"];
-                    };
-                };
-                401: components["responses"]["Unauthorized"];
-                403: components["responses"]["CsrfInvalid"];
-                422: components["responses"]["ValidationError"];
-            };
-        };
+        patch: operations["patchUsersMePreferences"];
         trace?: never;
     };
     "/wallet": {
@@ -204,27 +284,7 @@ export interface paths {
             cookie?: never;
         };
         /** Lấy wallet authoritative của user hiện tại */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Wallet */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["WalletResponse"];
-                    };
-                };
-                401: components["responses"]["Unauthorized"];
-            };
-        };
+        get: operations["getWallet"];
         put?: never;
         post?: never;
         delete?: never;
@@ -243,34 +303,7 @@ export interface paths {
         get?: never;
         put?: never;
         /** Khởi tạo opening wallet balance một lần */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["WalletBaselineRequest"];
-                };
-            };
-            responses: {
-                /** @description Wallet đã khởi tạo */
-                201: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["WalletResponse"];
-                    };
-                };
-                401: components["responses"]["Unauthorized"];
-                403: components["responses"]["CsrfInvalid"];
-                409: components["responses"]["WalletAlreadyInitialized"];
-                422: components["responses"]["ValidationError"];
-            };
-        };
+        post: operations["postWalletBaseline"];
         delete?: never;
         options?: never;
         head?: never;
@@ -285,65 +318,10 @@ export interface paths {
             cookie?: never;
         };
         /** Liệt kê ledger transaction của user hiện tại */
-        get: {
-            parameters: {
-                query?: {
-                    cursor?: components["parameters"]["Cursor"];
-                    limit?: components["parameters"]["Limit"];
-                    type?: components["schemas"]["TransactionType"];
-                    categoryId?: string;
-                    from?: string;
-                    to?: string;
-                };
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Ledger page */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["TransactionPageResponse"];
-                    };
-                };
-                401: components["responses"]["Unauthorized"];
-                422: components["responses"]["ValidationError"];
-            };
-        };
+        get: operations["getLedgerTransactions"];
         put?: never;
         /** Tạo income hoặc payment immutable */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["CreateTransactionRequest"];
-                };
-            };
-            responses: {
-                /** @description Transaction đã commit */
-                201: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["TransactionResponse"];
-                    };
-                };
-                401: components["responses"]["Unauthorized"];
-                403: components["responses"]["CsrfInvalid"];
-                409: components["responses"]["IdempotencyConflict"];
-                422: components["responses"]["DomainValidationError"];
-            };
-        };
+        post: operations["postLedgerTransactions"];
         delete?: never;
         options?: never;
         head?: never;
@@ -358,30 +336,7 @@ export interface paths {
             cookie?: never;
         };
         /** Lấy một transaction */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    transactionId: components["parameters"]["TransactionId"];
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Transaction */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["TransactionResponse"];
-                    };
-                };
-                401: components["responses"]["Unauthorized"];
-                404: components["responses"]["NotFound"];
-            };
-        };
+        get: operations["getLedgerTransactionsByTransactionId"];
         put?: never;
         post?: never;
         delete?: never;
@@ -400,37 +355,7 @@ export interface paths {
         get?: never;
         put?: never;
         /** Tạo correction append-only */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    transactionId: components["parameters"]["TransactionId"];
-                };
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["CreateCorrectionRequest"];
-                };
-            };
-            responses: {
-                /** @description Correction đã commit */
-                201: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["TransactionResponse"];
-                    };
-                };
-                401: components["responses"]["Unauthorized"];
-                403: components["responses"]["CsrfInvalid"];
-                404: components["responses"]["NotFound"];
-                409: components["responses"]["Conflict"];
-                422: components["responses"]["DomainValidationError"];
-            };
-        };
+        post: operations["postLedgerTransactionsByTransactionIdCorrections"];
         delete?: never;
         options?: never;
         head?: never;
@@ -445,27 +370,7 @@ export interface paths {
             cookie?: never;
         };
         /** Lấy savings aggregate */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Savings */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["SavingsResponse"];
-                    };
-                };
-                401: components["responses"]["Unauthorized"];
-            };
-        };
+        get: operations["getSavings"];
         put?: never;
         post?: never;
         delete?: never;
@@ -482,60 +387,10 @@ export interface paths {
             cookie?: never;
         };
         /** Liệt kê savings transfer */
-        get: {
-            parameters: {
-                query?: {
-                    cursor?: components["parameters"]["Cursor"];
-                    limit?: components["parameters"]["Limit"];
-                };
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Savings transfer page */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["SavingsTransferPageResponse"];
-                    };
-                };
-                401: components["responses"]["Unauthorized"];
-            };
-        };
+        get: operations["getSavingsTransfers"];
         put?: never;
         /** Gửi hoặc rút savings atomic */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["CreateSavingsTransferRequest"];
-                };
-            };
-            responses: {
-                /** @description Transfer đã commit */
-                201: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["SavingsTransferResponse"];
-                    };
-                };
-                401: components["responses"]["Unauthorized"];
-                403: components["responses"]["CsrfInvalid"];
-                409: components["responses"]["IdempotencyConflict"];
-                422: components["responses"]["DomainValidationError"];
-            };
-        };
+        post: operations["postSavingsTransfers"];
         delete?: never;
         options?: never;
         head?: never;
@@ -550,60 +405,10 @@ export interface paths {
             cookie?: never;
         };
         /** Liệt kê category system và user */
-        get: {
-            parameters: {
-                query?: {
-                    appliesTo?: components["schemas"]["TransactionType"];
-                    includeDisabled?: boolean;
-                };
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Categories */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["CategoryListResponse"];
-                    };
-                };
-                401: components["responses"]["Unauthorized"];
-            };
-        };
+        get: operations["getCategories"];
         put?: never;
         /** Tạo custom category */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["CreateCategoryRequest"];
-                };
-            };
-            responses: {
-                /** @description Category đã tạo */
-                201: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["CategoryResponse"];
-                    };
-                };
-                401: components["responses"]["Unauthorized"];
-                403: components["responses"]["CsrfInvalid"];
-                409: components["responses"]["Conflict"];
-                422: components["responses"]["ValidationError"];
-            };
-        };
+        post: operations["postCategories"];
         delete?: never;
         options?: never;
         head?: never;
@@ -624,36 +429,7 @@ export interface paths {
         options?: never;
         head?: never;
         /** Đổi tên hoặc disable custom category */
-        patch: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    categoryId: components["parameters"]["CategoryId"];
-                };
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["UpdateCategoryRequest"];
-                };
-            };
-            responses: {
-                /** @description Category đã cập nhật */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["CategoryResponse"];
-                    };
-                };
-                401: components["responses"]["Unauthorized"];
-                403: components["responses"]["Forbidden"];
-                404: components["responses"]["NotFound"];
-                422: components["responses"]["ValidationError"];
-            };
-        };
+        patch: operations["patchCategoriesByCategoryId"];
         trace?: never;
     };
     "/budgets": {
@@ -664,31 +440,7 @@ export interface paths {
             cookie?: never;
         };
         /** Lấy budget theo tháng HCMC */
-        get: {
-            parameters: {
-                query: {
-                    /** @example 2026-09 */
-                    month: components["parameters"]["Month"];
-                };
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Budget list */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["BudgetListResponse"];
-                    };
-                };
-                401: components["responses"]["Unauthorized"];
-                422: components["responses"]["ValidationError"];
-            };
-        };
+        get: operations["getBudgets"];
         put?: never;
         post?: never;
         delete?: never;
@@ -706,36 +458,7 @@ export interface paths {
         };
         get?: never;
         /** Tạo hoặc thay thế budget payment category theo tháng */
-        put: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    categoryId: components["parameters"]["CategoryId"];
-                };
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["UpsertBudgetRequest"];
-                };
-            };
-            responses: {
-                /** @description Budget đã cập nhật */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["BudgetResponse"];
-                    };
-                };
-                401: components["responses"]["Unauthorized"];
-                403: components["responses"]["CsrfInvalid"];
-                404: components["responses"]["NotFound"];
-                422: components["responses"]["DomainValidationError"];
-            };
-        };
+        put: operations["putBudgetsByCategoryId"];
         post?: never;
         delete?: never;
         options?: never;
@@ -751,30 +474,7 @@ export interface paths {
             cookie?: never;
         };
         /** Lấy tổng quan budget theo tháng */
-        get: {
-            parameters: {
-                query: {
-                    /** @example 2026-09 */
-                    month: components["parameters"]["Month"];
-                };
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Budget summary */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["BudgetSummaryResponse"];
-                    };
-                };
-                401: components["responses"]["Unauthorized"];
-            };
-        };
+        get: operations["getBudgetsSummary"];
         put?: never;
         post?: never;
         delete?: never;
@@ -791,31 +491,7 @@ export interface paths {
             cookie?: never;
         };
         /** Báo cáo deterministic theo tháng HCMC */
-        get: {
-            parameters: {
-                query: {
-                    /** @example 2026-09 */
-                    month: components["parameters"]["Month"];
-                };
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Monthly report */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["MonthlyReportResponse"];
-                    };
-                };
-                401: components["responses"]["Unauthorized"];
-                422: components["responses"]["ValidationError"];
-            };
-        };
+        get: operations["getReportsMonthly"];
         put?: never;
         post?: never;
         delete?: never;
@@ -832,27 +508,7 @@ export interface paths {
             cookie?: never;
         };
         /** Snapshot dashboard authoritative */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Dashboard */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["DashboardResponse"];
-                    };
-                };
-                401: components["responses"]["Unauthorized"];
-            };
-        };
+        get: operations["getReportsDashboard"];
         put?: never;
         post?: never;
         delete?: never;
@@ -871,33 +527,7 @@ export interface paths {
         get?: never;
         put?: never;
         /** Tạo issue hỗ trợ */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["CreateIssueRequest"];
-                };
-            };
-            responses: {
-                /** @description Issue đã tạo */
-                201: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["IssueResponse"];
-                    };
-                };
-                401: components["responses"]["Unauthorized"];
-                403: components["responses"]["CsrfInvalid"];
-                429: components["responses"]["RateLimited"];
-            };
-        };
+        post: operations["postIssues"];
         delete?: never;
         options?: never;
         head?: never;
@@ -912,30 +542,7 @@ export interface paths {
             cookie?: never;
         };
         /** Liệt kê issue của user hiện tại */
-        get: {
-            parameters: {
-                query?: {
-                    cursor?: components["parameters"]["Cursor"];
-                    limit?: components["parameters"]["Limit"];
-                };
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Issue page */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["IssuePageResponse"];
-                    };
-                };
-                401: components["responses"]["Unauthorized"];
-            };
-        };
+        get: operations["getIssuesMe"];
         put?: never;
         post?: never;
         delete?: never;
@@ -952,33 +559,7 @@ export interface paths {
             cookie?: never;
         };
         /** Triage issue toàn hệ thống */
-        get: {
-            parameters: {
-                query?: {
-                    cursor?: components["parameters"]["Cursor"];
-                    limit?: components["parameters"]["Limit"];
-                    status?: components["schemas"]["IssueStatus"];
-                    priority?: components["schemas"]["IssuePriority"];
-                };
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Admin issue page */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["IssuePageResponse"];
-                    };
-                };
-                401: components["responses"]["Unauthorized"];
-                403: components["responses"]["Forbidden"];
-            };
-        };
+        get: operations["getAdminIssues"];
         put?: never;
         post?: never;
         delete?: never;
@@ -995,66 +576,14 @@ export interface paths {
             cookie?: never;
         };
         /** Lấy issue và timeline đã mask */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    issueId: components["parameters"]["IssueId"];
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Issue detail */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["IssueResponse"];
-                    };
-                };
-                401: components["responses"]["Unauthorized"];
-                403: components["responses"]["Forbidden"];
-                404: components["responses"]["NotFound"];
-            };
-        };
+        get: operations["getAdminIssuesByIssueId"];
         put?: never;
         post?: never;
         delete?: never;
         options?: never;
         head?: never;
         /** Cập nhật status hoặc priority issue */
-        patch: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    issueId: components["parameters"]["IssueId"];
-                };
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["UpdateIssueRequest"];
-                };
-            };
-            responses: {
-                /** @description Issue đã cập nhật */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["IssueResponse"];
-                    };
-                };
-                401: components["responses"]["Unauthorized"];
-                403: components["responses"]["Forbidden"];
-                404: components["responses"]["NotFound"];
-            };
-        };
+        patch: operations["patchAdminIssuesByIssueId"];
         trace?: never;
     };
     "/admin/issues/{issueId}/notes": {
@@ -1067,33 +596,7 @@ export interface paths {
         get?: never;
         put?: never;
         /** Thêm admin note append-only */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    issueId: components["parameters"]["IssueId"];
-                };
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["CreateAdminNoteRequest"];
-                };
-            };
-            responses: {
-                /** @description Note đã tạo */
-                201: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-                401: components["responses"]["Unauthorized"];
-                403: components["responses"]["Forbidden"];
-                404: components["responses"]["NotFound"];
-            };
-        };
+        post: operations["postAdminIssuesByIssueIdNotes"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1108,31 +611,24 @@ export interface paths {
             cookie?: never;
         };
         /** Truy vấn audit đã redact */
-        get: {
-            parameters: {
-                query?: {
-                    cursor?: components["parameters"]["Cursor"];
-                    limit?: components["parameters"]["Limit"];
-                };
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Audit page */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["AuditPageResponse"];
-                    };
-                };
-                401: components["responses"]["Unauthorized"];
-                403: components["responses"]["Forbidden"];
-            };
+        get: operations["getAdminAuditLogs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
         };
+        /** Thống kê số lượng user đã xác minh */
+        get: operations["getAdminStats"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1150,34 +646,11 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Gợi ý category trước submit, luôn advisory */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["CategorySuggestionRequest"];
-                };
-            };
-            responses: {
-                /** @description JEV suggestion hoặc manual/disabled fallback */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["CategorySuggestionResponse"];
-                    };
-                };
-                401: components["responses"]["Unauthorized"];
-                403: components["responses"]["CsrfInvalid"];
-                429: components["responses"]["RateLimited"];
-            };
-        };
+        /**
+         * Gợi ý danh mục income/payment trước khi user xác nhận giao dịch
+         * @description Runtime flag/key gated. Output is advisory and never writes money state; use the suggestion only after explicit confirmation.
+         */
+        post: operations["postAiCategorySuggestion"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1192,26 +665,7 @@ export interface paths {
             cookie?: never;
         };
         /** Liveness không chạm database */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description API đang chạy */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["HealthResponse"];
-                    };
-                };
-            };
-        };
+        get: operations["getHealth"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1228,27 +682,7 @@ export interface paths {
             cookie?: never;
         };
         /** Readiness có kiểm tra dependency */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Dependency sẵn sàng */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["ReadinessResponse"];
-                    };
-                };
-                503: components["responses"]["ServiceUnavailable"];
-            };
-        };
+        get: operations["getHealthReady"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1267,6 +701,22 @@ export interface components {
         Locale: "en" | "vi";
         /** @description Số nguyên VND; không dùng floating point */
         MoneyVnd: number;
+        CategorySuggestionRequest: {
+            transactionType: components["schemas"]["TransactionType"];
+            description: string;
+            locale: components["schemas"]["Locale"];
+        };
+        CategorySuggestionResult: {
+            /** @enum {string} */
+            status: "suggested" | "manual" | "disabled" | "unavailable";
+            categoryId: string | null;
+            confidence: number | null;
+            /** @enum {string|null} */
+            reasonCode: "flag_off" | "low_confidence" | "timeout" | "quota" | "schema" | "privacy" | "null" | null;
+        };
+        CategorySuggestionResponse: {
+            data: components["schemas"]["CategorySuggestionResult"];
+        };
         /** @description Số nguyên VND dương */
         PositiveMoneyVnd: number;
         User: {
@@ -1283,12 +733,24 @@ export interface components {
         };
         Session: {
             user: components["schemas"]["User"];
-            walletInitialized: boolean;
             /** @description Token dùng trong memory cho state-changing request */
             csrfToken: string;
+            /** @description Cho biết tài khoản hiện tại đã kết nối Google hay chưa */
+            googleLinked: boolean;
         };
         SessionResponse: {
             data: components["schemas"]["Session"];
+        };
+        AuthProvidersResponse: {
+            data: {
+                google: boolean;
+            };
+        };
+        GoogleLinkStartResponse: {
+            data: {
+                /** Format: uri */
+                url: string;
+            };
         };
         UpdatePreferencesRequest: {
             displayName?: string;
@@ -1478,8 +940,19 @@ export interface components {
             id: string;
             title: string;
             description?: string;
+            /** @enum {string} */
+            category?: "financial_dispute" | "bug" | "other";
+            relatedTransactionId?: string | null;
             status: components["schemas"]["IssueStatus"];
             priority: components["schemas"]["IssuePriority"];
+            /** Format: date-time */
+            createdAt: string;
+            events?: components["schemas"]["IssueEvent"][];
+        };
+        IssueEvent: {
+            /** @enum {string} */
+            kind: "created" | "status_change" | "priority_change" | "note";
+            note?: string | null;
             /** Format: date-time */
             createdAt: string;
         };
@@ -1504,6 +977,20 @@ export interface components {
         CreateAdminNoteRequest: {
             note: string;
         };
+        AdminNoteResult: {
+            issueId: string;
+            created: boolean;
+        };
+        AdminNoteResponse: {
+            data: components["schemas"]["AdminNoteResult"];
+        };
+        AdminStats: {
+            totalUsers: number;
+            verifiedUsers: number;
+        };
+        AdminStatsResponse: {
+            data: components["schemas"]["AdminStats"];
+        };
         AuditEvent: {
             id: string;
             action: string;
@@ -1514,22 +1001,6 @@ export interface components {
         AuditPageResponse: {
             data: components["schemas"]["AuditEvent"][];
             meta: components["schemas"]["PageMeta"];
-        };
-        CategorySuggestionRequest: {
-            transactionType: components["schemas"]["TransactionType"];
-            description: string;
-            locale: components["schemas"]["Locale"];
-        };
-        CategorySuggestion: {
-            /** @enum {string} */
-            status: "suggested" | "manual" | "disabled" | "unavailable";
-            categoryId: string | null;
-            confidence: number | null;
-            /** @enum {string|null} */
-            reasonCode: "low_confidence" | "timeout" | "quota" | "schema" | "flag_off" | "privacy" | null;
-        };
-        CategorySuggestionResponse: {
-            data: components["schemas"]["CategorySuggestion"];
         };
         Health: {
             /** @constant */
@@ -1563,29 +1034,105 @@ export interface components {
         ErrorResponse: {
             error: components["schemas"]["ApiError"];
         };
+        RegisterRequest: {
+            /** Format: email */
+            email: string;
+        };
+        VerifyRegistrationRequest: {
+            /** Format: email */
+            email: string;
+            otp: string;
+            fullName: string;
+            password: string;
+            locale?: components["schemas"]["Locale"];
+        };
+        ResendOtpRequest: {
+            /** Format: email */
+            email: string;
+            /** @enum {string} */
+            purpose: "registration" | "password_reset";
+        };
+        LoginRequest: {
+            /** Format: email */
+            email: string;
+            password: string;
+        };
+        ForgotPasswordRequest: {
+            /** Format: email */
+            email: string;
+        };
+        ResetPasswordRequest: {
+            /** Format: email */
+            email: string;
+            otp: string;
+            newPassword: string;
+        };
+        MessageResponse: {
+            data: {
+                message: string;
+            };
+        };
+        CsrfTokenResponse: {
+            data: {
+                csrfToken: string;
+            };
+        };
     };
     responses: {
+        /** @description Request body JSON không hợp lệ */
+        BadRequest: {
+            headers: {
+                "Cache-Control": components["headers"]["PrivateNoStore"];
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["ErrorResponse"];
+            };
+        };
+        /** @description Request vượt giới hạn kích thước */
+        PayloadTooLarge: {
+            headers: {
+                "Cache-Control": components["headers"]["PrivateNoStore"];
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["ErrorResponse"];
+            };
+        };
         /** @description Thiếu, hết hạn hoặc bị revoke session */
         Unauthorized: {
             headers: {
+                "Cache-Control": components["headers"]["PrivateNoStore"];
                 [name: string]: unknown;
             };
             content: {
                 "application/json": components["schemas"]["ErrorResponse"];
             };
         };
-        /** @description Tài khoản bị disable */
-        AccountDisabled: {
+        /** @description Origin không hợp lệ, tài khoản bị vô hiệu hoặc email chưa xác minh */
+        LoginForbidden: {
             headers: {
+                "Cache-Control": components["headers"]["PrivateNoStore"];
                 [name: string]: unknown;
             };
             content: {
                 "application/json": components["schemas"]["ErrorResponse"];
             };
         };
-        /** @description CSRF hoặc Origin không hợp lệ */
+        /** @description Origin của request không được phép */
+        OriginInvalid: {
+            headers: {
+                "Cache-Control": components["headers"]["PrivateNoStore"];
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["ErrorResponse"];
+            };
+        };
+        /** @description Origin không hợp lệ hoặc CSRF token thiếu/sai; error code trong body phân biệt hai trường hợp */
         CsrfInvalid: {
             headers: {
+                "Cache-Control": components["headers"]["PrivateNoStore"];
                 [name: string]: unknown;
             };
             content: {
@@ -1595,6 +1142,7 @@ export interface components {
         /** @description Không đủ quyền */
         Forbidden: {
             headers: {
+                "Cache-Control": components["headers"]["PrivateNoStore"];
                 [name: string]: unknown;
             };
             content: {
@@ -1604,6 +1152,7 @@ export interface components {
         /** @description Không tìm thấy resource hoặc resource ngoài owner scope */
         NotFound: {
             headers: {
+                "Cache-Control": components["headers"]["PrivateNoStore"];
                 [name: string]: unknown;
             };
             content: {
@@ -1613,6 +1162,7 @@ export interface components {
         /** @description Xung đột state hoặc uniqueness */
         Conflict: {
             headers: {
+                "Cache-Control": components["headers"]["PrivateNoStore"];
                 [name: string]: unknown;
             };
             content: {
@@ -1622,6 +1172,7 @@ export interface components {
         /** @description Idempotency key đã dùng với body khác */
         IdempotencyConflict: {
             headers: {
+                "Cache-Control": components["headers"]["PrivateNoStore"];
                 [name: string]: unknown;
             };
             content: {
@@ -1631,6 +1182,7 @@ export interface components {
         /** @description Input không hợp lệ */
         ValidationError: {
             headers: {
+                "Cache-Control": components["headers"]["PrivateNoStore"];
                 [name: string]: unknown;
             };
             content: {
@@ -1640,6 +1192,7 @@ export interface components {
         /** @description Vi phạm domain hoặc invariant */
         DomainValidationError: {
             headers: {
+                "Cache-Control": components["headers"]["PrivateNoStore"];
                 [name: string]: unknown;
             };
             content: {
@@ -1649,6 +1202,7 @@ export interface components {
         /** @description Vượt rate limit */
         RateLimited: {
             headers: {
+                "Cache-Control": components["headers"]["PrivateNoStore"];
                 "Retry-After"?: number;
                 [name: string]: unknown;
             };
@@ -1659,33 +1213,7 @@ export interface components {
         /** @description Lỗi server đã được sanitize */
         InternalError: {
             headers: {
-                [name: string]: unknown;
-            };
-            content: {
-                "application/json": components["schemas"]["ErrorResponse"];
-            };
-        };
-        /** @description OAuth state/PKCE không hợp lệ */
-        InvalidOAuthState: {
-            headers: {
-                [name: string]: unknown;
-            };
-            content: {
-                "application/json": components["schemas"]["ErrorResponse"];
-            };
-        };
-        /** @description Google email chưa verified */
-        UnverifiedEmail: {
-            headers: {
-                [name: string]: unknown;
-            };
-            content: {
-                "application/json": components["schemas"]["ErrorResponse"];
-            };
-        };
-        /** @description Code exchange hoặc claim validation thất bại */
-        OAuthExchangeFailed: {
-            headers: {
+                "Cache-Control": components["headers"]["PrivateNoStore"];
                 [name: string]: unknown;
             };
             content: {
@@ -1695,6 +1223,7 @@ export interface components {
         /** @description Wallet đã khởi tạo */
         WalletAlreadyInitialized: {
             headers: {
+                "Cache-Control": components["headers"]["PrivateNoStore"];
                 [name: string]: unknown;
             };
             content: {
@@ -1704,6 +1233,17 @@ export interface components {
         /** @description Dependency chưa sẵn sàng */
         ServiceUnavailable: {
             headers: {
+                "Cache-Control": components["headers"]["PrivateNoStore"];
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["ErrorResponse"];
+            };
+        };
+        /** @description Content-Type phải là application/json */
+        UnsupportedMediaType: {
+            headers: {
+                "Cache-Control": components["headers"]["PrivateNoStore"];
                 [name: string]: unknown;
             };
             content: {
@@ -1712,8 +1252,6 @@ export interface components {
         };
     };
     parameters: {
-        OAuthCode: string;
-        OAuthState: string;
         Cursor: string;
         Limit: number;
         /** @example 2026-09 */
@@ -1723,8 +1261,1317 @@ export interface components {
         IssueId: string;
     };
     requestBodies: never;
-    headers: never;
+    headers: {
+        /** @description Không lưu response riêng tư trong browser hoặc shared cache. */
+        PrivateNoStore: string;
+    };
     pathItems: never;
 }
 export type $defs = Record<string, never>;
-export type operations = Record<string, never>;
+export interface operations {
+    postAuthRegister: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RegisterRequest"];
+            };
+        };
+        responses: {
+            /** @description Mã OTP đã gửi; tài khoản chưa được tạo */
+            201: {
+                headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            403: components["responses"]["OriginInvalid"];
+            409: components["responses"]["Conflict"];
+            413: components["responses"]["PayloadTooLarge"];
+            422: components["responses"]["ValidationError"];
+            429: components["responses"]["RateLimited"];
+            500: components["responses"]["InternalError"];
+            503: components["responses"]["ServiceUnavailable"];
+            default: components["responses"]["InternalError"];
+        };
+    };
+    postAuthVerifyRegistration: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VerifyRegistrationRequest"];
+            };
+        };
+        responses: {
+            /** @description Xác minh thành công */
+            200: {
+                headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            403: components["responses"]["OriginInvalid"];
+            409: components["responses"]["Conflict"];
+            413: components["responses"]["PayloadTooLarge"];
+            422: components["responses"]["ValidationError"];
+            429: components["responses"]["RateLimited"];
+            500: components["responses"]["InternalError"];
+            default: components["responses"]["InternalError"];
+        };
+    };
+    postAuthResendOtp: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResendOtpRequest"];
+            };
+        };
+        responses: {
+            /** @description OTP đã gửi lại */
+            200: {
+                headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            403: components["responses"]["OriginInvalid"];
+            409: components["responses"]["Conflict"];
+            413: components["responses"]["PayloadTooLarge"];
+            422: components["responses"]["ValidationError"];
+            429: components["responses"]["RateLimited"];
+            500: components["responses"]["InternalError"];
+            503: components["responses"]["ServiceUnavailable"];
+            default: components["responses"]["InternalError"];
+        };
+    };
+    postAuthLogin: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LoginRequest"];
+            };
+        };
+        responses: {
+            /** @description Đăng nhập thành công, thiết lập session cookie */
+            200: {
+                headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["LoginForbidden"];
+            413: components["responses"]["PayloadTooLarge"];
+            422: components["responses"]["ValidationError"];
+            429: components["responses"]["RateLimited"];
+            500: components["responses"]["InternalError"];
+            default: components["responses"]["InternalError"];
+        };
+    };
+    getAuthProviders: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Phương thức hiện có */
+            200: {
+                headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthProvidersResponse"];
+                };
+            };
+            500: components["responses"]["InternalError"];
+            default: components["responses"]["InternalError"];
+        };
+    };
+    getAuthGoogleStart: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Chuyển trình duyệt đến Google; cookie flow ngắn hạn được thiết lập */
+            302: {
+                headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
+                    Location?: string;
+                    "Set-Cookie"?: string;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Lỗi chuyển hướng đã được xử lý an toàn */
+            default: {
+                headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    postAuthGoogleLink: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description URL xác thực Google và cookie flow */
+            200: {
+                headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
+                    "Set-Cookie"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GoogleLinkStartResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["CsrfInvalid"];
+            409: components["responses"]["Conflict"];
+            500: components["responses"]["InternalError"];
+            503: components["responses"]["ServiceUnavailable"];
+            default: components["responses"]["InternalError"];
+        };
+    };
+    getAuthGoogleCallback: {
+        parameters: {
+            query: {
+                state: string;
+                code?: string;
+                error?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Chuyển về ứng dụng; thiết lập session khi đăng nhập thành công */
+            302: {
+                headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
+                    Location?: string;
+                    "Set-Cookie"?: string;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Lỗi callback được chuyển về ứng dụng bằng mã lỗi an toàn */
+            default: {
+                headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    postAuthForgotPassword: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ForgotPasswordRequest"];
+            };
+        };
+        responses: {
+            /** @description Phản hồi tiêu chuẩn không để lộ sự tồn tại của email */
+            200: {
+                headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            403: components["responses"]["OriginInvalid"];
+            413: components["responses"]["PayloadTooLarge"];
+            422: components["responses"]["ValidationError"];
+            500: components["responses"]["InternalError"];
+            default: components["responses"]["InternalError"];
+        };
+    };
+    postAuthResetPassword: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResetPasswordRequest"];
+            };
+        };
+        responses: {
+            /** @description Đặt lại mật khẩu thành công */
+            200: {
+                headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            403: components["responses"]["OriginInvalid"];
+            413: components["responses"]["PayloadTooLarge"];
+            422: components["responses"]["ValidationError"];
+            429: components["responses"]["RateLimited"];
+            500: components["responses"]["InternalError"];
+            default: components["responses"]["InternalError"];
+        };
+    };
+    getAuthCsrf: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Token CSRF */
+            200: {
+                headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CsrfTokenResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            500: components["responses"]["InternalError"];
+            default: components["responses"]["InternalError"];
+        };
+    };
+    getUsersMe: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Thông tin user */
+            200: {
+                headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            500: components["responses"]["InternalError"];
+            default: components["responses"]["InternalError"];
+        };
+    };
+    getUsersByUserId: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                userId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Thông tin user */
+            200: {
+                headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
+            default: components["responses"]["InternalError"];
+        };
+    };
+    getAuthSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Session hợp lệ */
+            200: {
+                headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            500: components["responses"]["InternalError"];
+            default: components["responses"]["InternalError"];
+        };
+    };
+    postAuthLogout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Session đã revoke và cookie được clear */
+            200: {
+                headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            403: components["responses"]["CsrfInvalid"];
+            413: components["responses"]["PayloadTooLarge"];
+            500: components["responses"]["InternalError"];
+            default: components["responses"]["InternalError"];
+        };
+    };
+    patchUsersMePreferences: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdatePreferencesRequest"];
+            };
+        };
+        responses: {
+            /** @description Preference đã cập nhật */
+            200: {
+                headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["CsrfInvalid"];
+            404: components["responses"]["NotFound"];
+            413: components["responses"]["PayloadTooLarge"];
+            422: components["responses"]["ValidationError"];
+            500: components["responses"]["InternalError"];
+            default: components["responses"]["InternalError"];
+        };
+    };
+    getWallet: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Wallet */
+            200: {
+                headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WalletResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
+            default: components["responses"]["InternalError"];
+        };
+    };
+    postWalletBaseline: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WalletBaselineRequest"];
+            };
+        };
+        responses: {
+            /** @description Wallet đã khởi tạo */
+            201: {
+                headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WalletResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["CsrfInvalid"];
+            409: components["responses"]["WalletAlreadyInitialized"];
+            413: components["responses"]["PayloadTooLarge"];
+            422: components["responses"]["ValidationError"];
+            500: components["responses"]["InternalError"];
+            default: components["responses"]["InternalError"];
+        };
+    };
+    getLedgerTransactions: {
+        parameters: {
+            query?: {
+                cursor?: components["parameters"]["Cursor"];
+                limit?: components["parameters"]["Limit"];
+                type?: components["schemas"]["TransactionType"];
+                categoryId?: string;
+                from?: string;
+                to?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Ledger page */
+            200: {
+                headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TransactionPageResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            422: components["responses"]["ValidationError"];
+            500: components["responses"]["InternalError"];
+            default: components["responses"]["InternalError"];
+        };
+    };
+    postLedgerTransactions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateTransactionRequest"];
+            };
+        };
+        responses: {
+            /** @description Transaction đã commit */
+            201: {
+                headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TransactionResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["CsrfInvalid"];
+            409: components["responses"]["IdempotencyConflict"];
+            413: components["responses"]["PayloadTooLarge"];
+            422: components["responses"]["DomainValidationError"];
+            500: components["responses"]["InternalError"];
+            default: components["responses"]["InternalError"];
+        };
+    };
+    getLedgerTransactionsByTransactionId: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                transactionId: components["parameters"]["TransactionId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Transaction */
+            200: {
+                headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TransactionResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
+            default: components["responses"]["InternalError"];
+        };
+    };
+    postLedgerTransactionsByTransactionIdCorrections: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                transactionId: components["parameters"]["TransactionId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateCorrectionRequest"];
+            };
+        };
+        responses: {
+            /** @description Correction đã commit */
+            201: {
+                headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TransactionResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["CsrfInvalid"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            413: components["responses"]["PayloadTooLarge"];
+            422: components["responses"]["DomainValidationError"];
+            500: components["responses"]["InternalError"];
+            default: components["responses"]["InternalError"];
+        };
+    };
+    getSavings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Savings */
+            200: {
+                headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SavingsResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
+            default: components["responses"]["InternalError"];
+        };
+    };
+    getSavingsTransfers: {
+        parameters: {
+            query?: {
+                cursor?: components["parameters"]["Cursor"];
+                limit?: components["parameters"]["Limit"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Savings transfer page */
+            200: {
+                headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SavingsTransferPageResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            422: components["responses"]["ValidationError"];
+            500: components["responses"]["InternalError"];
+            default: components["responses"]["InternalError"];
+        };
+    };
+    postSavingsTransfers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateSavingsTransferRequest"];
+            };
+        };
+        responses: {
+            /** @description Transfer đã commit */
+            201: {
+                headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SavingsTransferResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["CsrfInvalid"];
+            409: components["responses"]["IdempotencyConflict"];
+            413: components["responses"]["PayloadTooLarge"];
+            422: components["responses"]["DomainValidationError"];
+            500: components["responses"]["InternalError"];
+            default: components["responses"]["InternalError"];
+        };
+    };
+    getCategories: {
+        parameters: {
+            query?: {
+                appliesTo?: components["schemas"]["TransactionType"];
+                includeDisabled?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Categories */
+            200: {
+                headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CategoryListResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            422: components["responses"]["ValidationError"];
+            500: components["responses"]["InternalError"];
+            default: components["responses"]["InternalError"];
+        };
+    };
+    postCategories: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateCategoryRequest"];
+            };
+        };
+        responses: {
+            /** @description Category đã tạo */
+            201: {
+                headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CategoryResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["CsrfInvalid"];
+            409: components["responses"]["Conflict"];
+            413: components["responses"]["PayloadTooLarge"];
+            422: components["responses"]["ValidationError"];
+            500: components["responses"]["InternalError"];
+            default: components["responses"]["InternalError"];
+        };
+    };
+    patchCategoriesByCategoryId: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                categoryId: components["parameters"]["CategoryId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateCategoryRequest"];
+            };
+        };
+        responses: {
+            /** @description Category đã cập nhật */
+            200: {
+                headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CategoryResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            413: components["responses"]["PayloadTooLarge"];
+            422: components["responses"]["ValidationError"];
+            500: components["responses"]["InternalError"];
+            default: components["responses"]["InternalError"];
+        };
+    };
+    getBudgets: {
+        parameters: {
+            query: {
+                /** @example 2026-09 */
+                month: components["parameters"]["Month"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Budget list */
+            200: {
+                headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BudgetListResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            422: components["responses"]["ValidationError"];
+            500: components["responses"]["InternalError"];
+            default: components["responses"]["InternalError"];
+        };
+    };
+    putBudgetsByCategoryId: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                categoryId: components["parameters"]["CategoryId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpsertBudgetRequest"];
+            };
+        };
+        responses: {
+            /** @description Budget đã cập nhật */
+            200: {
+                headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BudgetResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["CsrfInvalid"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["IdempotencyConflict"];
+            413: components["responses"]["PayloadTooLarge"];
+            422: components["responses"]["DomainValidationError"];
+            500: components["responses"]["InternalError"];
+            default: components["responses"]["InternalError"];
+        };
+    };
+    getBudgetsSummary: {
+        parameters: {
+            query: {
+                /** @example 2026-09 */
+                month: components["parameters"]["Month"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Budget summary */
+            200: {
+                headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BudgetSummaryResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            422: components["responses"]["ValidationError"];
+            500: components["responses"]["InternalError"];
+            default: components["responses"]["InternalError"];
+        };
+    };
+    getReportsMonthly: {
+        parameters: {
+            query: {
+                /** @example 2026-09 */
+                month: components["parameters"]["Month"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Monthly report */
+            200: {
+                headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MonthlyReportResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            422: components["responses"]["ValidationError"];
+            500: components["responses"]["InternalError"];
+            default: components["responses"]["InternalError"];
+        };
+    };
+    getReportsDashboard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Dashboard */
+            200: {
+                headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            500: components["responses"]["InternalError"];
+            default: components["responses"]["InternalError"];
+        };
+    };
+    postIssues: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateIssueRequest"];
+            };
+        };
+        responses: {
+            /** @description Issue đã tạo */
+            201: {
+                headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IssueResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["CsrfInvalid"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["IdempotencyConflict"];
+            413: components["responses"]["PayloadTooLarge"];
+            422: components["responses"]["ValidationError"];
+            500: components["responses"]["InternalError"];
+            default: components["responses"]["InternalError"];
+        };
+    };
+    getIssuesMe: {
+        parameters: {
+            query?: {
+                cursor?: components["parameters"]["Cursor"];
+                limit?: components["parameters"]["Limit"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Issue page */
+            200: {
+                headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IssuePageResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            422: components["responses"]["ValidationError"];
+            500: components["responses"]["InternalError"];
+            default: components["responses"]["InternalError"];
+        };
+    };
+    getAdminIssues: {
+        parameters: {
+            query?: {
+                cursor?: components["parameters"]["Cursor"];
+                limit?: components["parameters"]["Limit"];
+                status?: components["schemas"]["IssueStatus"];
+                priority?: components["schemas"]["IssuePriority"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Admin issue page */
+            200: {
+                headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IssuePageResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            422: components["responses"]["ValidationError"];
+            500: components["responses"]["InternalError"];
+            default: components["responses"]["InternalError"];
+        };
+    };
+    getAdminIssuesByIssueId: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                issueId: components["parameters"]["IssueId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Issue detail */
+            200: {
+                headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IssueResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
+            default: components["responses"]["InternalError"];
+        };
+    };
+    patchAdminIssuesByIssueId: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                issueId: components["parameters"]["IssueId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateIssueRequest"];
+            };
+        };
+        responses: {
+            /** @description Issue đã cập nhật */
+            200: {
+                headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IssueResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            413: components["responses"]["PayloadTooLarge"];
+            500: components["responses"]["InternalError"];
+            default: components["responses"]["InternalError"];
+        };
+    };
+    postAdminIssuesByIssueIdNotes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                issueId: components["parameters"]["IssueId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateAdminNoteRequest"];
+            };
+        };
+        responses: {
+            /** @description Note đã tạo */
+            201: {
+                headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminNoteResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["IdempotencyConflict"];
+            413: components["responses"]["PayloadTooLarge"];
+            422: components["responses"]["ValidationError"];
+            500: components["responses"]["InternalError"];
+            default: components["responses"]["InternalError"];
+        };
+    };
+    getAdminAuditLogs: {
+        parameters: {
+            query?: {
+                cursor?: components["parameters"]["Cursor"];
+                limit?: components["parameters"]["Limit"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Audit page */
+            200: {
+                headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditPageResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            422: components["responses"]["ValidationError"];
+            500: components["responses"]["InternalError"];
+            default: components["responses"]["InternalError"];
+        };
+    };
+    getAdminStats: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description User statistics */
+            200: {
+                headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminStatsResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["InternalError"];
+            default: components["responses"]["InternalError"];
+        };
+    };
+    postAiCategorySuggestion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CategorySuggestionRequest"];
+            };
+        };
+        responses: {
+            /** @description Suggested category or manual fallback status. */
+            200: {
+                headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CategorySuggestionResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["CsrfInvalid"];
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["ValidationError"];
+            500: components["responses"]["InternalError"];
+            default: components["responses"]["InternalError"];
+        };
+    };
+    getHealth: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description API đang chạy */
+            200: {
+                headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HealthResponse"];
+                };
+            };
+            500: components["responses"]["InternalError"];
+            default: components["responses"]["InternalError"];
+        };
+    };
+    getHealthReady: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Dependency sẵn sàng */
+            200: {
+                headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReadinessResponse"];
+                };
+            };
+            500: components["responses"]["InternalError"];
+            503: components["responses"]["ServiceUnavailable"];
+            default: components["responses"]["InternalError"];
+        };
+    };
+}

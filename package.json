@@ -2,6 +2,9 @@
   "name": "campus-coin",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": "24.x"
+  },
   "description": "Campus Coin API contract and application workspace",
   "type": "module",
   "scripts": {
@@ -9,10 +12,54 @@
     "api:bundle": "redocly bundle docs/contracts/openapi.yaml -o artifacts/openapi.json",
     "api:types": "openapi-typescript docs/contracts/openapi.yaml -o artifacts/api.d.ts",
     "verify:docs": "npm run api:validate && git diff --check",
-    "test": "node --test"
+    "start": "tsx src/local-server.ts",
+    "dev": "vite --host 127.0.0.1",
+    "dev:web": "vite --host 127.0.0.1",
+    "dev:api": "tsx watch src/local-server.ts",
+    "build": "tsc --noEmit && vite build",
+    "build:web": "vite build",
+    "typecheck": "tsc -p tsconfig.json",
+    "lint": "tsc --noEmit",
+    "test": "node --import tsx --test",
+    "db:status": "cross-env node --env-file-if-exists=.env src/infrastructure/db/migrate.ts status",
+    "db:preflight": "cross-env node --env-file-if-exists=.env src/infrastructure/db/migrate.ts preflight",
+    "db:reconcile": "cross-env node --env-file-if-exists=.env src/infrastructure/db/reconcile.ts",
+    "db:operation-log": "cross-env node --env-file-if-exists=.env src/infrastructure/db/record-operation.ts",
+    "db:datatest": "cross-env node --env-file-if-exists=.env datatest/run.ts",
+    "db:datatest:ci": "cross-env CAMPUS_COIN_TEST_DB=1 node --import tsx datatest/run.ts",
+    "db:migrate": "cross-env node --env-file-if-exists=.env src/infrastructure/db/migrate.ts up",
+    "db:verify-clone": "cross-env node --env-file-if-exists=.env scripts/verify-db-clone.js",
+    "test:auth-security": "cross-env CAMPUS_COIN_TEST_DB=1 CAMPUS_COIN_DB_NAME=campus_coin_test_auth node --env-file-if-exists=.env --import tsx --test --test-name-pattern=auth-security test/auth.mysql.integration.test.ts",
+    "benchmark": "cross-env node --env-file-if-exists=.env benchmark/run.ts",
+    "test:mysql:required": "cross-env CAMPUS_COIN_TEST_DB=1 node --import tsx --test",
+    "eval:jev-threshold": "node tools/run-jev-category-threshold-evaluation.js",
+    "probe:jev-live": "node tools/run-jev-category-live-probe.js"
   },
   "devDependencies": {
     "@redocly/cli": "^2.54.2",
-    "openapi-typescript": "^7.13.0"
+    "@types/node": "^26.6.2",
+    "@types/nodemailer": "^8.0.2",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@types/uuid": "^10",
+    "@vercel/node": "^5",
+    "@vitejs/plugin-react": "^6.1.1",
+    "cross-env": "^10.1.0",
+    "openapi-typescript": "^7.13.0",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3",
+    "vite": "^8.3.0"
+  },
+  "dependencies": {
+    "@vercel/functions": "3.9.9",
+    "dotenv": "^17.4.2",
+    "google-auth-library": "11.1.0",
+    "lucide-react": "^0.544.0",
+    "mysql2": "^3.24.4",
+    "nodemailer": "^10.0.10",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "uuid": "^11",
+    "zod": "^3.24"
   }
 }
