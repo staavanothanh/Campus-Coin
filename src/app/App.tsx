@@ -1,0 +1,360 @@
+import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { api, ApiError, type User } from '../features/auth/auth.api';
+import { errorText, text, type Language } from './text';
+
+type Page = 'login' | 'register' | 'verify' | 'forgot' | 'reset';
+type MessageKind = 'error' | 'status';
+type AuthField = 'email' | 'name' | 'otp' | 'password' | 'confirm';
+
+const fieldsByPage: Record<Page, AuthField[]> = {
+  login: ['email', 'password'],
+  register: ['email'],
+  verify: ['name', 'otp', 'password', 'confirm'],
+  forgot: ['email'],
+  reset: ['otp', 'password', 'confirm'],
+};
+
+type AuthenticatedSession = { user: User; csrfToken: string };
+type AuthAppProps = {
+  onAuthenticated(session: AuthenticatedSession | null): void;
+  initialNotice?: string;
+  noticeKind?: MessageKind;
+};
+
+export function App({ onAuthenticated, initialNotice = '', noticeKind = 'status' }: AuthAppProps) {
+  const [language, setLanguage] = useState<Language>('vi');
+  const [page, setPage] = useState<Page>('login');
+  const [email, setEmail] = useState(localStorage.getItem('campus_email') || '');
+  const [remember, setRemember] = useState(Boolean(localStorage.getItem('campus_email')));
+  const [name, setName] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [otp, setOtp] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [touched, setTouched] = useState<Record<AuthField, boolean>>({
+    email: false, name: false, otp: false, password: false, confirm: false,
+  });
+  const [message, setMessage] = useState(initialNotice);
+  const [busy, setBusy] = useState(false);
+  const [messageKind, setMessageKind] = useState<MessageKind>(noticeKind);
+  const [submitted, setSubmitted] = useState(false);
+  const [googleEnabled, setGoogleEnabled] = useState(false);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const requestInProgress = useRef(false);
+  const t = text[language];
+
+  useEffect(() => {
+    document.documentElement.lang = language;
+  }, [language]);
+  useEffect(() => {
+    let active = true;
+    api<{ google: boolean }>('/auth/providers')
+      .then(providers => {
+        if (active) setGoogleEnabled(providers.google === true);
+      })
+      .catch(() => {
+        if (active) setGoogleEnabled(false);
+      });
+    return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
+    if (!initialNotice) return;
+    setMessage(initialNotice);
+    setMessageKind(noticeKind);
+  }, [initialNotice, noticeKind]);
+  useEffect(() => {
+    headingRef.current?.focus();
+  }, [page]);
+
+
+  function openPage(nextPage: Page) {
+    setPage(nextPage);
+    setMessage('');
+    setMessageKind('status');
+    setPassword('');
+    setConfirm('');
+    setOtp('');
+    setShowPassword(false);
+    setShowConfirmPassword(false);
+    setTouched({ email: false, name: false, otp: false, password: false, confirm: false });
+    setSubmitted(false);
+  }
+
+  function validationMessage(field: AuthField) {
+    if (field === 'email' && ['login', 'register', 'forgot'].includes(page)) {
+      if (!email.trim()) return t.emailRequired;
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return t.emailInvalid;
+    }
+    if (field === 'name' && page === 'verify' && (name.trim().length < 2 || name.trim().length > 120)) {
+      return t.nameInvalid;
+    }
+    if (field === 'otp' && ['verify', 'reset'].includes(page) && !/^\d{6}$/.test(otp)) {
+      return t.codeInvalid;
+    }
+    if (field === 'password') {
+      if (page === 'login' && !password) return t.passwordRequired;
+      if (['verify', 'reset'].includes(page) && (password.length < 8 || password.length > 128)) {
+        return t.passwordInvalid;
+      }
+    }
+    if (field === 'confirm' && ['verify', 'reset'].includes(page)) {
+      if (!confirm) return t.confirmRequired;
+      if (password !== confirm) return t.mismatch;
+    }
+    return '';
+  }
+
+  function fieldError(field: AuthField) {
+    return submitted || touched[field] ? validationMessage(field) : '';
+  }
+
+  function touchField(field: AuthField) {
+    setTouched(current => ({ ...current, [field]: true }));
+  }
+
+  function showError(error: unknown) {
+    setMessageKind('error');
+    if (error instanceof ApiError) {
+      if (error.code === 'RATE_LIMITED') {
+        const retryAfter = error.retryAfterSeconds;
+        setMessage(retryAfter ? `${t.rateLimited} ${retryAfter} ${t.seconds}.` : t.rateLimited);
+        return;
+      }
+      setMessage(errorText[language][error.code] || t.error);
+    } else {
+      setMessage(t.error);
+    }
+  }
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (requestInProgress.current) return;
+    setSubmitted(true);
+    setMessage('');
+    setMessageKind('status');
+    setShowPassword(false);
+    setShowConfirmPassword(false);
+    const firstInvalidField = fieldsByPage[page].find(field => validationMessage(field));
+    if (firstInvalidField) {
+      document.getElementById(`auth-${firstInvalidField}`)?.focus();
+      return;
+    }
+
+    requestInProgress.current = true;
+    setBusy(true);
+    try {
+      if (page === 'login') {
+        const result = await api<{ user: User; csrfToken: string }>('/auth/login', { email, password });
+        if (!result.csrfToken) throw new ApiError(500, 'INVALID_RESPONSE', t.error);
+        if (remember) localStorage.setItem('campus_email', email);
+        else localStorage.removeItem('campus_email');
+        onAuthenticated({ user: result.user, csrfToken: result.csrfToken });
+      }
+      if (page === 'register') {
+        await api('/auth/register', { email });
+        openPage('verify');
+        setMessage(t.registered);
+      }
+      if (page === 'verify') {
+        await api('/auth/verify-registration', { email, fullName: name, otp, password, locale: language });
+        openPage('login');
+        setMessage(t.created);
+      }
+      if (page === 'forgot') {
+        await api('/auth/forgot-password', { email });
+        openPage('reset');
+        setMessage(t.resetSent);
+      }
+      if (page === 'reset') {
+        await api('/auth/reset-password', { email, otp, newPassword: password });
+        openPage('login');
+        setMessage(t.changed);
+      }
+    } catch (error) {
+      showError(error);
+    } finally {
+      requestInProgress.current = false;
+      setBusy(false);
+    }
+  }
+
+  async function resend() {
+    if (requestInProgress.current) return;
+    requestInProgress.current = true;
+    setBusy(true);
+    setMessage('');
+    setMessageKind('status');
+    try {
+      const purpose = page === 'verify' ? 'registration' : 'password_reset';
+      await api('/auth/resend-otp', { email, purpose });
+      setMessage(t.resent);
+    } catch (error) {
+      showError(error);
+    } finally {
+      requestInProgress.current = false;
+      setBusy(false);
+    }
+  }
+
+
+  let title = t.login;
+  let buttonText = t.login;
+  if (page === 'register') { title = t.register; buttonText = t.sendCode; }
+  if (page === 'verify') { title = t.verify; buttonText = t.create; }
+  if (page === 'forgot') { title = t.forgot; buttonText = t.sendCode; }
+  if (page === 'reset') { title = t.reset; buttonText = t.change; }
+
+  return <main className="screen">
+    <div className="topbar">
+      <strong>Campus Coin</strong>
+      <button type="button" onClick={() => setLanguage(language === 'vi' ? 'en' : 'vi')}>
+        {language === 'vi' ? 'English' : 'Tiếng Việt'}
+      </button>
+    </div>
+
+    <section className="authCard">
+        <h1 id="auth-title" ref={headingRef} tabIndex={-1}>{title}</h1>
+        {page === 'verify' && <p className="emailHint">{t.email}: {email}</p>}
+        <form aria-labelledby="auth-title" onInvalid={() => setSubmitted(true)} onSubmit={submit}>
+          <fieldset className="authFields">
+            <legend className="visuallyHidden">{title}</legend>
+            {(page === 'login' || page === 'register' || page === 'forgot') && <label>
+              {t.email}
+              <input
+                id="auth-email"
+                type="email"
+                value={email}
+                onChange={event => setEmail(event.target.value)}
+                onBlur={() => touchField('email')}
+                aria-invalid={Boolean(fieldError('email'))}
+                aria-describedby={fieldError('email') ? 'auth-email-error' : undefined}
+                maxLength={255}
+                required
+                autoComplete="email"
+              />
+              {fieldError('email') && <span id="auth-email-error" className="fieldError" aria-live="polite">{fieldError('email')}</span>}
+            </label>}
+
+            {page === 'verify' && <label>
+              {t.name}
+              <input
+                id="auth-name"
+                value={name}
+                onChange={event => setName(event.target.value.slice(0, 120))}
+                onBlur={() => touchField('name')}
+                aria-invalid={Boolean(fieldError('name'))}
+                aria-describedby={fieldError('name') ? 'auth-name-error' : undefined}
+                required
+                minLength={2}
+                maxLength={120}
+                autoComplete="name"
+              />
+              {fieldError('name') && <span id="auth-name-error" className="fieldError" aria-live="polite">{fieldError('name')}</span>}
+            </label>}
+
+            {(page === 'verify' || page === 'reset') && <label>
+              {t.code}
+              <input
+                id="auth-otp"
+                value={otp}
+                onChange={event => setOtp(event.target.value.replace(/\D/g, '').slice(0, 6))}
+                onBlur={() => touchField('otp')}
+                aria-invalid={Boolean(fieldError('otp'))}
+                aria-describedby={fieldError('otp') ? 'auth-otp-error' : undefined}
+                placeholder={t.codeHint}
+                required
+                pattern="[0-9]{6}"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                maxLength={6}
+              />
+              {fieldError('otp') && <span id="auth-otp-error" className="fieldError" aria-live="polite">{fieldError('otp')}</span>}
+            </label>}
+
+            {(page === 'login' || page === 'verify' || page === 'reset') && <label>
+              {page === 'reset' ? t.newPassword : t.password}
+              <span
+                className="passwordField"
+                onBlur={event => {
+                  if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setShowPassword(false);
+                }}
+              >
+                <input
+                  id="auth-password"
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={event => setPassword(event.target.value)}
+                  onBlur={() => touchField('password')}
+                  aria-invalid={Boolean(fieldError('password'))}
+                  aria-describedby={fieldError('password') ? 'auth-password-error' : undefined}
+                  placeholder={page === 'login' ? '' : t.passwordHint}
+                  required
+                  minLength={page === 'login' ? 1 : 8}
+                  maxLength={128}
+                  autoComplete={page === 'login' ? 'current-password' : 'new-password'}
+                />
+                <button
+                  type="button"
+                  disabled={busy}
+                  aria-pressed={showPassword}
+                  onClick={() => setShowPassword(current => !current)}
+                  aria-label={showPassword ? t.hide : t.show}
+                >{showPassword ? t.hideShort : t.showShort}</button>
+              </span>
+              {fieldError('password') && <span id="auth-password-error" className="fieldError" aria-live="polite">{fieldError('password')}</span>}
+            </label>}
+
+            {(page === 'verify' || page === 'reset') && <label>
+              {t.confirm}
+              <span
+                className="passwordField"
+                onBlur={event => {
+                  if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setShowConfirmPassword(false);
+                }}
+              >
+                <input
+                  id="auth-confirm"
+                  type={showConfirmPassword ? 'text' : 'password'}
+                  value={confirm}
+                  onChange={event => setConfirm(event.target.value)}
+                  onBlur={() => touchField('confirm')}
+                  aria-invalid={Boolean(fieldError('confirm'))}
+                  aria-describedby={fieldError('confirm') ? 'auth-confirm-error' : undefined}
+                  required
+                  minLength={8}
+                  maxLength={128}
+                  autoComplete="new-password"
+                />
+                <button
+                  type="button"
+                  disabled={busy}
+                  aria-pressed={showConfirmPassword}
+                  onClick={() => setShowConfirmPassword(current => !current)}
+                  aria-label={showConfirmPassword ? t.hide : t.show}
+                >{showConfirmPassword ? t.hideShort : t.showShort}</button>
+              </span>
+              {fieldError('confirm') && <span id="auth-confirm-error" className="fieldError" aria-live="polite">{fieldError('confirm')}</span>}
+            </label>}
+
+            {page === 'login' && <label className="checkLabel">
+              <input type="checkbox" checked={remember} onChange={event => setRemember(event.target.checked)} />
+              {t.remember}
+            </label>}
+          </fieldset>
+          <button type="submit" className="primaryButton" disabled={busy}>{busy ? t.wait : buttonText}</button>
+        </form>
+
+        {(page === 'verify' || page === 'reset') && <button className="textButton" disabled={busy} onClick={resend}>{t.resend}</button>}
+        {page === 'login' && <>
+          {googleEnabled && <a className="textButton" href="/api/v1/auth/google/start">{t.googleSignIn}</a>}
+          <button className="textButton" onClick={() => openPage('forgot')}>{t.forgotLink}</button>
+          <button className="textButton" onClick={() => openPage('register')}>{t.signUp}</button>
+        </>}
+        {page !== 'login' && <button className="textButton" onClick={() => openPage('login')}>{t.back}</button>}
+      {message && <p className="message" role={messageKind === 'error' ? 'alert' : 'status'} aria-live={messageKind === 'error' ? 'assertive' : 'polite'}>{message}</p>}
+    </section>
+    <p className="subtitle">{t.subtitle}</p>
+  </main>;
+}

@@ -22,12 +22,15 @@ npm run api:types
 ## Boundary bắt buộc
 
 - Prefix `/api/v1`.
-- Browser dùng opaque server session cookie; owner scope lấy từ session.
-- State-changing request cần Origin/CSRF policy; endpoint logout phải idempotent và clear cookie kể cả khi token stale.
+- Browser dùng opaque server session cookie cho email/password/OTP và Google Sign-In tùy chọn theo ADR-0009.
+- Google OIDC chạy phía server với `openid email profile`, PKCE/state/nonce; không Gmail API/token storage và không auto-link theo email.
+- Email OTP đi qua SMTP server adapter; không dùng Gmail credential cá nhân, inbox hoặc API.
+- State-changing request cần Origin/CSRF policy. Logout của session còn hiệu lực cần Origin hợp lệ và CSRF token hiện tại; nếu session đã hết hạn/bị thu hồi hoặc không có session, endpoint vẫn trả thành công và xóa cookie để hỗ trợ gọi lặp.
+- Mọi mutation cần `Origin` thuộc allowlist; `Referer` không phải fallback. API response và redirect dùng `Cache-Control: no-store, private`.
 - Money mutation cần `Idempotency-Key`; retry cùng body trả kết quả cũ, body khác trả conflict.
 - Money là integer VND; ledger type chỉ `income`/`payment`; savings transfer tách riêng.
 - List lớn dùng opaque keyset cursor, không yêu cầu exact `total`.
-- JEV endpoint chỉ advisory category suggestion, default-off, manual fallback; không ghi money.
+- JEV hiện chưa có runtime endpoint trong OpenAPI; giữ default-off cho đến khi typed adapter/provider probe và fallback được kiểm chứng.
 - Error code locale-neutral; message hiển thị do client localization kiểm soát.
 
 ## Những điểm chưa là quyết định kiến trúc

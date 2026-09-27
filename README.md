@@ -230,7 +230,13 @@ git diff --check
 Các lệnh sau chỉ khả dụng sau khi implementation tương ứng tồn tại:
 
 ```bash
+# React/Vite frontend
 npm run dev
+npm run dev:web
+
+# Backend API (cần cấu hình .env)
+npm run dev:api
+
 npm run build
 npm run lint
 npm run typecheck

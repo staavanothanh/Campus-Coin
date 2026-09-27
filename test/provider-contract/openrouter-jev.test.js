@@ -13,7 +13,7 @@ const apiKey = 'test-openrouter-key'
 const sensitivePrompt = 'SENSITIVE_JEV_PROMPT_MARKER'
 const rawPayloadMarker = 'RAW_OPENROUTER_PAYLOAD_MARKER'
 
-const state = { description: sensitivePrompt }
+const state = { transactionType: 'income', description: sensitivePrompt, locale: 'en', contractVersion: 'jev-category-v1' }
 const questions = {
   category: {
     type: 'choice',
@@ -48,7 +48,7 @@ async function createJevAdapter(options = {}) {
   return createAdapter({
     apiKey,
     fetchImpl: options.fetchImpl ?? (async () => jsonResponse(choiceResponse())),
-    logger: options.logger ?? console,
+    logger: options.logger ?? createLogCollector().logger,
     timeoutMs: options.timeoutMs,
   })
 }
@@ -76,6 +76,72 @@ describe('OpenRouter System One JEV 1.13 HTTP contract', () => {
       questions,
     })
   })
+  it('rejects sensitive state at the adapter boundary before invoking fetch', async (context) => {
+    for (const [label, description] of [
+      ['email', 'Lunch contact ana@example.com'],
+      ['bearer credential', 'Lunch note Bearer synthetic-token-value'],
+      ['colon bearer credential', 'Lunch note Bearer: synthetic-token-value'],
+      ['equals bearer credential', 'Lunch note Bearer=synthetic-token-value'],
+      ['labelled identifier', 'Transfer account: 12345678'],
+    ]) {
+      await context.test(label, async () => {
+        let providerRequests = 0
+        const client = await createJevAdapter({
+          fetchImpl: async () => { providerRequests += 1; return jsonResponse(choiceResponse()) },
+        })
+
+        await expectErrorCode(client.decide({ state: { ...state, description }, questions }), 'invalid_provider_request')
+        assert.equal(providerRequests, 0)
+      })
+    }
+  })
+  it('requires exactly the supported state contract before invoking fetch', async (context) => {
+    const invalidStates = [
+      ...Object.keys(state).map((field) => [
+        `missing ${field}`,
+        Object.fromEntries(Object.entries(state).filter(([key]) => key !== field)),
+      ]),
+      ['unsupported transactionType', { ...state, transactionType: 'transfer' }],
+      ['unsupported locale', { ...state, locale: 'fr' }],
+      ['unsupported contractVersion', { ...state, contractVersion: 'jev-category-v2' }],
+      ['amountVnd', { ...state, amountVnd: 120000 }],
+      ['balance', { ...state, balance: 900000 }],
+      ['session', { ...state, session: 'synthetic-session' }],
+      ['secret', { ...state, secret: 'synthetic-secret' }],
+    ]
+    for (const [label, invalidState] of invalidStates) {
+      await context.test(label, async () => {
+        let providerRequests = 0
+        const client = await createJevAdapter({
+          fetchImpl: async () => { providerRequests += 1; return jsonResponse(choiceResponse()) },
+        })
+
+        await expectErrorCode(client.decide({ state: invalidState, questions }), 'invalid_provider_request')
+        assert.equal(providerRequests, 0)
+      })
+    }
+  })
+  it('rejects unsafe question IDs, fields and criteria before invoking fetch', async (context) => {
+    const invalidQuestions = [
+      ['unknown question ID', { alternate: questions.category }],
+      ['extra question property', { category: { ...questions.category, context: 'include account history' } }],
+      ['sensitive candidate label', { category: { ...questions.category, criteria: { groceries: 'Account 12345678', other_or_uncertain: questions.category.criteria.other_or_uncertain } } }],
+    ]
+    for (const [label, invalidQuestionSet] of invalidQuestions) {
+      await context.test(label, async () => {
+        let providerRequests = 0
+        const client = await createJevAdapter({
+          fetchImpl: async () => { providerRequests += 1; return jsonResponse(choiceResponse()) },
+        })
+
+        await expectErrorCode(client.decide({ state, questions: invalidQuestionSet }), 'invalid_provider_request')
+        assert.equal(providerRequests, 0)
+      })
+    }
+  })
+
+
+
 
   it('accepts a typed Choice answer with candidate probabilities and confidence', async () => {
     const client = await createJevAdapter({ fetchImpl: async () => jsonResponse(choiceResponse()) })
@@ -108,6 +174,42 @@ describe('OpenRouter System One JEV 1.13 HTTP contract', () => {
       })
     }
   })
+  it('accepts optional usage and optional Choice probabilities/confidence from System One', async () => {
+    const payload = {
+      model: 'typesafe/jev-1.13',
+      answers: { category: { type: 'choice', choice: 'groceries' } },
+    }
+    const client = await createJevAdapter({ fetchImpl: async () => jsonResponse(payload) })
+
+    assert.deepEqual(await client.decide({ state, questions }), payload)
+  })
+
+  it('rejects inconsistent probability distributions and selected choices below the maximum', async (context) => {
+    const invalidResponses = [
+      {
+        label: 'probabilities do not sum to one',
+        response: jsonResponse({
+          model: 'typesafe/jev-1.13',
+          answers: { category: { type: 'choice', choice: 'groceries', probabilities: { groceries: 0.3, other_or_uncertain: 0.3 } } },
+        }),
+      },
+      {
+        label: 'selected choice is not a maximum',
+        response: jsonResponse({
+          model: 'typesafe/jev-1.13',
+          answers: { category: { type: 'choice', choice: 'groceries', probabilities: { groceries: 0.2, other_or_uncertain: 0.8 } } },
+        }),
+      },
+    ]
+
+    for (const { label, response } of invalidResponses) {
+      await context.test(label, async () => {
+        const client = await createJevAdapter({ fetchImpl: async () => response })
+        await expectErrorCode(client.decide({ state, questions }), 'invalid_provider_response')
+      })
+    }
+  })
+
 
   it('normalizes documented provider HTTP error statuses without exposing response payloads', async (context) => {
     for (const status of [400, 401, 402, 403, 404, 413, 429, 500, 502, 503, 524, 529]) {
@@ -126,6 +228,49 @@ describe('OpenRouter System One JEV 1.13 HTTP contract', () => {
       })
     }
   })
+  it('rejects redirects without following a second request', async () => {
+    const requests = []
+    const client = await createJevAdapter({
+      fetchImpl: async (url, options) => {
+        requests.push({ url, options })
+        assert.equal(options.redirect, 'error')
+        return new Response(null, { status: 302, headers: { location: 'https://unexpected.example/jev' } })
+      },
+    })
+
+    await expectErrorCode(client.decide({ state, questions }), 'provider_http_error')
+    assert.equal(requests.length, 1)
+  })
+  it('caps candidate sets at the provider limit of 255', async () => {
+    const criteria = Object.fromEntries(Array.from({ length: 256 }, (_value, index) => [`category_${index}`, 'label']))
+    const client = await createJevAdapter()
+
+    await expectErrorCode(client.decide({
+      state,
+      questions: { category: { type: 'choice', instructions: 'Choose.', criteria } },
+    }), 'invalid_provider_request')
+  })
+
+  it('normalizes a timeout while parsing the provider response body', async () => {
+    const client = await createJevAdapter({
+      timeoutMs: 10,
+      fetchImpl: async () => ({
+        status: 200,
+        json: () => new Promise(() => {}),
+      }),
+    })
+
+    await expectErrorCode(client.decide({ state, questions }), 'provider_timeout')
+  })
+  it('rejects provider response bodies above the bounded size limit', async () => {
+    const client = await createJevAdapter({
+      fetchImpl: async () => jsonResponse({ ...choiceResponse(), padding: 'x'.repeat(65_536) }),
+    })
+
+    await expectErrorCode(client.decide({ state, questions }), 'invalid_provider_response')
+  })
+
+
 
   it('normalizes timeout aborts and keeps sensitive request and abort details out of errors and logs', async () => {
     const { logger, entries } = createLogCollector()

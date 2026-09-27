@@ -15,9 +15,9 @@ Campus Coin là sổ theo dõi do user nhập, không phải sao kê ngân hàng
 
 ## 2. Thực thể
 
-### User và AuthIdentity
+### User và AuthCredential
 
-`User` có `id`, display name, verified email claim, status, locale, timezone và timestamps. Mọi financial query scope theo `user_id`. `AuthIdentity` liên kết user với Google `(provider, subject)`; không có password credential/linking/OTP trong MVP.
+`User` có `id`, display name, email đã xác minh, status, locale, timezone và timestamps. `AuthCredential` lưu password hash/salt phía server; OTP challenge lưu hash, purpose, expiry, attempts và created time. Google Sign-In tùy chọn lưu identity `(provider=google, subject=sub)` trong `auth_identities`; account linking cần session và thao tác rõ ràng, không tự động merge theo email. Không dùng Gmail credential/inbox/API hoặc lưu Google token. Mọi financial query scope theo `user_id` lấy từ session.
 
 ### WalletAccount
 

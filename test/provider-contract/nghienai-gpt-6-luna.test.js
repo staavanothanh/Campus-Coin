@@ -34,11 +34,12 @@ async function createNghienAdapter(options = {}) {
   const createAdapter = await loadAdapter(adapterModule, 'createNghienAiChatAdapter')
   return createAdapter({
     apiKey,
-    baseUrl,
-    model,
+    baseUrl: options.baseUrl ?? baseUrl,
+    ...(options.model === undefined ? { model } : { model: options.model }),
     fetchImpl: options.fetchImpl ?? (async () => jsonResponse(chatCompletion())),
     logger: options.logger ?? console,
     timeoutMs: options.timeoutMs,
+    allowUntrustedHost: options.allowUntrustedHost,
   })
 }
 
@@ -66,6 +67,63 @@ describe('NghienAI gpt-6-luna provisional OpenAI-compatible HTTP contract', () =
     assert.equal(request.options.headers['content-type'], 'application/json')
     assert.deepEqual(JSON.parse(request.options.body), { model, messages })
   })
+  it('pins gpt-6-luna by default and rejects unapproved model overrides', async () => {
+    const createAdapter = await loadAdapter(adapterModule, 'createNghienAiChatAdapter')
+    assert.throws(
+      () => createAdapter({ apiKey, baseUrl, fetchImpl: async () => jsonResponse(chatCompletion()), model: 'alternate-model' }),
+      (error) => error.code === 'provider_configuration_error',
+    )
+    let requestBody
+    const client = await createAdapter({
+      apiKey,
+      baseUrl,
+      fetchImpl: async (_url, options) => {
+        requestBody = JSON.parse(options.body)
+        return jsonResponse(chatCompletion())
+      },
+    })
+    await client.complete({ messages })
+    assert.equal(requestBody.model, model)
+  })
+
+  it('rejects a provider response with a different model ID', async () => {
+    const client = await createNghienAdapter({
+      fetchImpl: async () => jsonResponse(chatCompletion({ model: 'some-other-model' })),
+    })
+    await expectErrorCode(client.complete({ messages }), 'invalid_provider_response')
+  })
+
+  it('rejects non-HTTPS and unapproved hosts before any credential is sent', async () => {
+    const createAdapter = await loadAdapter(adapterModule, 'createNghienAiChatAdapter')
+    let calls = 0
+    for (const baseUrl of ['http://localhost:9000/v1', 'https://attacker.example/v1']) {
+      assert.throws(
+        () => createAdapter({ apiKey, baseUrl, fetchImpl: async () => { calls += 1; return jsonResponse(chatCompletion()) } }),
+        (error) => error.code === 'provider_configuration_error',
+      )
+    }
+    assert.equal(calls, 0)
+  })
+
+
+  it('rejects oversized or invalid message inputs without a provider request', async () => {
+    let calls = 0
+    const client = await createNghienAdapter({ fetchImpl: async () => { calls += 1; return jsonResponse(chatCompletion()) } })
+    await expectErrorCode(client.complete({ messages: [{ role: 'user', content: 'x'.repeat(8_193) }] }), 'invalid_provider_request')
+    await expectErrorCode(client.complete({ messages: Array.from({ length: 17 }, () => messages[1]) }), 'invalid_provider_request')
+    await expectErrorCode(client.complete({ messages: [{ role: 'user', content: 'x'.repeat(65_537) }] }), 'invalid_provider_request')
+    assert.equal(calls, 0)
+  })
+  it('times out when response body parsing does not complete', async () => {
+    const client = await createNghienAdapter({
+      timeoutMs: 10,
+      fetchImpl: async () => ({ status: 200, json: () => new Promise(() => {}) }),
+    })
+    await expectErrorCode(client.complete({ messages }), 'provider_timeout')
+  })
+
+
+
 
   it('accepts a minimal Chat Completions response with an assistant message', async () => {
     const client = await createNghienAdapter({ fetchImpl: async () => jsonResponse(chatCompletion()) })
@@ -93,6 +151,14 @@ describe('NghienAI gpt-6-luna provisional OpenAI-compatible HTTP contract', () =
       })
     }
   })
+  it('rejects provider response bodies above the bounded size limit', async () => {
+    const client = await createNghienAdapter({
+      fetchImpl: async () => jsonResponse({ ...chatCompletion(), padding: 'x'.repeat(65_536) }),
+    })
+
+    await expectErrorCode(client.complete({ messages }), 'invalid_provider_response')
+  })
+
   it('normalizes provider HTTP errors without leaking the key or raw error payload into errors or logs', async () => {
     const { logger, entries } = createLogCollector()
     const client = await createNghienAdapter({
