@@ -95,6 +95,16 @@ export function createMysqlHarness(): MysqlHarness {
     for (const [table, columns] of updateGrants) {
       await admin.query(`GRANT UPDATE (${columns}) ON \`${database}\`.\`${table}\` TO ${account}`);
     }
+    // Test-only: một số integration test thao tác trực tiếp cột timestamp để
+    // mô phỏng hết hạn/single-use (session expiry, OTP expiry/cooldown) qua
+    // runtime user. Đây là quyền harness, KHÔNG cấp trong grants.example.sql
+    // (production runtime không cần sửa timestamp chốt bảo mật).
+    for (const [table, columns] of [
+      ["sessions", "expires_at"],
+      ["email_otps", "expires_at, created_at"],
+    ] as const) {
+      await admin.query(`GRANT UPDATE (${columns}) ON \`${database}\`.\`${table}\` TO ${account}`);
+    }
     // Auth cần DELETE có mục đích (OTP single-use và clean bucket rate-limit);
     // không cấp DELETE trên bảng money/ledger (append-only vẫn chặn UPDATE/DELETE).
     for (const table of ["email_otps", "auth_rate_limits"]) {
