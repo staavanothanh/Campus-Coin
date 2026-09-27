@@ -2,7 +2,7 @@
 
 > Ngày ghi nhận: 2026-09-27
 > Người đề xuất: Team Leader — Hiệp
-> Trạng thái: Team Leader đã chấp thuận bốn nguyên tắc ở mục 7; ba ý tưởng bổ sung ở mục 9 đang được đề xuất, chưa thành phạm vi release
+> Trạng thái: Team Leader đã chấp thuận năm nguyên tắc ở mục 7; ba ý tưởng bổ sung ở mục 9 đang được đề xuất, chưa thành phạm vi release
 > Nguồn hình ảnh: bốn ảnh Notion do Team Leader cung cấp; mô tả bên dưới là điều rút ra từ ảnh, không sao chép giao diện/CSS.
 
 ## 1. Mục tiêu
@@ -11,7 +11,7 @@ Giúp sinh viên ghi khoản chi nhanh hơn, nhận ra một số thay đổi tr
 
 Campus Coin là sổ tài chính do người dùng tự nhập. Sản phẩm không kết nối ngân hàng, không biết giao dịch chưa được nhập, và không đảm bảo khoản chi dự kiến là chính xác. Mọi nhắc nhở, xu hướng và phép so sánh phải nói rõ chúng được tính từ dữ liệu người dùng đã nhập.
 
-Tài liệu này mở rộng ý tưởng trong [nghiên cứu dòng tiền sinh viên](./student-cashflow-research-2026-09-26.md). Bốn nguyên tắc tại mục 7 đã được chấp thuận; các đề xuất khác chưa phải phạm vi release và không mở lại bất biến trong docs/DOMAIN-MODEL.md.
+Tài liệu này mở rộng ý tưởng trong [nghiên cứu dòng tiền sinh viên](./student-cashflow-research-2026-09-26.md). Năm nguyên tắc tại mục 7 đã được chấp thuận; các đề xuất khác chưa phải phạm vi release và không mở lại bất biến trong docs/DOMAIN-MODEL.md.
 
 ## 2. Ý tưởng của Team Leader
 
@@ -86,21 +86,25 @@ Gợi ý mặc định: hiển thị chênh lệch số tiền tuyệt đối b�
 Khoản dự kiến phải được lưu tách khỏi ledger:
 
 - Có tên, payment category, số tiền ước tính, nhịp lặp, ngày đến hạn, trạng thái đang hoạt động và owner.
+- Người dùng có thể tạo khoản như “Khoản nợ Hiệp”, 50.000 VND mỗi tháng, và phân loại bằng payment category `Trả nợ`. Đây chỉ là một khoản dự kiến lặp lại; không tạo hồ sơ dư nợ, không tính tiền gốc/lãi/còn nợ và không cần kết nối ngân hàng.
 - Cảnh báo trong ứng dụng khi còn 10 ngày tới hạn như Team Leader đề xuất. Khoảng nhắc có thể cấu hình về sau.
 - Bản đầu nên là thông báo trong app khi người dùng mở dashboard; chưa gửi email/push vì chưa có contract notification được chốt.
 - Tháng không có ngày 29, 30 hoặc 31 cần quy tắc rõ. Đề xuất tạm: dùng ngày cuối cùng của tháng đó, nhưng Team Leader phải xác nhận trước khi triển khai.
-- Khi người dùng ghi một payment thật, họ liên kết payment với khoản dự kiến. Không cho đánh dấu “đã trả” mà không có payment ledger tương ứng.
+- Khoản lặp được tính theo kỳ đến hạn (ví dụ một lần mỗi tháng), không được nhân thêm mỗi khi có một income. Khi có nhiều income trong cùng tháng, cùng một khoản đến hạn chỉ xuất hiện một lần trong phép tính của kỳ đó.
+- Mỗi khoản đến hạn có thể chỉ hiển thị để nhắc, hoặc người dùng chủ động chọn “Tính như đã dành trước” để trừ nó trong con số còn lại dự kiến. Đây chỉ là phép tính, không phải giao dịch.
+- Nếu người dùng thực sự đã trả, họ có thể chủ động chọn “Ghi khoản đã thanh toán”, xem lại ngày, category và số tiền thực tế rồi xác nhận. Chỉ sau xác nhận mới gọi luồng tạo `payment` hiện có và liên kết payment với kỳ đến hạn tương ứng. Không có lịch tự tạo payment hoặc trừ wallet.
 - Mỗi lần đến hạn cần được nhận diện theo khoản lặp và tháng cụ thể để không hiện thành nhiều nghĩa vụ hoặc nhắc trùng. Payment bị correction/reversal phải làm trạng thái nghĩa vụ được tính lại theo policy; không giữ “đã trả” mồ côi.
-- Planned obligation không phải tiền đã chi: không tạo ledger_transactions, không trừ wallet, không cộng budget đã dùng và không tự chạy payment.
-- Nếu khoản thực tế khác số dự kiến, ghi payment thật theo số người dùng xác nhận; dự báo dùng số ước tính còn lại và gắn nhãn ước tính.
+- Khoản đã được ghép với payment thật không bị trừ thêm lần nữa trong phép tính dự kiến. Nếu số payment thật khác số ước tính, dùng số thật cho wallet/report; số ước tính chỉ áp dụng cho các kỳ tương lai chưa thanh toán.
+- Lựa chọn “Tính như đã dành trước” chỉ đổi phép tính hiển thị, không khóa tiền, không trừ số dư wallet, không tạo `ledger_transactions`, không cộng `budget_used` và không tự chạy payment.
+- Nếu người dùng không còn muốn theo dõi một khoản lặp, họ có thể tắt lịch để ngừng các kỳ tương lai. Không xóa payment đã ghi hoặc lịch sử kỳ đã thanh toán.
 
-Sau khi ghi income, đề xuất một phần “Các khoản sắp đến hạn” lấy từ khoản cố định chưa được ghép với payment và nằm trong khoảng thời gian được chọn. Số “còn lại sau khoản dự kiến” chỉ là phép trừ tham khảo, không phải balance mới:
+Sau khi ghi income, đề xuất một phần “Các khoản sắp đến hạn” lấy từ các khoản cố định trong khoảng thời gian được chọn. Mỗi khoản có lựa chọn “Chỉ nhắc tôi” hoặc “Tính như đã dành trước”. Số còn lại chỉ là phép tính tham khảo; khoản dự kiến được trừ gồm những occurrence chưa được ghép với payment thật và được người dùng chọn:
 
     Số dư server sau khi ghi income
-    - tổng khoản dự kiến chưa thanh toán trong khoảng đang xem
-    = số còn lại nếu các khoản dự kiến được trả đủ như đã nhập
+    - tổng các khoản dự kiến chưa thanh toán mà người dùng chọn dành trước
+    = số còn lại tham khảo sau khi dành trước các khoản đã chọn
 
-Không thể gọi đây là số tiền còn lại “đến kỳ lương sau” nếu user chưa khai báo ngày nhận income kế tiếp. Trước khi có lịch income, hiển thị ngày/số ngày của kỳ đang xem hoặc để user chọn mốc kết thúc; không tự đoán payday.
+Việc chọn “Tính như đã dành trước” không phải xác nhận đã trả và không làm thay đổi số dư authoritative. Nếu người dùng đã trả thật, họ dùng thao tác xác nhận riêng để ghi `payment`; khi đó wallet thay đổi qua money flow hiện có. Không thể gọi đây là số tiền còn lại “đến kỳ lương sau” nếu user chưa khai báo ngày nhận income kế tiếp. Theo nguyên tắc đã chốt, khi chưa có ngày income kế tiếp thì mặc định xem 30 ngày và gắn nhãn đây là khoảng tham khảo; không tự đoán payday.
 
 ### D. So sánh theo kỳ nhận income
 
@@ -132,7 +136,7 @@ Không đưa kỳ income vào bản đầu nếu cách chia kỳ chưa được 
 4. Thiết kế planned obligations và cảnh báo ngày đến hạn. Đây là feature mới, cần migration, API, authorization, reminder behavior và cách liên kết payment thật.
 5. Cân nhắc comparison theo kỳ income sau khi thống nhất cách chia kỳ. Không trộn số tháng với số kỳ income trong cùng nhãn.
 
-Bốn nguyên tắc nghiệp vụ ở mục 7 được Team Leader chấp thuận ngày 2026-09-27. Danh sách trên là các hướng khả thi, chưa phải lịch release hoặc phân công implementation. Cần ghi phạm vi và owner ở delivery plan trước khi bắt đầu thay schema hoặc triển khai.
+Năm nguyên tắc nghiệp vụ ở mục 7 được Team Leader chấp thuận ngày 2026-09-27. Danh sách trên là các hướng khả thi, chưa phải lịch release hoặc phân công implementation. Cần ghi phạm vi và owner ở delivery plan trước khi bắt đầu thay schema hoặc triển khai.
 
 ## 6. Bất biến và riêng tư
 
@@ -149,9 +153,10 @@ Bốn nguyên tắc nghiệp vụ ở mục 7 được Team Leader chấp thuậ
 ### Đã được Team Leader chấp thuận ngày 2026-09-27
 
 1. Tên mặt hàng là trường itemName riêng; description giữ vai trò ghi chú tự do. Nếu thêm trường, dùng migration mới, nullable và không tự backfill description lịch sử.
-2. Khoản cố định là kế hoạch/nhắc nhở; không tự trừ wallet, không tạo ledger/payment, không cộng vào budget đã dùng. Chỉ payment thật được người dùng xác nhận mới tác động số liệu authoritative.
+2. Khoản cố định là kế hoạch/nhắc nhở; không tự trừ wallet, không tự tạo ledger/payment và không cộng vào budget đã dùng. Người dùng có thể chọn tính khoản đó như đã dành trước trong dự báo; nếu muốn ghi khoản đã trả, họ phải chủ động xác nhận payment thật. Chỉ payment được xác nhận mới tác động số liệu authoritative.
 3. Nếu chưa biết ngày income tiếp theo, phần khoản cố định sắp tới mặc định xem 30 ngày và phải ghi rõ đó là khoảng xem tham khảo, không gọi là “đến kỳ lương sau”.
 4. Ưu tiên so sánh chi theo tháng trước. So sánh theo income cycle để giai đoạn sau khi đã chốt cách chia kỳ.
+5. Với từng khoản cố định sau income, người dùng có thể chọn chỉ xem nhắc nhở hoặc tính khoản đó như tiền đã dành trước trong con số còn lại tham khảo. Nếu khoản đã được trả, người dùng có thể chủ động xác nhận để ghi `payment` thật; chỉ payment này mới đổi wallet/report. Không có tự động trừ tiền hoặc tạo payment. Một kỳ đến hạn mỗi tháng chỉ được tính một lần, không lặp theo số lần ghi income.
 
 ### Còn cần quyết định trước khi làm các phần tương ứng
 
@@ -167,7 +172,8 @@ Bốn nguyên tắc nghiệp vụ ở mục 7 được Team Leader chấp thuậ
 - So sánh số tiền chính xác bằng integer VND; không dùng float và không tạo ledger mutation.
 - Khoảng cách ngày theo ngày lịch Asia/Ho_Chi_Minh; kiểm tra ngày nhập trùng, ngày nhập lùi và lịch sử chỉ có một lần mua.
 - Compare category dùng cùng hai khoảng tháng HCMC, có case tháng trước rỗng, correction/reversal và owner isolation.
-- Khoản cố định không làm thay đổi wallet, ledger hoặc budget-used; cảnh báo còn đúng 10 ngày, đúng ngày đến hạn, quá hạn, đã trả và khoản bị tắt.
+- Chỉ nhắc hoặc bật/tắt “Tính như đã dành trước” không làm thay đổi wallet, ledger hoặc budget-used; xác nhận thanh toán mới tạo một `payment` duy nhất và ghép đúng kỳ. Kiểm tra nhiều income trong một tháng không đếm trùng, cảnh báo trước 10 ngày, đúng ngày đến hạn, quá hạn, đã trả và khoản bị tắt.
+- Bật/tắt “dành trước” chỉ thay đổi số còn lại tham khảo, không tạo mutation hoặc thay đổi kết quả authoritative từ API wallet/report.
 - Reminder tránh hiển thị trùng cùng khoản/kỳ và không lộ dữ liệu trong log.
 - Có kiểm tra bàn phím, focus, nhãn, trạng thái live, responsive và tiếng Việt/Anh.
 - Nếu có migration, kiểm thử upgrade từ schema đang dùng và chuẩn bị rollback/restore plan trên disposable DB trước khi yêu cầu DB owner áp lên clone.
