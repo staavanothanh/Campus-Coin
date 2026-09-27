@@ -43,7 +43,7 @@ Cooldown OTP được kiểm tra trước quota gửi; yêu cầu bị từ ch�
 
 ## 4. Session, cookie và CSRF
 
-Session ID là random opaque; DB chỉ lưu hash ID, user, issued/expires, revoked, last_seen và metadata tối thiểu. Session có expiry và logout/recovery revoke. Cookie phải `HttpOnly`, `Secure` trong production, `SameSite=Lax` hoặc chặt hơn sau kiểm thử, `Path=/`, và không có `Domain` rộng. Không lưu session trong localStorage/sessionStorage.
+Session ID là random opaque; DB chỉ lưu hash ID, user, issued/expires, revoked, last_seen và metadata tối thiểu. Session có expiry và logout/recovery revoke. Cookie phải `HttpOnly`, `Secure` trong production (thêm `Secure` khi `NODE_ENV=production` hoặc `SESSION_SECURE=true`), `SameSite=Lax` hoặc chặt hơn sau kiểm thử, `Path=/`, và không có `Domain` rộng. Không lưu session trong localStorage/sessionStorage.
 
 Runtime phải từ chối khởi động khi `OTP_SECRET`, `SESSION_SECRET` hoặc `AUTH_RATE_LIMIT_SECRET` thiếu hoặc ngắn hơn 32 byte UTF-8. Local server và Vercel function dùng cùng validator; secret values chỉ được đặt qua môi trường triển khai, không ghi vào source, tài liệu hoặc log.
 
