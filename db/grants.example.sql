@@ -84,10 +84,12 @@ GRANT UPDATE (response_json) ON campus_coin.mutation_idempotency TO 'cc_runtime'
 GRANT UPDATE (name_en, name_vi, status) ON campus_coin.categories TO 'cc_runtime'@'%';
 GRANT UPDATE (limit_vnd, idempotency_id, updated_at) ON campus_coin.budgets TO 'cc_runtime'@'%';
 GRANT UPDATE (title, description, category, status, priority) ON campus_coin.issues TO 'cc_runtime'@'%';
--- Auth runtime UPDATE theo cột: attempts OTP, credential password, rate-limit counters.
+-- Auth runtime UPDATE theo cột: attempts OTP, credential password, rate-limit counters,
+-- và auth_identities cho SELECT ... FOR UPDATE của Google login/link (locking read).
 GRANT UPDATE (attempts) ON campus_coin.email_otps TO 'cc_runtime'@'%';
 GRANT UPDATE (password_hash, password_salt) ON campus_coin.auth_credentials TO 'cc_runtime'@'%';
 GRANT UPDATE (attempt_count, window_started_at, blocked_until) ON campus_coin.auth_rate_limits TO 'cc_runtime'@'%';
+GRANT UPDATE (user_id, provider, subject) ON campus_coin.auth_identities TO 'cc_runtime'@'%';
 -- MySQL 8 yêu cầu quyền UPDATE cho SELECT ... FOR UPDATE (locking read, đã kiểm
 -- chứng trên 8.0.41). Ba grant dưới chỉ để services lock row đúng lock order;
 -- services không UPDATE trực tiếp các bảng này:

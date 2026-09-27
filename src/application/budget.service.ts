@@ -9,7 +9,7 @@ import { paymentTotalForCategory, paymentTotalsByCategory } from "../infrastruct
 import { insertAuditEvent } from "../infrastructure/persistence/audit.repository.ts";
 import { isMonthKey, monthRangeUtc } from "../domain/period.ts";
 import { addSafeIntegers, isNonNegativeVnd } from "../domain/money.ts";
-import { categoryDisabled, categoryNotFound, categoryTypeMismatch, invalidInput } from "../domain/errors.ts";
+import { categoryDisabled, categoryTypeMismatch, invalidInput, notFound } from "../domain/errors.ts";
 import { toBudget, type BudgetView } from "./map.ts";
 import { withIdempotentMutation } from "./idempotency.ts";
 
@@ -33,7 +33,7 @@ export async function upsertUserBudget(db: Db, input: UpsertBudgetInput): Promis
     requestHash: input.requestHash,
     mutate: async (conn, idempotencyId) => {
       const category = await findCategoryById(conn, input.userId, input.categoryId, true);
-      if (category === null) throw categoryNotFound();
+      if (category === null) throw notFound();
       if (category.appliesTo !== "payment") throw categoryTypeMismatch();
       if (category.status !== "active") throw categoryDisabled();
       await upsertBudget(conn, input.userId, input.categoryId, input.month, input.limitVnd, idempotencyId);
