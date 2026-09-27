@@ -923,6 +923,7 @@ components:
         description: {type: string, maxLength: 500}
         confirmedCategorySuggestion: {type: boolean, default: false}
     CorrectionRole: {type: string, enum: [reversal, adjustment, replacement]}
+    LedgerRole: {type: string, enum: [original, reversal, adjustment, replacement]}
     CreateCorrectionRequest:
       type: object
       required: [correctionRole, reason]
@@ -941,7 +942,7 @@ components:
         categoryId: {type: string}
         occurredAt: {type: string, format: date-time}
         description: {type: [string, 'null']}
-        role: {$ref: '#/components/schemas/CorrectionRole'}
+        role: {$ref: '#/components/schemas/LedgerRole'}
         referenceId: {type: [string, 'null']}
         createdAt: {type: string, format: date-time}
     BudgetWarning:
