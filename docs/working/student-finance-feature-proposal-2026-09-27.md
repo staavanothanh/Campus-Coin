@@ -2,7 +2,7 @@
 
 > Ngày ghi nhận: 2026-09-27
 > Người đề xuất: Team Leader — Hiệp
-> Trạng thái: Team Leader đã chấp thuận bốn nguyên tắc ở mục 7; phạm vi release và lịch triển khai chưa được lên kế hoạch
+> Trạng thái: Team Leader đã chấp thuận bốn nguyên tắc ở mục 7; ba ý tưởng bổ sung ở mục 9 đang được đề xuất, chưa thành phạm vi release
 > Nguồn hình ảnh: bốn ảnh Notion do Team Leader cung cấp; mô tả bên dưới là điều rút ra từ ảnh, không sao chép giao diện/CSS.
 
 ## 1. Mục tiêu
@@ -11,7 +11,7 @@ Giúp sinh viên ghi khoản chi nhanh hơn, nhận ra một số thay đổi tr
 
 Campus Coin là sổ tài chính do người dùng tự nhập. Sản phẩm không kết nối ngân hàng, không biết giao dịch chưa được nhập, và không đảm bảo khoản chi dự kiến là chính xác. Mọi nhắc nhở, xu hướng và phép so sánh phải nói rõ chúng được tính từ dữ liệu người dùng đã nhập.
 
-Tài liệu này mở rộng ý tưởng trong [nghiên cứu dòng tiền sinh viên](./student-cashflow-research-2026-09-26.md). Đây là đề xuất, chưa phải quyết định sản phẩm và không mở lại các bất biến trong docs/DOMAIN-MODEL.md.
+Tài liệu này mở rộng ý tưởng trong [nghiên cứu dòng tiền sinh viên](./student-cashflow-research-2026-09-26.md). Bốn nguyên tắc tại mục 7 đã được chấp thuận; các đề xuất khác chưa phải phạm vi release và không mở lại bất biến trong docs/DOMAIN-MODEL.md.
 
 ## 2. Ý tưởng của Team Leader
 
@@ -171,3 +171,45 @@ Bốn nguyên tắc nghiệp vụ ở mục 7 được Team Leader chấp thuậ
 - Reminder tránh hiển thị trùng cùng khoản/kỳ và không lộ dữ liệu trong log.
 - Có kiểm tra bàn phím, focus, nhãn, trạng thái live, responsive và tiếng Việt/Anh.
 - Nếu có migration, kiểm thử upgrade từ schema đang dùng và chuẩn bị rollback/restore plan trên disposable DB trước khi yêu cầu DB owner áp lên clone.
+
+## 9. Ba ý tưởng mở rộng để tham khảo
+
+Ba ý tưởng tạo thành một vòng hỗ trợ quyết định: nhìn kế hoạch sắp tới, thử tác động của một khoản mua, rồi học từ chênh lệch giữa kế hoạch và khoản đã ghi. Chúng bổ sung cho các tính năng hiện có; không có nghĩa là phải triển khai đồng thời hoặc đưa ngay vào MVP.
+
+### 9.1. Bản đồ dòng tiền theo lịch năm học
+
+**Nhu cầu:** Tổng theo tháng có thể che khuất các khoản lớn nhưng không xuất hiện hằng tháng, như học phí, tiền cọc/chuyển trọ, sách đầu kỳ hoặc chi phí đi lại. Sinh viên có thể nhìn thấy một tháng “còn dư” nhưng chưa để dành phần cần cho mốc sắp tới.
+
+**Cách làm đề xuất:** Cho người dùng tự tạo khoản dự kiến với tên, ngày hoặc hạn, số tiền ước tính và tùy chọn danh mục. Một khoản có thể là một lần hoặc lặp lại. Có thể xem danh sách theo 30 ngày mặc định đã chốt, hoặc tự chọn khoảng dài hơn như một học kỳ. Thu nhập tương lai chỉ xuất hiện nếu người dùng tự khai báo ngày và số tiền dự kiến; không tự đoán lịch học, lịch học phí hay ngày nhận lương.
+
+**Giới hạn và rủi ro:** Khoản kế hoạch không phải số dư, không phải nghĩa vụ đã xác nhận và không tự trừ ví. Nếu người dùng chưa nhập khoản thu tương lai, hệ thống không nên trình bày số dư cuối kỳ như một con số chắc chắn; nên chỉ cho xem các khoản đã khai báo và nói rõ dữ liệu còn thiếu. Lịch học kỳ là khung xem do người dùng chọn, không thay mặc định 30 ngày đã được chấp thuận.
+
+**Giá trị cần kiểm chứng:** Sinh viên có ghi trước được các mốc lớn không, họ có nhận ra thời điểm thiếu hụt sớm hơn không, và có hiểu đúng sự khác nhau giữa kế hoạch với giao dịch đã ghi không.
+
+### 9.2. Thử tác động trước khi mua
+
+**Nhu cầu:** Nếu chỉ phân tích sau giao dịch, ứng dụng giúp người dùng hiểu quá khứ nhưng chưa hỗ trợ cân nhắc khoản mua trước khi ghi payment. Một phép tính “nếu mua món này thì sao?” có thể lấp khoảng trống đó.
+
+**Cách làm đề xuất:** Người dùng nhập tạm số tiền, ngày dự định và thông tin tùy chọn như itemName/category. Ứng dụng cho xem kịch bản có và không có khoản mua, đồng thời đối chiếu với số dư hiện tại và các khoản kế hoạch sắp tới trong khoảng đang xem. Kết quả dùng phép tính server-side chính xác theo integer VND, hiển thị ngày kết thúc cùng giả định và dữ liệu được dùng.
+
+**Giới hạn và rủi ro:** Đây chỉ là kịch bản, không phải quyết định “đủ khả năng chi trả”, không giữ chỗ tiền, không chặn giao dịch và không tạo ledger row. Số dư hiện tại không phản ánh giao dịch chưa nhập; các khoản tương lai có thể đổi hoặc người dùng có thể quên khai báo. Nếu dữ liệu đầu vào thiếu, giao diện phải báo thiếu thay vì bù bằng số 0 hoặc khẳng định kết luận.
+
+**Giá trị cần kiểm chứng:** Người dùng có hiểu khoản nào đã xảy ra và khoản nào chỉ là giả định không; kết quả có giúp cân nhắc mà không tạo cảm giác ứng dụng đang cấm chi tiêu không.
+
+### 9.3. Học từ chênh lệch kế hoạch và thực tế, không chấm điểm
+
+**Nhu cầu:** Tổng tiền đơn lẻ không giải thích được vì sao một kế hoạch bị lệch. Điểm số, streak hoặc xếp hạng có thể tạo áp lực nhưng không giúp phân biệt khoản bất thường với thay đổi thực sự trong thói quen.
+
+**Cách làm đề xuất:** Với một kỳ đã kết thúc và đủ dữ liệu, cho người dùng xem số đã dự kiến cạnh số payment họ đã ghi theo danh mục hoặc khoản kế hoạch. Có thể cho họ tự đánh dấu một chênh lệch là phát sinh một lần, thay đổi kế hoạch, hoặc khoản đã quên nhập. So sánh chỉ dùng dữ liệu của chính user, có nhãn thời gian và giải thích phép tính.
+
+**Giới hạn và rủi ro:** Ứng dụng không biết các payment chưa được nhập, nên “không có giao dịch được ghi nhận” không đồng nghĩa “không tiêu tiền”. Không gọi chênh lệch là thất bại, lãng phí hay thiếu kỷ luật; không chấm điểm tài chính và không so người này với người khác. Không dùng AI để suy đoán cảm xúc, lý do mua hoặc tình trạng tài chính từ lịch sử.
+
+**Giá trị cần kiểm chứng:** Người dùng có thấy nhận xét hữu ích và chính xác theo dữ liệu họ đã ghi không; các nhãn tự giải thích có giúp sửa kế hoạch mà không gây phán xét không.
+
+### 9.4. Thứ tự thử nghiệm và điều kiện đưa vào sản phẩm
+
+1. Thử bản đồ kế hoạch với các khoản sắp tới trong 30 ngày; chỉ mở khoảng học kỳ khi người dùng chủ động chọn mốc dài hơn.
+2. Dùng cùng dữ liệu kế hoạch đó làm đầu vào cho màn hình thử tác động trước khi mua; giữ nguyên ví và ledger.
+3. Chỉ hiển thị so sánh kế hoạch với thực tế sau khi có kỳ đã kết thúc, dữ liệu nhập đủ dùng và cách báo dữ liệu thiếu được kiểm tra với sinh viên.
+
+Trước khi đổi schema hoặc code, cần ghi phạm vi, owner, acceptance và migration/test plan vào PRD/delivery plan. Ba ý tưởng ở mục này chưa được Team Leader chốt thành yêu cầu triển khai.

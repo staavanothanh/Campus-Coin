@@ -49,7 +49,7 @@ Root `docs/` là canonical product docs; `adr/` là canonical history; `working/
 
 ## 3. Bản đồ tài liệu chuẩn
 
-Đề xuất sản phẩm với bốn nguyên tắc đã được chấp thuận; các chi tiết còn mở được liệt kê tại [gợi ý mặt hàng, khoản cố định và so sánh chi tiêu](./working/student-finance-feature-proposal-2026-09-27.md).
+Đề xuất sản phẩm ghi bốn nguyên tắc đã chấp thuận cùng ba ý tưởng dòng tiền đang tham khảo, chưa phải lịch release: [gợi ý mặt hàng, khoản cố định và so sánh chi tiêu](./working/student-finance-feature-proposal-2026-09-27.md).
 
 | Tài liệu | Vai trò |
 |---|---|
