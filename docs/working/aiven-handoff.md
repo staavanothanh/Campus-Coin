@@ -48,3 +48,4 @@ Các giá trị provider phải được lấy lại từ Aiven console tại th
 - Provider admin user chỉ dùng cho provisioning/audit theo chính sách DBA; không dùng làm runtime hoặc migration credential lâu dài.
 - `cc_runtime` và `cc_migrate` phải được provision theo `db/grants.example.sql` sau khi blocker least-privilege được chốt.
 - Xem thêm `db/README.md` cho connection pool config, TLS và migration workflow.
+- Xem thêm `docs/adr/0001-google-oauth-only.md` cho luồng đăng nhập Google OAuth, session và CSRF/origin.
