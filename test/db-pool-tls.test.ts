@@ -48,6 +48,39 @@ test("getPool validates disabled TLS even for an explicitly supplied DbEnv", asy
 
 test("getPool rejects an unknown runtime SSL mode without creating a cleartext pool", async () => {
   assert.throws(() => getPool({ ...disabledEnv, sslMode: "invalid" as DbEnv["sslMode"] }), DbEnvError);
-
   await closePool();
+});
+
+test("failed TLS pool initialization does not cache invalid DB config", async () => {
+  const invalidEnv: DbEnv = {
+    ...disabledEnv,
+    sslMode: "verify-ca",
+    caCertificate: undefined,
+  };
+  const original = {
+    CAMPUS_COIN_DB_HOST: process.env.CAMPUS_COIN_DB_HOST,
+    CAMPUS_COIN_DB_NAME: process.env.CAMPUS_COIN_DB_NAME,
+    CAMPUS_COIN_DB_PASSWORD: process.env.CAMPUS_COIN_DB_PASSWORD,
+    CAMPUS_COIN_DB_SSL: process.env.CAMPUS_COIN_DB_SSL,
+    CAMPUS_COIN_DB_USER: process.env.CAMPUS_COIN_DB_USER,
+    CAMPUS_COIN_DB_CA_PATH: process.env.CAMPUS_COIN_DB_CA_PATH,
+    CAMPUS_COIN_DB_CA_BASE64: process.env.CAMPUS_COIN_DB_CA_BASE64,
+  };
+  try {
+    assert.throws(() => getPool(invalidEnv), DbEnvError);
+    process.env.CAMPUS_COIN_DB_HOST = disabledEnv.host;
+    process.env.CAMPUS_COIN_DB_NAME = disabledEnv.database;
+    process.env.CAMPUS_COIN_DB_PASSWORD = disabledEnv.password;
+    process.env.CAMPUS_COIN_DB_SSL = "disabled";
+    process.env.CAMPUS_COIN_DB_USER = disabledEnv.user;
+    delete process.env.CAMPUS_COIN_DB_CA_PATH;
+    delete process.env.CAMPUS_COIN_DB_CA_BASE64;
+    assert.doesNotThrow(() => getPool());
+  } finally {
+    await closePool();
+    for (const [name, value] of Object.entries(original)) {
+      if (value === undefined) delete process.env[name];
+      else process.env[name] = value;
+    }
+  }
 });

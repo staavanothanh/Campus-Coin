@@ -1,47 +1,29 @@
 // Connection pool cloud MySQL (ADR-0003): TLS bắt buộc (trừ local dev), bounded,
 // phù hợp serverless; không giữ transaction mở qua I/O ngoài (không gọi JEV/email/webhook).
 
-import { readFileSync } from "node:fs";
-import mysql, { type Pool, type PoolConnection, type PoolOptions } from "mysql2/promise";
-import { DbEnvError, assertDbTlsAllowed, readDbEnv, type DbEnv } from "./env.ts";
+import mysql, { type Pool, type PoolConnection } from "mysql2/promise";
+import { DbEnvError, assertDbTlsAllowed, readDbEnv, sslOption, type DbEnv } from "./env.ts";
 
 export type Db = Pool | PoolConnection;
 
 export type { Pool, PoolConnection };
 
 let pool: Pool | null = null;
+let poolEnvironment: DbEnv | null = null;
 
-function sslOptions(dbEnv: DbEnv): PoolOptions["ssl"] {
-  switch (dbEnv.sslMode) {
-    case "required":
-      // rejectUnauthorized=true: verify host name and certificate chain using system CAs.
-      return { rejectUnauthorized: true };
-    case "verify-ca":
-      return {
-        rejectUnauthorized: true,
-        ca: dbEnv.caCertificate ?? readFileSync(dbEnv.caPath!, "utf8"),
-      };
-    case "disabled":
-      // Local-only guard runs before pool creation in getPool().
-      return undefined;
-    default:
-      throw new DbEnvError("invalid CAMPUS_COIN_DB_SSL: expected required|verify-ca (disabled is local-only)");
-  }
-}
-
-
-export function getPool(dbEnv: DbEnv = readDbEnv()): Pool {
-  assertDbTlsAllowed(dbEnv);
+export function getPool(dbEnv?: DbEnv): Pool {
+  const config = dbEnv ?? poolEnvironment ?? readDbEnv();
+  assertDbTlsAllowed(config);
   if (pool === null) {
-    const ssl = sslOptions(dbEnv);
+    const ssl = sslOption(config);
     pool = mysql.createPool({
-      host: dbEnv.host,
-      port: dbEnv.port,
-      database: dbEnv.database,
-      user: dbEnv.user,
-      password: dbEnv.password,
+      host: config.host,
+      port: config.port,
+      database: config.database,
+      user: config.user,
+      password: config.password,
       ...(ssl === undefined ? {} : { ssl }),
-      connectionLimit: dbEnv.connectionLimit,
+      connectionLimit: config.connectionLimit,
       waitForConnections: true,
       queueLimit: 0,
       charset: "utf8mb4",
@@ -49,6 +31,7 @@ export function getPool(dbEnv: DbEnv = readDbEnv()): Pool {
       supportBigNumbers: true,
       // Trả string cho giá trị > 2^53; repository chuyển qua idFromDb/amountFromDb.
     });
+    poolEnvironment = config;
   }
   return pool;
 }
@@ -57,6 +40,7 @@ export function getPool(dbEnv: DbEnv = readDbEnv()): Pool {
 export async function closePool(): Promise<void> {
   const currentPool = pool;
   pool = null;
+  poolEnvironment = null;
   if (currentPool !== null) await currentPool.end();
 }
 
