@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { apiPost, ApiRequestError } from '../api-client.js';
-import { parseAmountVnd } from '../format.js';
+import { formatVnd, parseAmountVnd } from '../format.js';
 import type { CreateSavingsTransferRequest, TransferDirection, Locale, SavingsTransfer } from '../types.js';
 import type { Copy } from '../i18n.js';
 import { Modal } from './Modal.js';
@@ -11,6 +11,8 @@ interface SavingsTransferFormProps {
   csrfToken: string;
   t: Copy;
   locale: Locale;
+  currentWalletVnd?: number;
+  currentSavingsVnd?: number;
   onClose: () => void;
   onSuccess: () => void;
 }
@@ -20,6 +22,8 @@ export function SavingsTransferForm({
   csrfToken,
   t,
   locale,
+  currentWalletVnd,
+  currentSavingsVnd,
   onClose,
   onSuccess,
 }: SavingsTransferFormProps) {
@@ -39,8 +43,18 @@ export function SavingsTransferForm({
     setError(null);
     
     const amountVnd = parseAmountVnd(amount);
-    if (amountVnd === null) {
+    if (amountVnd === null || amountVnd <= 0) {
       setError(t.amountInvalid);
+      return;
+    }
+
+    if (direction === 'deposit' && currentWalletVnd !== undefined && amountVnd > currentWalletVnd) {
+      setError(locale === 'vi' ? 'Số dư ví khả dụng không đủ để gửi vào quỹ tiết kiệm.' : 'Insufficient wallet balance for deposit.');
+      return;
+    }
+
+    if (direction === 'withdraw' && currentSavingsVnd !== undefined && amountVnd > currentSavingsVnd) {
+      setError(locale === 'vi' ? 'Số tiền rút vượt quá số dư trong quỹ tiết kiệm.' : 'Withdraw amount exceeds savings vault balance.');
       return;
     }
 
@@ -91,6 +105,28 @@ export function SavingsTransferForm({
         </div>
 
         <ErrorBanner error={error instanceof ApiRequestError ? error.apiError : error} locale={locale} />
+
+        {(direction === 'deposit' ? currentWalletVnd !== undefined : currentSavingsVnd !== undefined) && (
+          <div className="transfer-hint-card">
+            <span className="hint-label">
+              {direction === 'deposit'
+                ? (locale === 'vi' ? 'Tiền trong ví tổng khả dụng:' : 'Available in wallet:')
+                : (locale === 'vi' ? 'Số dư quỹ tiết kiệm hiện có:' : 'Available in savings:')}
+            </span>
+            <div className="hint-value-row">
+              <strong>
+                {formatVnd(direction === 'deposit' ? currentWalletVnd : currentSavingsVnd, locale)}
+              </strong>
+              <button
+                type="button"
+                className="quick-max-btn"
+                onClick={() => setAmount(String(direction === 'deposit' ? (currentWalletVnd ?? 0) : (currentSavingsVnd ?? 0)))}
+              >
+                {locale === 'vi' ? 'Tối đa' : 'Max'}
+              </button>
+            </div>
+          </div>
+        )}
 
         <label>
           {t.amount}

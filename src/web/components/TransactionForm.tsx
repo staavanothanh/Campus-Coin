@@ -23,6 +23,7 @@ import {
   FileText,
   Coins
 } from 'lucide-react';
+import { invalidateCategoriesCache } from '../hooks/use-categories.js';
 
 interface TransactionFormProps {
   kind: TransactionType;
@@ -107,6 +108,7 @@ export function TransactionForm({
         );
         if (newCat && newCat.id) {
           finalCategoryId = String(newCat.id);
+          invalidateCategoriesCache();
         }
       } catch {
         if (!finalCategoryId || finalCategoryId.startsWith('preset:') || finalCategoryId === 'other') {
@@ -130,6 +132,7 @@ export function TransactionForm({
         );
         if (newCat && newCat.id) {
           finalCategoryId = String(newCat.id);
+          invalidateCategoriesCache();
         }
       } catch {
         finalCategoryId = currentType === 'income' ? '4' : '11';

@@ -78,13 +78,21 @@ export async function withTransaction<T>(db: Db, fn: (conn: PoolConnection) => P
   }
 }
 
-/** Read connection từ pool; caller phải release bằng callback hoặc try/finally. */
-export async function withConnection<T>(fn: (conn: PoolConnection) => Promise<T>): Promise<T> {
-  const conn = await getPool().getConnection();
+/** Read connection từ pool hoặc connection đã truyền vào; caller giải phóng qua callback. */
+export async function withConnection<T>(db: Db, fn: (conn: PoolConnection) => Promise<T>): Promise<T>;
+export async function withConnection<T>(fn: (conn: PoolConnection) => Promise<T>): Promise<T>;
+export async function withConnection<T>(
+  dbOrFn: Db | ((conn: PoolConnection) => Promise<T>),
+  maybeFn?: (conn: PoolConnection) => Promise<T>,
+): Promise<T> {
+  const fn = typeof dbOrFn === "function" ? dbOrFn : maybeFn!;
+  const db = typeof dbOrFn === "function" ? getPool() : dbOrFn;
+  const isPool = "getConnection" in db;
+  const conn = isPool ? await db.getConnection() : db;
   try {
     return await fn(conn);
   } finally {
-    conn.release();
+    if (isPool) conn.release();
   }
 }
 

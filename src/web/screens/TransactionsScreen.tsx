@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { usePagination } from '../hooks/use-pagination.js';
+import { useCategories } from '../hooks/use-categories.js';
 import type { Transaction, Locale } from '../types.js';
 import type { Copy } from '../i18n.js';
 import { formatVnd, formatDate } from '../format.js';
@@ -23,6 +24,7 @@ interface TransactionsScreenProps {
 
 export function TransactionsScreen({ t, locale }: TransactionsScreenProps) {
   const isVi = locale === 'vi';
+  const { getCategoryName } = useCategories();
   const [typeFilter, setTypeFilter] = useState<'all' | 'income' | 'payment'>('all');
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -37,7 +39,8 @@ export function TransactionsScreen({ t, locale }: TransactionsScreenProps) {
   const filteredData = data.filter(tx => {
     if (!searchTerm.trim()) return true;
     const term = searchTerm.toLowerCase();
-    const matchesCategory = tx.categoryId?.toLowerCase().includes(term);
+    const catName = getCategoryName(tx.categoryId, locale).toLowerCase();
+    const matchesCategory = catName.includes(term) || tx.categoryId?.toLowerCase().includes(term);
     const matchesDesc = tx.description?.toLowerCase().includes(term);
     return matchesCategory || matchesDesc;
   });
@@ -140,7 +143,7 @@ export function TransactionsScreen({ t, locale }: TransactionsScreenProps) {
                     </td>
                     <td>
                       <div className="tx-details">
-                        <strong className="tx-category-tag">{tx.categoryId}</strong>
+                        <strong className="tx-category-tag">{getCategoryName(tx.categoryId, locale)}</strong>
                         {tx.description && (
                           <span className="tx-note">{tx.description}</span>
                         )}

@@ -53,7 +53,7 @@ export async function upsertUserBudget(db: Db, input: UpsertBudgetInput): Promis
 
 export async function listMonthBudgets(db: Db, userId: number, month: string): Promise<BudgetView[]> {
   if (!isMonthKey(month)) throw invalidInput("month must be YYYY-MM");
-  return withConnection(async (conn) => {
+  return withConnection(db, async (conn) => {
     const budgets = await listBudgetsByMonth(conn, userId, month);
     return Promise.all(budgets.map((b) => budgetWithUsed(conn, userId, b, month)));
   });
@@ -68,7 +68,7 @@ export interface BudgetSummaryView {
 
 export async function monthBudgetSummary(db: Db, userId: number, month: string): Promise<BudgetSummaryView> {
   if (!isMonthKey(month)) throw invalidInput("month must be YYYY-MM");
-  return withConnection(async (conn) => {
+  return withConnection(db, async (conn) => {
     const budgets = await listBudgetsByMonth(conn, userId, month);
     const { startUtcMs, endExclusiveUtcMs } = monthRangeUtc(month);
     const usedByCategory = await paymentTotalsByCategory(conn, userId, startUtcMs, endExclusiveUtcMs);

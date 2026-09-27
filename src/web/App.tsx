@@ -32,6 +32,7 @@ import { ReportsScreen } from './screens/ReportsScreen.js';
 import { AdminScreen } from './screens/AdminScreen.js';
 import { SettingsScreen } from './screens/SettingsScreen.js';
 import { HelpScreen } from './screens/HelpScreen.js';
+import { useCategories } from './hooks/use-categories.js';
 
 export function App() {
   const [locale, setLocale] = useState<Locale>('vi');
@@ -116,16 +117,16 @@ export function App() {
     });
   }, []);
 
-  async function loadDashboard() {
+  async function loadDashboard(silent = false) {
     if (!session) return;
-    setState('loading');
+    if (!silent) setState('loading');
     setError('');
     try {
       const data = await apiGet<Dashboard>('/reports/dashboard');
       setDashboard(data);
       setState('ready');
     } catch (caught) {
-      setState('error');
+      if (!silent) setState('error');
       setError(caught instanceof Error ? caught.message : 'REQUEST_FAILED');
     }
   }
@@ -147,8 +148,8 @@ export function App() {
   }, []);
 
   useEffect(() => {
-    if (session) void loadDashboard();
-  }, [session]);
+    if (session) void loadDashboard(screen !== 'dashboard');
+  }, [session, screen]);
 
   async function signOut() {
     if (!session) return;
@@ -279,13 +280,21 @@ export function App() {
                     }
                   }}
                   onInitWallet={() => setInitWalletOpen(true)}
+                  onSetBudget={() => setScreen('reports')}
                 />
               )}
             </>
           )}
 
           {screen === 'transactions' && <TransactionsScreen t={t} locale={locale} />}
-          {screen === 'savings' && <SavingsScreen csrfToken={session.csrfToken} t={t} locale={locale} />}
+          {screen === 'savings' && (
+            <SavingsScreen
+              csrfToken={session.csrfToken}
+              t={t}
+              locale={locale}
+              onTransferSuccess={() => void loadDashboard(true)}
+            />
+          )}
           {screen === 'reports' && <ReportsScreen csrfToken={session.csrfToken} t={t} locale={locale} />}
           {screen === 'admin' && <AdminScreen session={session} csrfToken={session.csrfToken} t={t} locale={locale} />}
           {screen === 'help' && <HelpScreen t={t} locale={locale} />}
@@ -371,6 +380,7 @@ function DashboardView({
   onIncome,
   onPayment,
   onInitWallet,
+  onSetBudget,
 }: {
   dashboard: Dashboard | null;
   locale: Locale;
@@ -378,9 +388,11 @@ function DashboardView({
   onIncome: () => void;
   onPayment: () => void;
   onInitWallet: () => void;
+  onSetBudget?: () => void;
 }) {
   const transactions = dashboard?.recentTransactions ?? [];
   const isWalletInit = Boolean(dashboard?.wallet);
+  const { getCategoryName } = useCategories();
 
   return <>
     {!isWalletInit && (
@@ -460,10 +472,17 @@ function DashboardView({
           <div><h2>{t.recent}</h2><p className="muted">{t.noData}</p></div>
         </div>
         <div className="transaction-list">
-          {transactions.length ? transactions.map((transaction) => <TransactionRow key={transaction.id} transaction={transaction} locale={locale} />) : <p className="empty-state">{t.noData}</p>}
+          {transactions.length ? transactions.map((transaction) => (
+            <TransactionRow
+              key={transaction.id}
+              transaction={transaction}
+              locale={locale}
+              categoryName={getCategoryName(transaction.categoryId, locale)}
+            />
+          )) : <p className="empty-state">{t.noData}</p>}
         </div>
       </section>
-      <BudgetPanel locale={locale} t={t} />
+      <BudgetPanel locale={locale} t={t} onSetBudget={onSetBudget} />
     </div>
   </>;
 }
@@ -472,21 +491,32 @@ function StatCard({ label, value, icon, tone }: { label: string; value: string; 
   return <section className="stat-card"><div className="stat-heading"><span>{label}</span><span className={`metric-icon ${tone}`}>{icon}</span></div><strong>{value}</strong></section>;
 }
 
-function TransactionRow({ transaction, locale }: { transaction: NonNullable<Dashboard['recentTransactions']>[number]; locale: Locale }) {
+function TransactionRow({
+  transaction,
+  locale,
+  categoryName,
+}: {
+  transaction: NonNullable<Dashboard['recentTransactions']>[number];
+  locale: Locale;
+  categoryName?: string;
+}) {
   const isIncome = transaction.type === 'income';
   return (
     <div className="transaction-row">
       <div className={`transaction-icon ${isIncome ? 'mint' : 'coral'}`}>{isIncome ? <ArrowDownLeft size={16} /> : <ArrowUpRight size={16} />}</div>
       <div className="transaction-detail">
-        <strong>{transaction.categoryId}</strong>
-        <span>{formatDate(transaction.occurredAt, locale)}</span>
+        <strong>{categoryName || transaction.categoryId}</strong>
+        <span>
+          {transaction.description ? `${transaction.description} • ` : ''}
+          {formatDate(transaction.occurredAt, locale)}
+        </span>
       </div>
       <strong className={isIncome ? 'amount-positive' : ''}>{isIncome ? '+' : '-'}{formatVnd(transaction.amountVnd, locale)}</strong>
     </div>
   );
 }
 
-function BudgetPanel({ locale, t }: { locale: Locale; t: Copy }) {
+function BudgetPanel({ locale, t, onSetBudget }: { locale: Locale; t: Copy; onSetBudget?: () => void }) {
   const [summary, setSummary] = useState<BudgetSummary | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -521,9 +551,29 @@ function BudgetPanel({ locale, t }: { locale: Locale; t: Copy }) {
     return (
       <section className="panel budget-panel">
         <div className="panel-heading">
-          <div><h2>{t.budget}</h2><p className="muted">{t.unavailable}</p></div>
+          <div>
+            <h2>{t.budget}</h2>
+            <p className="muted">{locale === 'vi' ? 'Chưa đặt hạn mức' : 'No budget set'}</p>
+          </div>
         </div>
-        <div className="empty-state">{t.noData}</div>
+        <div className="empty-state" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, padding: '24px 16px', textAlign: 'center' }}>
+          <p style={{ margin: 0, color: '#64748b', fontSize: 13, lineHeight: 1.5 }}>
+            {locale === 'vi'
+              ? 'Bạn chưa đặt hạn mức chi tiêu cho tháng này. Hãy thiết lập ngân sách để theo dõi và kiểm soát chi tiêu tốt hơn.'
+              : 'You have not set any spending limits for this month. Set a budget to track your expenses.'}
+          </p>
+          {onSetBudget && (
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={onSetBudget}
+              style={{ fontSize: 12, padding: '6px 14px', marginTop: 4 }}
+            >
+              <Sparkles size={14} />
+              <span>{locale === 'vi' ? 'Thiết lập ngân sách' : 'Set up budget'}</span>
+            </button>
+          )}
+        </div>
       </section>
     );
   }
@@ -541,33 +591,44 @@ function BudgetPanel({ locale, t }: { locale: Locale; t: Copy }) {
         </div>
       </div>
 
-      <div className="budget-ring-container">
-        <svg viewBox="0 0 36 36" className="circular-chart">
-          <path className="circle-bg"
-            d="M18 2.0845
-              a 15.9155 15.9155 0 0 1 0 31.831
-              a 15.9155 15.9155 0 0 1 0 -31.831"
-          />
-          <path className="circle"
-            strokeDasharray={`${pct}, 100`}
-            stroke={strokeColor}
-            d="M18 2.0845
-              a 15.9155 15.9155 0 0 1 0 31.831
-              a 15.9155 15.9155 0 0 1 0 -31.831"
-          />
-          <text x="18" y="20.35" className="percentage">{Math.round(pct)}%</text>
-        </svg>
+      <div
+        className="budget-ring"
+        style={{
+          background: `conic-gradient(${strokeColor} 0% ${pct}%, var(--budget-track, #e2e8f0) ${pct}% 100%)`,
+        }}
+      >
+        <div>
+          <strong>{Math.round(pct)}%</strong>
+          <span>{locale === 'vi' ? 'ngân sách' : 'budget'}</span>
+        </div>
       </div>
 
-      <div className="budget-stats">
+      <div className="budget-summary">
         <div>
+          <span style={{ display: 'block', fontSize: 10, color: '#9a9b92', marginBottom: 2 }}>
+            {locale === 'vi' ? 'Đã dùng' : 'Used'}
+          </span>
           <strong>{formatVnd(summary.totalUsedVnd, locale)}</strong>
-          <span>Đã dùng</span>
         </div>
-        <div>
-          <strong>{formatVnd(summary.totalLimitVnd - summary.totalUsedVnd, locale)}</strong>
-          <span>{t.left}</span>
+        <div style={{ textAlign: 'right' }}>
+          <span style={{ display: 'block', fontSize: 10, color: '#9a9b92', marginBottom: 2 }}>
+            {locale === 'vi' ? 'Còn lại' : 'Remaining'}
+          </span>
+          <strong style={{ color: isOverrun ? '#f59e0b' : undefined }}>
+            {formatVnd(Math.max(0, summary.totalLimitVnd - summary.totalUsedVnd), locale)}
+          </strong>
         </div>
+      </div>
+
+      <div className="budget-progress">
+        <span
+          style={{
+            width: `${pct}%`,
+            background: isOverrun
+              ? 'linear-gradient(90deg, #fde68a, #f59e0b)'
+              : 'linear-gradient(90deg, #a7f3d0, #36856e)',
+          }}
+        />
       </div>
 
       {summary.exceededCategoryCount > 0 && (

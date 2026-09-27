@@ -8,6 +8,7 @@ import { ErrorBanner } from './ErrorBanner.js';
 
 interface BudgetFormProps {
   categoryId: string;
+  categoryName?: string;
   month: string; // YYYY-MM
   initialLimitVnd: number | null;
   csrfToken: string;
@@ -19,6 +20,7 @@ interface BudgetFormProps {
 
 export function BudgetForm({
   categoryId,
+  categoryName,
   month,
   initialLimitVnd,
   csrfToken,
@@ -58,6 +60,7 @@ export function BudgetForm({
         requestBody,
         {
           'X-CSRF-Token': csrfToken,
+          'Idempotency-Key': crypto.randomUUID(),
         }
       );
 
@@ -92,7 +95,7 @@ export function BudgetForm({
         <ErrorBanner error={error instanceof ApiRequestError ? error.apiError : error} locale={locale} />
 
         <p style={{ marginBottom: 'var(--space-4)' }}>
-          <strong>{locale === 'vi' ? 'Danh mục' : 'Category'}:</strong> {categoryId}
+          <strong>{locale === 'vi' ? 'Danh mục' : 'Category'}:</strong> {categoryName || categoryId}
         </p>
 
         <label>
@@ -112,7 +115,7 @@ export function BudgetForm({
           type="submit"
           disabled={loading || !limit}
         >
-          {loading ? t.loading : t.submit}
+          {loading ? t.loading : (locale === 'vi' ? 'Lưu ngân sách' : 'Save budget')}
         </button>
       </form>
     </Modal>

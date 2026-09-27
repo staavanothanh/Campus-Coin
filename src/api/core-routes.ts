@@ -314,6 +314,7 @@ export async function handleCoreRequest(request: Request, deps: CoreApiDependenc
   } catch (error) {
     if (error instanceof DomainError) return failure(error.status, error.code, error.message);
     if (error instanceof HttpApiError) return failure(error.status, error.code, error.message);
+    console.error("Unhandled API error in handleCoreRequest:", error);
     return failure(500, "INTERNAL_ERROR", "internal server error");
   }
 }

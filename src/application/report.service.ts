@@ -33,7 +33,7 @@ export interface MonthlyReportView {
 export async function monthlyReport(db: Db, userId: number, month: string): Promise<MonthlyReportView> {
   if (!isMonthKey(month)) throw invalidInput("month must be YYYY-MM");
   const { startUtcMs, endExclusiveUtcMs } = monthRangeUtc(month);
-  return withConnection(async (conn) => {
+  return withConnection(db, async (conn) => {
     const wallet = await findWalletByUserId(conn, userId);
     if (wallet === null) throw walletNotInitialized();
     const deltaBefore = await walletDeltaBefore(conn, userId, startUtcMs);

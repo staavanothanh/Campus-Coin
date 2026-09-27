@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { usePagination } from '../hooks/use-pagination.js';
 import { apiGet } from '../api-client.js';
-import type { Savings, SavingsTransfer, Locale } from '../types.js';
+import type { Savings, SavingsTransfer, Wallet, Locale } from '../types.js';
 import type { Copy } from '../i18n.js';
 import { formatVnd, formatDate } from '../format.js';
 import {
@@ -10,7 +10,7 @@ import {
   PiggyBank,
   Plus,
   Minus,
-  Wallet,
+  Wallet as WalletIcon,
   Sparkles,
   Calendar,
   ChevronRight,
@@ -23,13 +23,19 @@ interface SavingsScreenProps {
   csrfToken: string;
   t: Copy;
   locale: Locale;
+  onTransferSuccess?: () => void;
 }
 
-export function SavingsScreen({ csrfToken, t, locale }: SavingsScreenProps) {
+export function SavingsScreen({ csrfToken, t, locale, onTransferSuccess }: SavingsScreenProps) {
   const isVi = locale === 'vi';
   const [balance, setBalance] = useState<Savings | null>(null);
   const [balanceLoading, setBalanceLoading] = useState(true);
   const [balanceError, setBalanceError] = useState<Error | null>(null);
+
+  const [wallet, setWallet] = useState<Wallet | null>(null);
+  const [walletLoading, setWalletLoading] = useState(true);
+  const [walletError, setWalletError] = useState<Error | null>(null);
+
   const [formOpen, setFormOpen] = useState<'deposit' | 'withdraw' | null>(null);
 
   const {
@@ -54,20 +60,66 @@ export function SavingsScreen({ csrfToken, t, locale }: SavingsScreenProps) {
     }
   }, []);
 
+  const loadWallet = useCallback(async () => {
+    setWalletLoading(true);
+    setWalletError(null);
+    try {
+      const data = await apiGet<Wallet>('/wallet');
+      setWallet(data);
+    } catch (err) {
+      setWalletError(err instanceof Error ? err : new Error('Failed to load wallet'));
+    } finally {
+      setWalletLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     void loadBalance();
+    void loadWallet();
     void reload();
-  }, [loadBalance, reload]);
+  }, [loadBalance, loadWallet, reload]);
 
   const handleSuccess = () => {
     void loadBalance();
+    void loadWallet();
     void reload();
+    onTransferSuccess?.();
   };
 
   return (
     <div className="savings-page">
-      {/* Top Banner: Savings Balance Card & Quick Actions */}
+      {/* Top Banner: Wallet Balance, Savings Balance & Quick Actions */}
       <div className="savings-hero-grid">
+        {/* Main Wallet Balance Card */}
+        <div className="savings-wallet-card panel">
+          <div className="savings-balance-header">
+            <div className="savings-wallet-icon-wrapper">
+              <WalletIcon size={24} />
+            </div>
+            <div>
+              <span className="savings-wallet-label">{isVi ? 'Tiền trong ví tổng' : 'Total Wallet Balance'}</span>
+              <p className="savings-sublabel">
+                {isVi ? 'Số dư khả dụng sẵn sàng chi tiêu' : 'Available for spending & transfers'}
+              </p>
+            </div>
+          </div>
+
+          <div className="savings-amount-display">
+            <strong>
+              {walletLoading
+                ? '...'
+                : walletError
+                ? t.unavailable
+                : formatVnd(wallet?.availableBalanceVnd, locale)}
+            </strong>
+          </div>
+
+          <div className="savings-wallet-meta">
+            <span className="savings-pill amber">✓ {isVi ? 'Ví chính (Khả dụng)' : 'Main Wallet (Available)'}</span>
+          </div>
+        </div>
+
+        {/* Savings Balance Card & Quick Actions */}
         <div className="savings-balance-card panel">
           <div className="savings-balance-header">
             <div className="savings-icon-wrapper">
@@ -225,6 +277,8 @@ export function SavingsScreen({ csrfToken, t, locale }: SavingsScreenProps) {
           csrfToken={csrfToken}
           t={t}
           locale={locale}
+          currentWalletVnd={wallet?.availableBalanceVnd}
+          currentSavingsVnd={balance?.balanceVnd}
           onClose={() => setFormOpen(null)}
           onSuccess={handleSuccess}
         />

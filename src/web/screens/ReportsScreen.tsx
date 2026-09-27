@@ -6,6 +6,7 @@ import { formatVnd, getCurrentMonth } from '../format.js';
 import { MonthPicker } from '../components/MonthPicker.js';
 import { ErrorBanner } from '../components/ErrorBanner.js';
 import { BudgetForm } from '../components/BudgetForm.js';
+import { useCategories } from '../hooks/use-categories.js';
 import {
   Edit2,
   AlertTriangle,
@@ -27,13 +28,14 @@ interface ReportsScreenProps {
 
 export function ReportsScreen({ csrfToken, t, locale }: ReportsScreenProps) {
   const isVi = locale === 'vi';
+  const { getCategoryName } = useCategories();
   const [month, setMonth] = useState<string>(getCurrentMonth());
   const [report, setReport] = useState<MonthlyReport | null>(null);
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
-  const [editBudgetCategory, setEditBudgetCategory] = useState<{ id: string; limit: number | null } | null>(null);
+  const [editBudgetCategory, setEditBudgetCategory] = useState<{ id: string; name?: string; limit: number | null } | null>(null);
 
   const loadData = useCallback(async (targetMonth: string) => {
     setLoading(true);
@@ -239,7 +241,7 @@ export function ReportsScreen({ csrfToken, t, locale }: ReportsScreenProps) {
                       <span className="legend-color" style={{ backgroundColor: segment.color }} />
                       <div className="legend-texts">
                         <div className="legend-name-row">
-                          <span className="legend-label">{segment.category.categoryId}</span>
+                          <span className="legend-label">{getCategoryName(segment.category.categoryId, locale)}</span>
                           <span className="legend-pct">{segment.percentage}%</span>
                         </div>
                         <span className="legend-value">{formatVnd(segment.category.amountVnd, locale)}</span>
@@ -283,7 +285,7 @@ export function ReportsScreen({ csrfToken, t, locale }: ReportsScreenProps) {
                     return (
                       <tr key={cat.categoryId} className="transaction-table-row">
                         <td>
-                          <strong className="tx-category-tag">{cat.categoryId}</strong>
+                          <strong className="tx-category-tag">{getCategoryName(cat.categoryId, locale)}</strong>
                         </td>
                         <td className="text-right">
                           <strong className="negative">-{formatVnd(cat.amountVnd, locale)}</strong>
@@ -328,10 +330,11 @@ export function ReportsScreen({ csrfToken, t, locale }: ReportsScreenProps) {
                             onClick={() =>
                               setEditBudgetCategory({
                                 id: cat.categoryId,
+                                name: getCategoryName(cat.categoryId, locale),
                                 limit: budget?.limitVnd ?? null,
                               })
                             }
-                            title={isVi ? `Sửa ngân sách ${cat.categoryId}` : `Edit budget for ${cat.categoryId}`}
+                            title={isVi ? `Sửa ngân sách ${getCategoryName(cat.categoryId, locale)}` : `Edit budget for ${getCategoryName(cat.categoryId, locale)}`}
                           >
                             <Edit2 size={15} />
                           </button>
@@ -349,6 +352,7 @@ export function ReportsScreen({ csrfToken, t, locale }: ReportsScreenProps) {
       {editBudgetCategory && (
         <BudgetForm
           categoryId={editBudgetCategory.id}
+          categoryName={editBudgetCategory.name}
           month={month}
           initialLimitVnd={editBudgetCategory.limit}
           csrfToken={csrfToken}
