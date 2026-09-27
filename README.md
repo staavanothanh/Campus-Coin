@@ -227,23 +227,38 @@ npm run verify:docs
 git diff --check
 ```
 
-Các lệnh sau chỉ khả dụng sau khi implementation tương ứng tồn tại:
+`npm run dev` chạy API (`:3000`) và frontend Vite (`:5173`) cùng lúc. Backend yêu cầu `.env` được cấu hình với auth secrets, SMTP sandbox, và database MySQL cô lập, đã migrate; thiếu cấu hình thì backend sẽ thoát thay vì để proxy lỗi kết nối.
+
+Chạy riêng frontend không khởi động API. Các request `/api/*` cần backend trên `127.0.0.1:3000`; nếu chỉ muốn giao diện tĩnh, dùng lệnh này:
 
 ```bash
-# React/Vite frontend
-npm run dev
 npm run dev:web
+```
 
-# Backend API (cần cấu hình .env)
+Chạy riêng backend sau khi cấu hình `.env`. Nếu đổi `PORT`, cần cập nhật Vite proxy trong `vite.config.ts`; lệnh `npm run dev` giữ API ở cổng 3000 để proxy hoạt động.
+
+```bash
 npm run dev:api
+```
 
+Với MySQL local disposable, `CAMPUS_COIN_DB_SSL=disabled` chỉ được chấp nhận cho loopback. Không dùng database/credentials production.
+
+Kiểm tra cấu hình DB/migration trước khi khởi động backend:
+
+```bash
+npm run db:preflight
+```
+
+Các lệnh khác:
+
+```bash
 npm run build
 npm run lint
 npm run typecheck
 npm test
 ```
 
-Không tự thêm hoặc chạy lệnh chưa được khai báo trong `package.json` nếu chưa đọc manifest và xác định toolchain.
+
 
 ## 11. Commit và release
 

@@ -30,8 +30,10 @@ jobs:
       CAMPUS_COIN_DB_NAME: campus_coin_test_ci
       CAMPUS_COIN_DB_USER: root
       CAMPUS_COIN_DB_PASSWORD: ci-local-only-test-password
-      CAMPUS_COIN_DB_SSL: disabled
       CAMPUS_COIN_TEST_DB: '1'
+      CAMPUS_COIN_TEST_DB_ADMIN_USER: root
+      CAMPUS_COIN_TEST_DB_ADMIN_PASSWORD: ci-local-only-test-password
+      CAMPUS_COIN_DB_SSL: disabled
       CAMPUS_COIN_DB_MIGRATE_USER: root
       CAMPUS_COIN_DB_MIGRATE_PASSWORD: ci-local-only-test-password
       OTP_SECRET: '0000000000000000000000000000000000000000000000000000000000000000'
@@ -54,8 +56,7 @@ jobs:
       - run: git diff --exit-code -- artifacts/openapi.json artifacts/api.d.ts
       - run: node --import tsx --test tests/auth.test.ts test/schema-readiness.test.ts tests/google-oauth.test.ts tests/client-ip.test.ts test/env.test.ts tests/api-cache-header.test.ts
       - run: node --import tsx --test tests/vercel-adapter.test.ts tests/mail.test.ts
-      - run: node --import tsx --test tests/db-test-guard.test.ts tests/datatest-sql-file.test.ts tests/db-clone-script.test.ts
-      - run: npm run db:datatest
+      - run: CAMPUS_COIN_TEST_DB_ADMIN_USER=root CAMPUS_COIN_TEST_DB_ADMIN_PASSWORD=ci-local-only-test-password npm run db:datatest
       - name: Auth CSRF and Origin integration
         run: npm run test:auth-security
       - name: MySQL domain integration

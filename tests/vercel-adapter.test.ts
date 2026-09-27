@@ -20,8 +20,11 @@ test('Vercel handler rejects missing or weak OTP and session secrets before pool
         CAMPUS_COIN_DB_NAME: undefined,
         CAMPUS_COIN_DB_USER: undefined,
         CAMPUS_COIN_DB_PASSWORD: undefined,
+        CAMPUS_COIN_DB_CA_PATH: undefined,
+        CAMPUS_COIN_DB_CA_BASE64: undefined,
       };
       const result = spawnSync(process.execPath, ['--import', 'tsx', '-e', `import(${JSON.stringify(entrypoint)})`], {
+        cwd: import.meta.dirname,
         env: resultEnv as NodeJS.ProcessEnv,
         encoding: 'utf8',
       });

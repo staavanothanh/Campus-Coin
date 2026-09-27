@@ -2,6 +2,7 @@ import { after, before, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
 import { createApiServer } from '../src/routes/api.js';
+import { createGoogleOAuthProvider } from '../src/infrastructure/google-oauth.ts';
 import { checkPassword, equalHash, hashOtp, hashPassword, newOtp } from '../src/features/auth/security.js';
 
 process.env.OTP_SECRET = randomBytes(32).toString('hex');
@@ -25,7 +26,7 @@ test('mật khẩu được băm với salt riêng và xác minh đúng', async 
   assert.equal(await checkPassword('WrongPassword123', first.hash, first.salt), false);
 });
 
-const server = createApiServer();
+const server = createApiServer({ googleOAuth: createGoogleOAuthProvider(null) });
 let baseUrl = '';
 before(async () => {
   await new Promise<void>(resolve => server.listen(0, resolve));
