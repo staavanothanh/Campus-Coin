@@ -24,6 +24,10 @@ describe('AI provider runtime configuration', () => {
     assert.equal(config.jev.enabled, false)
     assert.equal(Object.hasOwn(config.jev, 'apiKey'), false)
   })
+  it('enables the local category matcher by default and allows opting out', () => {
+    assert.equal(createConfig().local.enabled, true)
+    assert.equal(createConfig({ JEV_LOCAL_CATEGORY_SUGGESTION_ENABLED: 'false' }).local.enabled, false)
+  })
   it('keeps JEV disabled when explicitly disabled even if a server key is present', () => {
     const config = createConfig({ JEV_CATEGORY_SUGGESTION_ENABLED: 'false', OPENROUTER_API_KEY: 'synthetic-openrouter-key' })
     assert.equal(config.jev.enabled, false)

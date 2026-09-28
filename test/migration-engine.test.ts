@@ -51,11 +51,12 @@ test("scanMigrationDir: bỏ qua auxiliary files và sắp migration theo versio
 });
 test("repository migrations keep shared OAuth at 0031 and auth after it", async () => {
   const files = await scanMigrationDir(path.resolve(import.meta.dirname, "..", "db", "migrations"));
-  assert.deepEqual(files.slice(-4).map((file) => file.name), [
+  assert.deepEqual(files.slice(-5).map((file) => file.name), [
     "0031_create_oauth_challenges.sql",
     "0032_email_auth.sql",
     "0033_auth_rate_limits.sql",
     "0034_user_profile_details.sql",
+    "0035_gender_neutral.sql",
   ]);
 });
 

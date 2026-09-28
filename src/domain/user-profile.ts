@@ -1,4 +1,4 @@
-export const PROFILE_GENDERS = ["female", "male", "non_binary", "prefer_not_to_say"] as const;
+export const PROFILE_GENDERS = ["female", "male", "gender_neutral", "prefer_not_to_say"] as const;
 export type ProfileGender = (typeof PROFILE_GENDERS)[number];
 
 /** A database DATE is represented on the API as an ISO calendar date, without a time zone. */

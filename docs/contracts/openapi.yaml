@@ -938,7 +938,7 @@ components:
         reasonCode: {type: [string, 'null'], enum: [flag_off, low_confidence, timeout, quota, schema, privacy, 'null']}
     CategorySuggestionResponse: {type: object, required: [data], properties: {data: {$ref: '#/components/schemas/CategorySuggestionResult'}}}
     PositiveMoneyVnd: {type: integer, minimum: 1, maximum: 9007199254740991, description: Số nguyên VND dương}
-    ProfileGender: {type: string, enum: [female, male, non_binary, prefer_not_to_say]}
+    ProfileGender: {type: string, enum: [female, male, gender_neutral, prefer_not_to_say]}
     User:
       type: object
       required: [id, displayName, email, locale, role, birthDate, gender]
