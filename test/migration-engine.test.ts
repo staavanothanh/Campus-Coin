@@ -49,6 +49,14 @@ test("scanMigrationDir: bỏ qua auxiliary files và sắp migration theo versio
     rmSync(dir, { recursive: true, force: true });
   }
 });
+test("repository migrations keep shared OAuth at 0031 and auth after it", async () => {
+  const files = await scanMigrationDir(path.resolve(import.meta.dirname, "..", "db", "migrations"));
+  assert.deepEqual(files.slice(-3).map((file) => file.name), [
+    "0031_create_oauth_challenges.sql",
+    "0032_email_auth.sql",
+    "0033_auth_rate_limits.sql",
+  ]);
+});
 
 test("scanMigrationDir: từ chối SQL filename không đúng pattern", async () => {
   const dir = makeDir({ "0001_bad-name.sql": "SELECT 1;", "notes.txt": "auxiliary" });
