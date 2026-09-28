@@ -29,7 +29,7 @@ Node API: validation, session, owner scope, idempotency
 
 ## 3. Xác thực và session
 
-Email/password/OTP tiếp tục theo ADR-0008. Register và reset có màn OTP riêng cùng `POST /auth/verify-otp`; API xác minh trước để mở bước tiếp theo nhưng giữ mã lại. Endpoint hoàn tất đăng ký/reset phải xác minh mã lần nữa và tiêu thụ mã cùng transaction với thay đổi credential. Google Sign-In được thêm như lựa chọn tùy chọn theo ADR-0009 qua server-side OIDC Authorization Code + PKCE S256, state, nonce và scope `openid email profile`. Danh tính dựa trên `(provider=google, subject=sub)`; ID token phải được verify theo audience, nonce và `email_verified`. Cả hai flow đều tạo opaque server session bằng cookie hiện có. Owner luôn lấy từ session.
+Email/password/OTP tiếp tục theo ADR-0008. Google Sign-In được thêm như lựa chọn tùy chọn theo ADR-0009 qua server-side OIDC Authorization Code + PKCE S256, state, nonce và scope `openid email profile`. Danh tính dựa trên `(provider=google, subject=sub)`; ID token phải được verify theo audience, nonce và `email_verified`. Cả hai flow đều tạo opaque server session bằng cookie hiện có. Owner luôn lấy từ session.
 
 Google chưa cấu hình thì nút Google ẩn và email login vẫn hoạt động. Email trùng account hiện hữu không tự động merge; user cần đăng nhập trước rồi chủ động kết nối Google. Không lưu Google access/refresh token, không dùng Gmail credential cá nhân/inbox/API hoặc JWT browser. SMTP/provider phải có timeout, số retry hữu hạn, lỗi rõ và không được ghi OTP ra log/dev fallback.
 

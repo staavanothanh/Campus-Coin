@@ -77,7 +77,7 @@ paths:
       operationId: postAuthVerifyRegistration
       tags: [Auth]
       security: []
-      summary: Hoàn tất đăng ký; xác minh lại và tiêu thụ OTP trong transaction tạo tài khoản
+      summary: Xác minh OTP và tạo tài khoản bằng email, họ tên, mật khẩu
       requestBody:
         required: true
         content:
@@ -97,36 +97,6 @@ paths:
         '403': {$ref: '#/components/responses/OriginInvalid'}
         '422': {$ref: '#/components/responses/ValidationError'}
         '409': {$ref: '#/components/responses/Conflict'}
-        '429': {$ref: '#/components/responses/RateLimited'}
-        '500': {$ref: '#/components/responses/InternalError'}
-        '400': {$ref: '#/components/responses/BadRequest'}
-        '413': {$ref: '#/components/responses/PayloadTooLarge'}
-        default: {$ref: '#/components/responses/InternalError'}
-  /auth/verify-otp:
-    post:
-      operationId: postAuthVerifyOtp
-      tags: [Auth]
-      security: []
-      summary: Xác minh OTP để chuyển sang bước nhập thông tin tiếp theo
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/VerifyOtpRequest'
-      responses:
-        '200':
-          headers:
-            Cache-Control:
-              $ref: '#/components/headers/PrivateNoStore'
-          description: OTP hợp lệ; mã chưa bị tiêu thụ và sẽ được kiểm tra lại ở bước hoàn tất
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/MessageResponse'
-        '403': {$ref: '#/components/responses/OriginInvalid'}
-        '409': {$ref: '#/components/responses/Conflict'}
-        '422': {$ref: '#/components/responses/ValidationError'}
         '429': {$ref: '#/components/responses/RateLimited'}
         '500': {$ref: '#/components/responses/InternalError'}
         '400': {$ref: '#/components/responses/BadRequest'}
@@ -272,7 +242,7 @@ paths:
       operationId: postAuthResetPassword
       tags: [Auth]
       security: []
-      summary: Đặt lại mật khẩu; xác minh lại và tiêu thụ OTP trong transaction đổi mật khẩu
+      summary: Đặt lại mật khẩu với OTP
       requestBody:
         required: true
         content:
@@ -1232,13 +1202,6 @@ components:
         fullName: {type: string, minLength: 2, maxLength: 120}
         password: {type: string, minLength: 8, maxLength: 128}
         locale: {$ref: '#/components/schemas/Locale'}
-    VerifyOtpRequest:
-      type: object
-      required: [email, purpose, otp]
-      properties:
-        email: {type: string, format: email}
-        purpose: {type: string, enum: [registration, password_reset]}
-        otp: {type: string, minLength: 6, maxLength: 6, pattern: '^\d{6}$'}
     ResendOtpRequest:
       type: object
       required: [email, purpose]

@@ -9,7 +9,7 @@ import { updateUserPreferences } from '../application/user.service.ts';
 import { sendOtp, type OtpSender } from '../infrastructure/mail.js';
 import { DomainError } from '../domain/errors.js';
 import { canonicalHash } from '../lib/hash.js';
-import { AppError, forgotPassword, getCsrf, getSession, hasGoogleIdentity, linkGoogleIdentity, login, loginWithGoogle, logout, register, resendOtp, resetPassword, verifyOtp, verifyRegistration } from '../features/auth/auth.service.js';
+import { AppError, forgotPassword, getCsrf, getSession, hasGoogleIdentity, linkGoogleIdentity, login, loginWithGoogle, logout, register, resendOtp, resetPassword, verifyRegistration } from '../features/auth/auth.service.js';
 import { handleDomainRequest } from './domain.ts';
 import { getClientIp } from './client-ip.ts';
 import { createGoogleOAuthProvider, GoogleOAuthError, type GoogleOAuthProvider } from '../infrastructure/google-oauth.ts';
@@ -179,7 +179,7 @@ export async function handleRequest(
 
     const token = readCookie(req);
     const publicPaths = [
-      '/api/v1/auth/register', '/api/v1/auth/verify-registration', '/api/v1/auth/verify-otp', '/api/v1/auth/resend-otp',
+      '/api/v1/auth/register', '/api/v1/auth/verify-registration', '/api/v1/auth/resend-otp',
       '/api/v1/auth/login', '/api/v1/auth/forgot-password', '/api/v1/auth/reset-password'
     ];
 
@@ -231,7 +231,6 @@ export async function handleRequest(
           return send(res, 200, { data: { url: started.url } }, started.cookie);
         }
         if (path === '/api/v1/auth/register') return send(res, 201, { data: await register(body, ip, emailSender) });
-        if (path === '/api/v1/auth/verify-otp') return send(res, 200, { data: await verifyOtp(body, ip) });
         if (path === '/api/v1/auth/verify-registration') return send(res, 200, { data: await verifyRegistration(body, ip) });
         if (path === '/api/v1/auth/resend-otp') return send(res, 200, { data: await resendOtp(body, ip, emailSender) });
         if (path === '/api/v1/auth/forgot-password') return send(res, 200, { data: await forgotPassword(body, ip, emailSender) });

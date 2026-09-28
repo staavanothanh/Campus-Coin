@@ -15,7 +15,6 @@ import {
 } from 'lucide-react';
 import { apiPost, ApiRequestError } from '../api-client.js';
 import type { Locale, Session } from '../types.js';
-import { AuthOtpInput, type OtpVerificationState } from './AuthOtpInput.js';
 
 interface AuthScreenProps {
   locale: Locale;
@@ -25,7 +24,7 @@ interface AuthScreenProps {
   noticeKind?: 'status' | 'error';
 }
 
-type AuthMode = 'login' | 'register' | 'verify' | 'register-details' | 'forgot' | 'reset' | 'reset-password';
+type AuthMode = 'login' | 'register' | 'verify' | 'forgot' | 'reset';
 
 export function AuthScreen({
   locale,
@@ -46,7 +45,6 @@ export function AuthScreen({
   const [confirmPassword, setConfirmPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [otp, setOtp] = useState('');
-  const [otpVerificationState, setOtpVerificationState] = useState<OtpVerificationState>('typing');
   const [rememberMe, setRememberMe] = useState(() => Boolean(localStorage.getItem('campus_remember_email')));
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -67,62 +65,28 @@ export function AuthScreen({
     return () => clearInterval(timer);
   }, [resendCooldown]);
 
-  useEffect(() => {
-    if (otpVerificationState !== 'accepted') return;
-    const nextMode: AuthMode | null = mode === 'verify'
-      ? 'register-details'
-      : mode === 'reset'
-        ? 'reset-password'
-        : null;
-    if (!nextMode) return;
-
-    const prefersReducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
-    const timer = window.setTimeout(() => {
-      setMode(nextMode);
-      setOtpVerificationState('typing');
-      setFieldErrors({});
-      setMessageType('status');
-      setMessage(mode === 'verify'
-        ? (isVi ? 'Email đã xác minh. Hãy hoàn tất thông tin tài khoản.' : 'Email verified. Complete your account details.')
-        : (isVi ? 'Mã hợp lệ. Hãy đặt mật khẩu mới.' : 'Code verified. Set your new password.'));
-    }, prefersReducedMotion ? 0 : 760);
-    return () => window.clearTimeout(timer);
-  }, [isVi, mode, otpVerificationState]);
-
   function switchMode(newMode: AuthMode) {
     setMode(newMode);
     setMessage('');
     setFieldErrors({});
     setPassword('');
     setConfirmPassword('');
-    setOtp('');
-    setOtpVerificationState('typing');
     setShowPassword(false);
     setShowConfirmPassword(false);
-  }
-
-  function handleOtpChange(value: string) {
-    setOtp(value);
-    setOtpVerificationState('typing');
-    setFieldErrors((current) => {
-      if (!current.otp) return current;
-      const remaining: Record<string, string> = {};
-      for (const [key, value] of Object.entries(current)) {
-        if (key !== 'otp') remaining[key] = value;
-      }
-      return remaining;
-    });
-    if (messageType === 'error') setMessage('');
   }
 
   function validate(): boolean {
     const errors: Record<string, string> = {};
 
-    if (mode === 'login' || mode === 'register' || mode === 'forgot') {
-      if (!email.trim()) {
-        errors.email = isVi ? 'Vui lòng nhập địa chỉ email.' : 'Email is required.';
-      } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
-        errors.email = isVi ? 'Email chưa đúng định dạng.' : 'Invalid email format.';
+    if (!email.trim()) {
+      errors.email = isVi ? 'Vui lòng nhập địa chỉ email.' : 'Email is required.';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      errors.email = isVi ? 'Email chưa đúng định dạng.' : 'Invalid email format.';
+    }
+
+    if (mode === 'login') {
+      if (!password) {
+        errors.password = isVi ? 'Vui lòng nhập mật khẩu.' : 'Password is required.';
       }
     }
 
@@ -132,29 +96,21 @@ export function AuthScreen({
       } else if (!/^\d{6}$/.test(otp.trim())) {
         errors.otp = isVi ? 'Mã xác minh phải gồm đúng 6 chữ số.' : 'Must be a 6-digit code.';
       }
-    }
 
-    if (mode === 'login' && !password) {
-      errors.password = isVi ? 'Vui lòng nhập mật khẩu.' : 'Password is required.';
-    }
-
-    if (mode === 'register-details' || mode === 'reset-password') {
       if (!password) {
         errors.password = isVi ? 'Vui lòng nhập mật khẩu.' : 'Password is required.';
-      } else if (password.length < 8 || password.length > 128) {
-        errors.password = isVi ? 'Mật khẩu cần từ 8 đến 128 ký tự.' : 'Password must be 8 to 128 characters.';
+      } else if (password.length < 8) {
+        errors.password = isVi ? 'Mật khẩu phải từ 8 ký tự trở lên.' : 'Password must be at least 8 characters.';
       }
-    }
 
-    if (mode === 'register-details' || mode === 'reset-password') {
       if (password !== confirmPassword) {
         errors.confirmPassword = isVi ? 'Mật khẩu nhập lại không khớp.' : 'Passwords do not match.';
       }
     }
 
-    if (mode === 'register-details') {
-      if (fullName.trim().length < 2 || fullName.trim().length > 120) {
-        errors.fullName = isVi ? 'Họ và tên cần từ 2 đến 120 ký tự.' : 'Full name must be 2 to 120 characters.';
+    if (mode === 'verify') {
+      if (!fullName.trim() || fullName.trim().length < 2) {
+        errors.fullName = isVi ? 'Họ và tên cần ít nhất 2 ký tự.' : 'Full name must be at least 2 characters.';
       }
     }
 
@@ -188,8 +144,6 @@ export function AuthScreen({
 
       if (mode === 'register') {
         const res = await apiPost<{ message: string }>('/auth/register', { email: email.trim() });
-        setOtp('');
-        setOtpVerificationState('typing');
         setMode('verify');
         setMessageType('status');
         setMessage(res?.message || (isVi ? 'Mã xác minh đã được gửi đến email của bạn.' : 'Verification code sent to your email.'));
@@ -197,21 +151,7 @@ export function AuthScreen({
         return;
       }
 
-      if (mode === 'verify' || mode === 'reset') {
-        const purpose = mode === 'verify' ? 'registration' : 'password_reset';
-        setOtpVerificationState('checking');
-        await apiPost<{ message: string }>('/auth/verify-otp', {
-          email: email.trim(),
-          purpose,
-          otp: otp.trim(),
-        });
-        setOtpVerificationState('accepted');
-        setMessageType('status');
-        setMessage(isVi ? 'Mã xác minh hợp lệ.' : 'Verification code accepted.');
-        return;
-      }
-
-      if (mode === 'register-details') {
+      if (mode === 'verify') {
         const res = await apiPost<{ message: string }>('/auth/verify-registration', {
           email: email.trim(),
           fullName: fullName.trim(),
@@ -227,8 +167,6 @@ export function AuthScreen({
 
       if (mode === 'forgot') {
         const res = await apiPost<{ message: string }>('/auth/forgot-password', { email: email.trim() });
-        setOtp('');
-        setOtpVerificationState('typing');
         setMode('reset');
         setMessageType('status');
         setMessage(res?.message || (isVi ? 'Nếu email tồn tại, mã xác nhận sẽ được gửi.' : 'If email exists, verification code will be sent.'));
@@ -236,7 +174,7 @@ export function AuthScreen({
         return;
       }
 
-      if (mode === 'reset-password') {
+      if (mode === 'reset') {
         const res = await apiPost<{ message: string }>('/auth/reset-password', {
           email: email.trim(),
           otp: otp.trim(),
@@ -248,9 +186,6 @@ export function AuthScreen({
         return;
       }
     } catch (caught) {
-      if ((mode === 'verify' || mode === 'reset') && otpVerificationState === 'checking') {
-        setOtpVerificationState('typing');
-      }
       setMessageType('error');
       if (caught instanceof ApiRequestError) {
         if (caught.apiError?.code === 'UNAUTHORIZED') {
@@ -260,20 +195,8 @@ export function AuthScreen({
         } else if (caught.apiError?.code === 'CONFLICT') {
           setMessage(isVi ? 'Email này đã được sử dụng bởi một tài khoản khác.' : 'This email is already registered.');
         } else if (caught.apiError?.code === 'OTP_INVALID') {
-          if (mode === 'verify' || mode === 'reset') {
-            setOtpVerificationState('rejected');
-          } else if (mode === 'register-details' || mode === 'reset-password') {
-            setMode(mode === 'register-details' ? 'verify' : 'reset');
-            setOtp('');
-            setOtpVerificationState('typing');
-            setPassword('');
-            setConfirmPassword('');
-            setShowPassword(false);
-            setShowConfirmPassword(false);
-          }
           setMessage(isVi ? 'Mã xác minh không đúng hoặc đã hết hạn.' : 'Invalid or expired verification code.');
         } else if (caught.apiError?.code === 'RATE_LIMITED') {
-          if (mode === 'verify' || mode === 'reset') setOtpVerificationState('typing');
           setMessage(isVi ? 'Bạn đã thử quá nhiều lần. Vui lòng chờ một lát rồi thử lại.' : 'Too many attempts. Please try again later.');
         } else {
           setMessage(caught.apiError?.message || (isVi ? 'Có lỗi xảy ra, vui lòng thử lại.' : 'An error occurred. Please try again.'));
@@ -292,9 +215,6 @@ export function AuthScreen({
     try {
       const purpose = mode === 'verify' ? 'registration' : 'password_reset';
       const res = await apiPost<{ message: string }>('/auth/resend-otp', { email: email.trim(), purpose });
-      setOtp('');
-      setOtpVerificationState('typing');
-      setFieldErrors({});
       setMessageType('status');
       setMessage(res?.message || (isVi ? 'Đã gửi lại mã OTP thành công.' : 'Verification code resent.'));
       setResendCooldown(60);
@@ -338,33 +258,29 @@ export function AuthScreen({
             <div className="auth-icon-badge">
               {mode === 'login' && <Lock size={22} />}
               {mode === 'register' && <Sparkles size={22} />}
-              {(mode === 'verify' || mode === 'register-details') && <Mail size={22} />}
+              {mode === 'verify' && <Mail size={22} />}
               {mode === 'forgot' && <KeyRound size={22} />}
-              {(mode === 'reset' || mode === 'reset-password') && <KeyRound size={22} />}
+              {mode === 'reset' && <KeyRound size={22} />}
             </div>
             <h2>
               {mode === 'login' && (isVi ? 'Đăng nhập tài khoản' : 'Sign in to account')}
               {mode === 'register' && (isVi ? 'Đăng ký tài khoản' : 'Create an account')}
               {mode === 'verify' && (isVi ? 'Xác minh email' : 'Verify your email')}
-              {mode === 'register-details' && (isVi ? 'Hoàn tất tài khoản' : 'Complete your account')}
               {mode === 'forgot' && (isVi ? 'Khôi phục mật khẩu' : 'Forgot password')}
-              {mode === 'reset' && (isVi ? 'Xác minh mã' : 'Verify your code')}
-              {mode === 'reset-password' && (isVi ? 'Đặt lại mật khẩu' : 'Reset your password')}
+              {mode === 'reset' && (isVi ? 'Đặt lại mật khẩu' : 'Reset your password')}
             </h2>
             <p className="auth-card-subtitle">
               {mode === 'login' && (isVi ? 'Quản lý thu chi và ngân sách sinh viên thông minh' : 'Smart student budget & expense management')}
               {mode === 'register' && (isVi ? 'Nhập email để nhận mã xác minh tạo tài khoản mới' : 'Enter your email to receive a verification code')}
               {mode === 'verify' && (isVi ? `Nhập mã 6 chữ số đã gửi tới ${email}` : `Enter the 6-digit code sent to ${email}`)}
-              {mode === 'register-details' && (isVi ? 'Email đã xác minh. Hãy tạo tên tài khoản và mật khẩu.' : 'Email verified. Choose your account name and password.')}
               {mode === 'forgot' && (isVi ? 'Chúng tôi sẽ gửi mã đặt lại mật khẩu đến email của bạn' : 'We will send a reset code to your email')}
-              {mode === 'reset' && (isVi ? `Nhập mã 6 chữ số đã gửi tới ${email}` : `Enter the 6-digit code sent to ${email}`)}
-              {mode === 'reset-password' && (isVi ? 'Mã đã xác minh. Tạo mật khẩu mới cho tài khoản.' : 'Code verified. Create a new password for your account.')}
+              {mode === 'reset' && (isVi ? 'Nhập mã xác minh và mật khẩu mới của bạn' : 'Enter the verification code and your new password')}
             </p>
           </div>
 
           {/* Feedback Notice */}
           {message && (
-            <div className={`auth-alert-box ${messageType === 'error' ? 'alert-error' : 'alert-success'}`} role={messageType === 'error' ? 'alert' : 'status'}>
+            <div className={`auth-alert-box ${messageType === 'error' ? 'alert-error' : 'alert-success'}`}>
               {messageType === 'error' ? <AlertCircle size={18} /> : <CheckCircle2 size={18} />}
               <span>{message}</span>
             </div>
@@ -392,8 +308,8 @@ export function AuthScreen({
               </div>
             )}
 
-            {/* ACCOUNT NAME (after registration OTP has been verified) */}
-            {mode === 'register-details' && (
+            {/* FULL NAME (Verify mode) */}
+            {mode === 'verify' && (
               <div className="auth-input-group">
                 <label htmlFor="auth-name">{isVi ? 'Họ và tên của bạn' : 'Your Full Name'}</label>
                 <div className={`auth-input-wrapper ${fieldErrors.fullName ? 'has-error' : ''}`}>
@@ -411,7 +327,7 @@ export function AuthScreen({
               </div>
             )}
 
-            {/* OTP-only screens; account details are entered after server verification. */}
+            {/* OTP CODE (Verify & Reset modes) */}
             {(mode === 'verify' || mode === 'reset') && (
               <div className="auth-input-group">
                 <div className="auth-label-row">
@@ -420,38 +336,35 @@ export function AuthScreen({
                     type="button"
                     className="auth-link-button small"
                     onClick={handleResendOtp}
-                    disabled={resendCooldown > 0 || loading || otpVerificationState !== 'typing'}
+                    disabled={resendCooldown > 0 || loading}
                   >
                     {resendCooldown > 0
                       ? `${isVi ? 'Gửi lại sau' : 'Resend in'} ${resendCooldown}s`
                       : (isVi ? 'Gửi lại mã' : 'Resend code')}
                   </button>
                 </div>
-                <div className={`auth-input-wrapper auth-otp-input-wrapper ${fieldErrors.otp ? 'has-error' : ''}`}>
-                  <AuthOtpInput
+                <div className={`auth-input-wrapper ${fieldErrors.otp ? 'has-error' : ''}`}>
+                  <KeyRound className="input-icon" size={18} />
+                  <input
                     id="auth-otp"
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={6}
+                    placeholder="123456"
                     value={otp}
-                    onChange={handleOtpChange}
-                    ariaLabel={isVi ? 'Mã xác minh gồm 6 chữ số' : 'Verification code, 6 digits'}
-                    describedBy={fieldErrors.otp ? 'auth-otp-error' : undefined}
-                    invalid={Boolean(fieldErrors.otp) || otpVerificationState === 'rejected'}
-                    verificationState={otpVerificationState}
-                    locale={locale}
-                    onRejectedAnimationComplete={() => {
-                      setOtp('');
-                      setOtpVerificationState('typing');
-                    }}
+                    onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
+                    required
                   />
                 </div>
-                {fieldErrors.otp && <span id="auth-otp-error" className="auth-field-error" role="alert">{fieldErrors.otp}</span>}
+                {fieldErrors.otp && <span className="auth-field-error">{fieldErrors.otp}</span>}
               </div>
             )}
 
-            {/* PASSWORD INPUT (login or after OTP verification) */}
-            {(mode === 'login' || mode === 'register-details' || mode === 'reset-password') && (
+            {/* PASSWORD INPUT (Login, Verify, Reset) */}
+            {(mode === 'login' || mode === 'verify' || mode === 'reset') && (
               <div className="auth-input-group">
                 <label htmlFor="auth-password">
-                  {mode === 'reset-password' ? (isVi ? 'Mật khẩu mới' : 'New Password') : (isVi ? 'Mật khẩu' : 'Password')}
+                  {mode === 'reset' ? (isVi ? 'Mật khẩu mới' : 'New Password') : (isVi ? 'Mật khẩu' : 'Password')}
                 </label>
                 <div className={`auth-input-wrapper ${fieldErrors.password ? 'has-error' : ''}`}>
                   <Lock className="input-icon" size={18} />
@@ -478,8 +391,8 @@ export function AuthScreen({
               </div>
             )}
 
-            {/* PASSWORD CONFIRMATION (registration and password reset) */}
-            {(mode === 'register-details' || mode === 'reset-password') && (
+            {/* CONFIRM PASSWORD (Verify & Reset modes) */}
+            {(mode === 'verify' || mode === 'reset') && (
               <div className="auth-input-group">
                 <label htmlFor="auth-confirm-password">{isVi ? 'Nhập lại mật khẩu' : 'Confirm Password'}</label>
                 <div className={`auth-input-wrapper ${fieldErrors.confirmPassword ? 'has-error' : ''}`}>
@@ -532,7 +445,7 @@ export function AuthScreen({
             <button
               type="submit"
               className="auth-submit-button"
-              disabled={loading || ((mode === 'verify' || mode === 'reset') && otpVerificationState !== 'typing')}
+              disabled={loading}
             >
               {loading ? (
                 <>
@@ -544,11 +457,9 @@ export function AuthScreen({
                   <span>
                     {mode === 'login' && (isVi ? 'Đăng nhập' : 'Sign in')}
                     {mode === 'register' && (isVi ? 'Gửi mã xác minh' : 'Send verification code')}
-                    {mode === 'verify' && (isVi ? 'Xác minh mã' : 'Verify code')}
-                    {mode === 'register-details' && (isVi ? 'Tạo tài khoản' : 'Create account')}
+                    {mode === 'verify' && (isVi ? 'Hoàn tất đăng ký' : 'Complete Registration')}
                     {mode === 'forgot' && (isVi ? 'Gửi mã khôi phục' : 'Send Reset Code')}
-                    {mode === 'reset' && (isVi ? 'Xác minh mã' : 'Verify code')}
-                    {mode === 'reset-password' && (isVi ? 'Lưu mật khẩu mới' : 'Save New Password')}
+                    {mode === 'reset' && (isVi ? 'Lưu mật khẩu mới' : 'Save New Password')}
                   </span>
                   <ArrowRight size={18} />
                 </>
@@ -605,35 +516,18 @@ export function AuthScreen({
                 </button>
               </p>
             ) : (
-              <>
-                {(mode === 'verify' || mode === 'register-details' || mode === 'reset' || mode === 'reset-password') && (
-                  <p>
-                    <button
-                      type="button"
-                      className="auth-link-highlight"
-                      onClick={() => switchMode(mode === 'verify' ? 'register' : mode === 'register-details' ? 'verify' : mode === 'reset' ? 'forgot' : 'reset')}
-                    >
-                      {mode === 'verify' && (isVi ? 'Đổi email đăng ký' : 'Change registration email')}
-                      {mode === 'register-details' && (isVi ? 'Quay lại nhập mã' : 'Back to verification code')}
-                      {mode === 'reset' && (isVi ? 'Đổi email khôi phục' : 'Change recovery email')}
-                      {mode === 'reset-password' && (isVi ? 'Quay lại mã xác minh' : 'Back to verification code')}
-                    </button>
-                  </p>
-                )}
-                <p>
-                  {mode === 'forgot' || mode === 'reset' || mode === 'reset-password'
-                    ? (isVi ? 'Nhớ mật khẩu rồi?' : 'Remembered your password?')
-                    : (isVi ? 'Đã có tài khoản?' : 'Already have an account?')}
-                  {' '}
-                  <button
-                    type="button"
-                    className="auth-link-highlight"
-                    onClick={() => switchMode('login')}
-                  >
-                    {isVi ? 'Đăng nhập ngay' : 'Sign in'}
-                  </button>
-                </p>
-              </>
+              <p>
+                {mode === 'register' && (isVi ? 'Đã có tài khoản?' : 'Already have an account?')}
+                {(mode === 'verify' || mode === 'forgot' || mode === 'reset') && (isVi ? 'Nhớ mật khẩu rồi?' : 'Remembered your password?')}
+                {' '}
+                <button
+                  type="button"
+                  className="auth-link-highlight"
+                  onClick={() => switchMode('login')}
+                >
+                  {isVi ? 'Đăng nhập ngay' : 'Sign in'}
+                </button>
+              </p>
             )}
           </div>
         </div>
