@@ -5,6 +5,7 @@ import type { Budget, UpsertBudgetRequest, Locale } from '../types.js';
 import type { Copy } from '../i18n.js';
 import { Modal } from './Modal.js';
 import { ErrorBanner } from './ErrorBanner.js';
+import { useFormattedAmountInput } from '../hooks/use-formatted-amount-input.js';
 
 interface BudgetFormProps {
   categoryId: string;
@@ -29,7 +30,7 @@ export function BudgetForm({
   onClose,
   onSuccess,
 }: BudgetFormProps) {
-  const [limit, setLimit] = useState(initialLimitVnd ? initialLimitVnd.toString() : '');
+  const { rawValue: limit, setRawValue: setLimit, formattedValue: formattedLimit, inputRef: limitInputRef, handleChange: handleLimitChange } = useFormattedAmountInput(initialLimitVnd ? initialLimitVnd.toString() : '', locale);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<ApiRequestError | string | null>(null);
 
@@ -103,8 +104,9 @@ export function BudgetForm({
           <input
             required
             inputMode="numeric"
-            value={limit}
-            onChange={(e) => setLimit(e.target.value)}
+            ref={limitInputRef}
+            value={formattedLimit}
+            onChange={handleLimitChange}
             disabled={loading}
             placeholder="0"
           />

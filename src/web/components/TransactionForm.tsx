@@ -24,6 +24,7 @@ import {
   Coins
 } from 'lucide-react';
 import { invalidateCategoriesCache } from '../hooks/use-categories.js';
+import { useFormattedAmountInput } from '../hooks/use-formatted-amount-input.js';
 
 interface TransactionFormProps {
   kind: TransactionType;
@@ -48,7 +49,7 @@ export function TransactionForm({
 }: TransactionFormProps) {
   const isVi = locale === 'vi';
   const [currentType, setCurrentType] = useState<TransactionType>(initialKind);
-  const [amount, setAmount] = useState('');
+  const { rawValue: amount, setRawValue: setAmount, formattedValue: formattedAmount, inputRef: amountInputRef, handleChange: handleAmountChange } = useFormattedAmountInput('', locale);
   const [categoryId, setCategoryId] = useState('');
   const [isOtherSelected, setIsOtherSelected] = useState(false);
   const [customCategoryName, setCustomCategoryName] = useState('');
@@ -60,9 +61,10 @@ export function TransactionForm({
   const [isSuccess, setIsSuccess] = useState(false);
 
   function handleAddQuickAmount(addVal: number) {
-    const currentNum = parseInt(amount.replace(/\D/g, ''), 10) || 0;
-    const nextVal = currentNum + addVal;
-    setAmount(String(nextVal));
+    const currentAmount = BigInt(amount || '0');
+    const nextAmount = currentAmount + BigInt(addVal);
+    if (nextAmount > BigInt(Number.MAX_SAFE_INTEGER)) return;
+    setAmount(nextAmount.toString());
   }
 
   async function submit(event: FormEvent) {
@@ -281,12 +283,13 @@ export function TransactionForm({
             <div className="amount-input-box">
               <span className="currency-prefix">₫</span>
               <input
+                ref={amountInputRef}
                 id="tx-amount"
                 required
                 autoFocus
                 inputMode="numeric"
-                value={amount}
-                onChange={e => setAmount(e.target.value.replace(/\D/g, ''))}
+                value={formattedAmount}
+                onChange={handleAmountChange}
                 disabled={loading}
                 placeholder="0"
                 className="amount-input"

@@ -1,9 +1,11 @@
 import { useState, type FormEvent } from 'react';
 import { apiPost, ApiRequestError } from '../api-client.js';
-import { formatVnd, parseAmountVnd } from '../format.js';
+import { formatVnd } from '../format.js';
+import { parseInitialBalanceVnd } from '../amount-vnd.js';
 import type { Locale } from '../types.js';
 import { Modal } from './Modal.js';
 import { Wallet, Sparkles, Check, X } from 'lucide-react';
+import { useFormattedAmountInput } from '../hooks/use-formatted-amount-input.js';
 
 interface InitWalletModalProps {
   csrfToken: string;
@@ -21,7 +23,7 @@ export function InitWalletModal({
   onSuccess,
 }: InitWalletModalProps) {
   const isVi = locale === 'vi';
-  const [amountStr, setAmountStr] = useState('0');
+  const { rawValue: amountStr, setRawValue: setAmountStr, formattedValue: formattedAmount, inputRef: amountInputRef, handleChange: handleAmountChange } = useFormattedAmountInput('0', locale, { keepZeroWhenEmpty: true });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -32,8 +34,8 @@ export function InitWalletModal({
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    const cleanNum = parseAmountVnd(amountStr);
-    if (cleanNum === null || cleanNum < 0) {
+    const cleanNum = parseInitialBalanceVnd(amountStr);
+    if (cleanNum === null) {
       setError(isVi ? 'Số tiền không hợp lệ. Vui lòng nhập số không âm.' : 'Invalid amount. Please enter a non-negative number.');
       return;
     }
@@ -109,19 +111,20 @@ export function InitWalletModal({
         )}
 
         <div className="form-field-wrapper">
-          <label style={{ fontSize: 12, fontWeight: 700, color: 'inherit' }}>
+          <label htmlFor="wallet-initial-balance" style={{ fontSize: 12, fontWeight: 700, color: 'inherit' }}>
             {isVi ? 'Số dư hiện tại (VND)' : 'Current Balance (VND)'} <span style={{ color: '#f59e0b' }}>*</span>
           </label>
           <div className="amount-input-box">
             <span className="currency-prefix">₫</span>
             <input
+              id="wallet-initial-balance"
+              ref={amountInputRef}
               type="text"
               inputMode="numeric"
               className="amount-input"
-              value={amountStr ? parseInt(amountStr.replace(/\D/g, ''), 10).toLocaleString('vi-VN') : '0'}
-              onChange={(e) => {
-                const raw = e.target.value.replace(/\D/g, '');
-                setAmountStr(raw || '0');
+              value={formattedAmount || '0'}
+              onChange={(event) => {
+                handleAmountChange(event);
                 setError(null);
               }}
               placeholder="0"
