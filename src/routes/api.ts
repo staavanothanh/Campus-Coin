@@ -14,9 +14,6 @@ import { getClientIp } from './client-ip.ts';
 import { createGoogleOAuthProvider, GoogleOAuthError, type GoogleOAuthProvider } from '../infrastructure/google-oauth.ts';
 import { handleJevSuggestion, type JevActor, type JevService } from '../api/jev-route.ts';
 import { createCategorySuggestionServiceFromEnvironment } from '../application/jev/category-suggestion-service.js';
-
-const runtimeJevService = createCategorySuggestionServiceFromEnvironment();
-
 type GoogleAuthResult = 'google_login' | 'google_linked' | GoogleAuthErrorCode;
 
 type GoogleAuthErrorCode = 'cancelled' | 'invalid_flow' | 'provider_error' | 'provider_unavailable' | 'link_required' | 'account_conflict' | 'login_required' | 'rate_limited' | 'failed';
@@ -392,5 +389,6 @@ export function createApiServer(options: {
 } = {}) {
   const emailSender = options.emailSender ?? sendOtp;
   const googleOAuth = options.googleOAuth ?? createGoogleOAuthProvider();
-  return createServer((req, res) => handleRequest(req, res, emailSender, googleOAuth, options.jevService ?? runtimeJevService));
+  const runtimeJevService = options.jevService ?? createCategorySuggestionServiceFromEnvironment();
+  return createServer((req, res) => handleRequest(req, res, emailSender, googleOAuth, runtimeJevService));
 }
