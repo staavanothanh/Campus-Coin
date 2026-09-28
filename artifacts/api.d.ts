@@ -797,7 +797,7 @@ export interface components {
         /** @description Số nguyên VND dương */
         PositiveMoneyVnd: number;
         /** @enum {string} */
-        ProfileGender: "female" | "male" | "non_binary" | "prefer_not_to_say";
+        ProfileGender: "female" | "male" | "gender_neutral" | "prefer_not_to_say";
         User: {
             id: string;
             displayName: string;

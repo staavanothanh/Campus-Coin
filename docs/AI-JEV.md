@@ -65,7 +65,7 @@ Validate schema, candidate membership, `other_or_uncertain`, probability/confide
 
 ## 5. Chính sách runtime
 
-- Backend-only; `OPENROUTER_API_KEY` không tới browser.
+- `JEV_LOCAL_CATEGORY_SUGGESTION_ENABLED` controls the deterministic local category index. It defaults to enabled for offline development and can be set to `false`; it never sends data to a provider. When a paid provider is explicitly enabled with a valid key, that provider remains authoritative.
 - `JEV_CATEGORY_SUGGESTION_ENABLED` must be explicitly set to `true`; it defaults to disabled. An enabled service also requires `OPENROUTER_API_KEY`. Minimum confidence/candidate limits default to 0.8/10 when enabled.
 - NghienAI (`gpt-6-luna`, OpenAI-compatible transport) là provider gợi ý dự phòng (provisional). Chỉ dùng khi JEV chưa bật; bật bằng `NGHIENAI_LLM_ENABLED=true` + `NGHIENAI_API_KEY`, ngưỡng qua `NGHIENAI_MINIMUM_CONFIDENCE`/`NGHIENAI_MAX_CANDIDATES` (mặc định 0.8/10). Kết quả generative là untrusted, chỉ dùng trong candidate set đã validate; bật thiếu key sẽ degrade về disabled chứ không crash startup. Không chạm money path.
 - Timeout, rate, concurrency, input length, candidate count và daily spend phải bounded.

@@ -1,12 +1,24 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import { createCategorySuggestionService, createCategorySuggestionServiceFromEnvironment } from '../../src/application/jev/category-suggestion-service.js'
+import { localSuggestionCorpusSize, suggestLocalCategory } from '../../src/application/jev/local-category-suggestion.js'
 
 const categories = [
   { id: 'groceries', semanticLabel: 'Food and household essentials', active: true, appliesTo: ['payment'] },
   { id: 'stipend', semanticLabel: 'Student stipend', active: true, appliesTo: ['income'] },
   { id: 'retired', semanticLabel: 'Retired category', active: false, appliesTo: ['payment'] },
 ]
+it('covers more than 100 local examples and suggests all 11 canonical categories', () => {
+  assert.ok(localSuggestionCorpusSize() > 100)
+  const examples = [
+    ['income', 'monthly salary from work', '1'], ['income', 'parents allowance', '2'], ['income', 'birthday gift', '3'], ['income', 'cashback refund', '4'],
+    ['payment', 'campus lunch', '5'], ['payment', 'bus ticket', '6'], ['payment', 'buy a backpack', '7'], ['payment', 'movie ticket', '8'],
+    ['payment', 'tuition fee', '9'], ['payment', 'monthly rent', '10'], ['payment', 'bank maintenance fee', '11'],
+  ]
+  for (const [transactionType, description, categoryId] of examples) {
+    assert.equal(suggestLocalCategory({ transactionType, description }).categoryId, categoryId)
+  }
+})
 const configuredPolicy = { enabled: true, minimumConfidence: 0.8, maxCandidates: 10 }
 const eligibleInput = {
   transactionType: 'payment', descriptionRedacted: 'Lunch at campus', locale: 'en', candidates: categories,
@@ -249,7 +261,7 @@ describe('JEV category suggestion application boundary', () => {
 
   it('does not instantiate OpenRouter without an approved policy', async () => {
     const service = createCategorySuggestionServiceFromEnvironment({
-      env: { JEV_CATEGORY_SUGGESTION_ENABLED: 'false', OPENROUTER_API_KEY: 'synthetic-disabled-key' }, loadEnvFile: () => {},
+      env: { JEV_CATEGORY_SUGGESTION_ENABLED: 'false', JEV_LOCAL_CATEGORY_SUGGESTION_ENABLED: 'false', OPENROUTER_API_KEY: 'synthetic-disabled-key' }, loadEnvFile: () => {},
     })
     assert.deepEqual(await service.suggest(eligibleInput), { status: 'disabled', categoryId: null, confidence: null, reasonCode: 'flag_off' })
   })
@@ -257,7 +269,7 @@ describe('JEV category suggestion application boundary', () => {
   it('instantiates server-side JEV without returning its API key', async () => {
     let request
     const service = createCategorySuggestionServiceFromEnvironment({
-      env: { JEV_CATEGORY_SUGGESTION_ENABLED: 'true', OPENROUTER_API_KEY: 'synthetic-server-key', JEV_MINIMUM_CONFIDENCE: '0.8', JEV_MAX_CANDIDATES: '10' },
+      env: { JEV_CATEGORY_SUGGESTION_ENABLED: 'true', JEV_LOCAL_CATEGORY_SUGGESTION_ENABLED: 'false', OPENROUTER_API_KEY: 'synthetic-server-key', JEV_MINIMUM_CONFIDENCE: '0.8', JEV_MAX_CANDIDATES: '10' },
       loadEnvFile: () => {},
       fetchImpl: async (_url, options) => { request = options; return new Response(JSON.stringify(choice()), { status: 200 }) },
       logger: { warn: () => {} },
@@ -271,7 +283,7 @@ describe('JEV category suggestion application boundary', () => {
   it('keeps JEV disabled when only a server API key is configured', async () => {
     let calls = 0
     const service = createCategorySuggestionServiceFromEnvironment({
-      env: { OPENROUTER_API_KEY: 'synthetic-server-key' },
+      env: { JEV_LOCAL_CATEGORY_SUGGESTION_ENABLED: 'false', OPENROUTER_API_KEY: 'synthetic-server-key' },
       loadEnvFile: () => {},
       fetchImpl: async () => {
         calls += 1

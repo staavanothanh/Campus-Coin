@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { apiPut, ApiRequestError } from '../api-client.js';
 import { parseAmountVnd } from '../format.js';
-import type { Budget, UpsertBudgetRequest, Locale } from '../types.js';
+import type { Budget, Category, UpsertBudgetRequest, Locale } from '../types.js';
 import type { Copy } from '../i18n.js';
 import { Modal } from './Modal.js';
 import { ErrorBanner } from './ErrorBanner.js';
@@ -10,7 +10,8 @@ import { useFormattedAmountInput } from '../hooks/use-formatted-amount-input.js'
 interface BudgetFormProps {
   categoryId: string;
   categoryName?: string | undefined;
-  month: string; // YYYY-MM
+  categoryOptions?: readonly Category[];
+  month: string;
   initialLimitVnd: number | null;
   csrfToken: string;
   t: Copy;
@@ -22,6 +23,7 @@ interface BudgetFormProps {
 export function BudgetForm({
   categoryId,
   categoryName,
+  categoryOptions = [],
   month,
   initialLimitVnd,
   csrfToken,
@@ -30,11 +32,15 @@ export function BudgetForm({
   onClose,
   onSuccess,
 }: BudgetFormProps) {
+  const [selectedCategoryId, setSelectedCategoryId] = useState(categoryId);
+  const selectedCategory = categoryOptions.find(category => String(category.id) === selectedCategoryId);
+  const selectedCategoryName = selectedCategory === undefined
+    ? categoryName
+    : locale === 'vi' ? (selectedCategory.name.vi || selectedCategory.name.en) : (selectedCategory.name.en || selectedCategory.name.vi);
   const { rawValue: limit, setRawValue: setLimit, formattedValue: formattedLimit, inputRef: limitInputRef, handleChange: handleLimitChange } = useFormattedAmountInput(initialLimitVnd ? initialLimitVnd.toString() : '', locale);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<ApiRequestError | string | null>(null);
-
-  const title = locale === 'vi' ? 'Thiết lập ngân sách' : 'Set Budget';
+  const title = locale === 'vi' ? `${initialLimitVnd === null ? 'Thêm' : 'Thiết lập'} ngân sách` : `${initialLimitVnd === null ? 'Add' : 'Set'} Budget`;
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -57,7 +63,7 @@ export function BudgetForm({
 
     try {
       await apiPut<Budget>(
-        `/budgets/${categoryId}`,
+        `/budgets/${selectedCategoryId}`,
         requestBody,
         {
           'X-CSRF-Token': csrfToken,
@@ -95,8 +101,16 @@ export function BudgetForm({
 
         <ErrorBanner error={error instanceof ApiRequestError ? error.apiError : error} locale={locale} />
 
+        {categoryOptions.length > 0 ? (
+          <label htmlFor="budget-category-select">
+            {locale === 'vi' ? 'Danh mục' : 'Category'}
+            <select id="budget-category-select" value={selectedCategoryId} onChange={event => setSelectedCategoryId(event.currentTarget.value)} disabled={loading}>
+              {categoryOptions.map(category => <option key={category.id} value={category.id}>{locale === 'vi' ? (category.name.vi || category.name.en) : (category.name.en || category.name.vi)}</option>)}
+            </select>
+          </label>
+        ) : null}
         <p style={{ marginBottom: 'var(--space-4)' }}>
-          <strong>{locale === 'vi' ? 'Danh mục' : 'Category'}:</strong> {categoryName || categoryId}
+          <strong>{locale === 'vi' ? 'Danh mục' : 'Category'}:</strong> {selectedCategoryName || selectedCategoryId}
         </p>
 
         <label>

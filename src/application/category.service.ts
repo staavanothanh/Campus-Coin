@@ -10,6 +10,7 @@ import {
 } from "../infrastructure/persistence/category.repository.ts";
 import { insertAuditEvent } from "../infrastructure/persistence/audit.repository.ts";
 import { isCategoryStatus, isTransactionType, type CategoryStatus, type TransactionType } from "../domain/money.ts";
+import { semanticCategoryKey } from "../domain/category-taxonomy.ts";
 import { invalidInput, notFound } from "../domain/errors.ts";
 import { toCategory, type CategoryView } from "./map.ts";
 import { withIdempotentMutation } from "./idempotency.ts";
@@ -42,8 +43,11 @@ export interface CreateCategoryInput {
 /** Trả null khi trùng tên (409 Conflict ở API layer). */
 export async function createCustomCategory(db: Db, input: CreateCategoryInput): Promise<CategoryView | null> {
   if (!isTransactionType(input.appliesTo)) throw invalidInput("appliesTo must be income|payment");
-  if (input.nameEn.length === 0 || input.nameEn.length > 80) throw invalidInput("nameEn required (max 80)");
-  if (input.nameVi.length > 80) throw invalidInput("nameVi too long (max 80)");
+  if (input.nameEn.trim().length === 0 || input.nameEn.length > 80) throw invalidInput("nameEn required (max 80)");
+  if (input.nameVi.trim().length === 0 || input.nameVi.length > 80) throw invalidInput("nameVi required (max 80)");
+  if (semanticCategoryKey(input.nameEn, input.appliesTo) !== null || semanticCategoryKey(input.nameVi, input.appliesTo) !== null) {
+    throw invalidInput("category duplicates a canonical category meaning");
+  }
   return withIdempotentMutation({
     db,
     userId: input.userId,
@@ -87,14 +91,22 @@ export interface UpdateCategoryInput {
 }
 
 export async function updateUserCategory(db: Db, input: UpdateCategoryInput): Promise<CategoryView> {
-  if (input.nameEn !== undefined && (input.nameEn.length === 0 || input.nameEn.length > 80)) {
+  if (input.nameEn !== undefined && (input.nameEn.trim().length === 0 || input.nameEn.length > 80)) {
     throw invalidInput("nameEn required (max 80)");
   }
-  if (input.nameVi !== undefined && input.nameVi.length > 80) throw invalidInput("nameVi too long (max 80)");
+  if (input.nameVi !== undefined && (input.nameVi.trim().length === 0 || input.nameVi.length > 80)) throw invalidInput("nameVi required (max 80)");
   if (input.status !== undefined && !isCategoryStatus(input.status)) {
     throw invalidInput("invalid status");
   }
   return withTransaction(db, async (conn) => {
+    const current = await findCategoryById(conn, input.userId, input.categoryId, true);
+    if (current === null || current.isDefault) throw notFound();
+    if (input.nameEn !== undefined && semanticCategoryKey(input.nameEn, current.appliesTo) !== null) {
+      throw invalidInput("category duplicates a canonical category meaning");
+    }
+    if (input.nameVi !== undefined && semanticCategoryKey(input.nameVi, current.appliesTo) !== null) {
+      throw invalidInput("category duplicates a canonical category meaning");
+    }
     const patch: { nameEn?: string; nameVi?: string; status?: "active" | "disabled" | "retired" } = {};
     if (input.nameEn !== undefined) patch.nameEn = input.nameEn;
     if (input.nameVi !== undefined) patch.nameVi = input.nameVi;

@@ -77,6 +77,11 @@ export function loadAiProviderConfig({ env = process.env, loadEnvFile = defaultL
   const nghienAiEnabled = nghienAiFlag && nghienAiApiKey !== undefined
 
   return {
+    local: {
+      enabled: env.JEV_LOCAL_CATEGORY_SUGGESTION_ENABLED === undefined
+        ? true
+        : readFeatureFlag(env, 'JEV_LOCAL_CATEGORY_SUGGESTION_ENABLED'),
+    },
     jev: {
       enabled: jevEnabled,
       ...(jevEnabled ? { apiKey: requireApiKey(env, 'OPENROUTER_API_KEY') } : {}),

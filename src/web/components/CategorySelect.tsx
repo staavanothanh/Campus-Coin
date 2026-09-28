@@ -15,29 +15,9 @@ interface CategorySelectProps {
   disabled?: boolean;
 }
 
-const PRESET_CATEGORIES: Record<TransactionType, Array<{ nameEn: string; nameVi: string }>> = {
-  payment: [
-    { nameEn: 'Food & Dining', nameVi: 'Ăn uống' },
-    { nameEn: 'Transport', nameVi: 'Di chuyển' },
-    { nameEn: 'Shopping', nameVi: 'Mua sắm' },
-    { nameEn: 'Rent & Utilities', nameVi: 'Nhà ở & Tiền phòng' },
-    { nameEn: 'Education', nameVi: 'Học tập & Sách vở' },
-    { nameEn: 'Entertainment', nameVi: 'Giải trí & Phim ảnh' },
-    { nameEn: 'Healthcare & Medical', nameVi: 'Sức khỏe & Y tế' },
-    { nameEn: 'Bills & Subscriptions', nameVi: 'Hóa đơn & Tiện ích' },
-    { nameEn: 'Sports & Fitness', nameVi: 'Thể thao & Tập gym' },
-    { nameEn: 'Savings & Investment', nameVi: 'Tiết kiệm & Đầu tư' },
-    { nameEn: 'Gifts & Donations', nameVi: 'Quà tặng & Đóng góp' },
-  ],
-  income: [
-    { nameEn: 'Salary', nameVi: 'Tiền lương' },
-    { nameEn: 'Allowance', nameVi: 'Trợ cấp gia đình' },
-    { nameEn: 'Scholarship', nameVi: 'Học bổng' },
-    { nameEn: 'Part-time & Freelance', nameVi: 'Làm thêm & Freelance' },
-    { nameEn: 'Gift & Bonus', nameVi: 'Quà tặng & Thưởng' },
-    { nameEn: 'Investments & Interest', nameVi: 'Đầu tư & Tiền lãi' },
-    { nameEn: 'Secondhand Sales', nameVi: 'Bán đồ cũ' },
-  ]
+const PRESET_CATEGORIES: Record<TransactionType, readonly never[]> = {
+  income: [],
+  payment: [],
 };
 
 export function CategorySelect({
@@ -88,36 +68,11 @@ export function CategorySelect({
 
   const defaultOtherId = dbOtherCategory ? String(dbOtherCategory.id) : (appliesTo === 'income' ? '4' : '11');
 
-  // Non-other DB categories
   const regularDbCategories = activeCategories.filter((c) => c.id !== dbOtherCategory?.id);
-
-  // Combine with presets if not already in DB
-  const presets = PRESET_CATEGORIES[appliesTo] || [];
-  const displayItems: Array<{ id: string; label: string; isOther?: boolean }> = [];
-
-  // Add DB categories first
-  regularDbCategories.forEach((cat) => {
-    displayItems.push({
-      id: String(cat.id),
-      label: locale === 'vi' ? (cat.name.vi || cat.name.en) : cat.name.en,
-    });
-  });
-
-  // Add presets that are not already present in regular DB categories
-  presets.forEach((preset) => {
-    const alreadyExists = regularDbCategories.some((cat) => {
-      const dbVi = (cat.name.vi || '').toLowerCase().trim();
-      const dbEn = (cat.name.en || '').toLowerCase().trim();
-      return dbVi === preset.nameVi.toLowerCase().trim() || dbEn === preset.nameEn.toLowerCase().trim();
-    });
-
-    if (!alreadyExists) {
-      displayItems.push({
-        id: `preset:${preset.nameEn}:${preset.nameVi}`,
-        label: locale === 'vi' ? preset.nameVi : preset.nameEn,
-      });
-    }
-  });
+  const displayItems: Array<{ id: string; label: string; isOther?: boolean }> = regularDbCategories.map((cat) => ({
+    id: String(cat.id),
+    label: locale === 'vi' ? (cat.name.vi || cat.name.en) : cat.name.en,
+  }));
 
   // Always put "Khác" at the very end
   const otherLabel = locale === 'vi' ? 'Khác (Tự điền...)' : 'Other (Custom...)';

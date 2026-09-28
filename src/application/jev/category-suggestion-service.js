@@ -1,7 +1,9 @@
+import { suggestLocalCategory } from './local-category-suggestion.js'
 import { loadAiProviderConfig } from '../../config/ai-provider-config.js'
 import { createOpenRouterJevAdapter } from '../../infrastructure/providers/openrouter-jev.js'
 import { createNghienAiCategoryAdapter } from '../../infrastructure/providers/nghienai-category.js'
 import { redactJevDescription } from '../../lib/jev-description.js'
+import { CANONICAL_CATEGORIES } from '../../domain/category-taxonomy.ts'
 
 const CATEGORY_QUESTION_ID = 'category'
 const OTHER_OR_UNCERTAIN_ID = 'other_or_uncertain'
@@ -219,10 +221,30 @@ export function createCategorySuggestionServiceFromEnvironment({
     })
   }
 
+  if (config.local.enabled !== true) {
+    return createCategorySuggestionService({ enabled: false, minimumConfidence: null, maxCandidates: null, adapter: undefined })
+  }
   return createCategorySuggestionService({
-    enabled: false,
-    minimumConfidence: null,
-    maxCandidates: null,
-    adapter: undefined,
+    enabled: true,
+    minimumConfidence: 0.8,
+    maxCandidates: 11,
+    adapter: {
+      decide: async ({ state, questions }) => {
+        const local = suggestLocalCategory({ transactionType: state.transactionType, description: state.description })
+        const categoryId = local.categoryId
+        const selected = categoryId === null ? 'other_or_uncertain' : Object.entries(questions.category.criteria).find(([, label]) => {
+          const canonical = CANONICAL_CATEGORIES.find(candidate => String(candidate.id) === categoryId)
+          return canonical !== undefined && label === (state.locale === 'vi' ? canonical.nameVi : canonical.nameEn)
+        })?.[0] ?? 'other_or_uncertain'
+        const criteriaIds = Object.keys(questions.category.criteria)
+        const otherIds = criteriaIds.filter(id => id !== selected)
+        const probabilities = Object.fromEntries(criteriaIds.map(id => [id, id === selected ? 0.94 : (0.06 / otherIds.length)]))
+        return {
+          answers: { category: { type: 'choice', choice: selected, confidence: local.confidence ?? 0, probabilities } },
+          model: 'campus-coin-local-category-index',
+          usage: { input_tokens: 0, output_tokens: 0 },
+        }
+      },
+    },
   })
 }

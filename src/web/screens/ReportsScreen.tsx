@@ -7,6 +7,7 @@ import { MonthPicker } from '../components/MonthPicker.js';
 import { ErrorBanner } from '../components/ErrorBanner.js';
 import { BudgetForm } from '../components/BudgetForm.js';
 import { useCategories } from '../hooks/use-categories.js';
+import type { Category } from '../types.js';
 import {
   Edit2,
   AlertTriangle,
@@ -28,7 +29,7 @@ interface ReportsScreenProps {
 
 export function ReportsScreen({ csrfToken, t, locale }: ReportsScreenProps) {
   const isVi = locale === 'vi';
-  const { getCategoryName } = useCategories();
+  const { getCategoryName, categories } = useCategories();
   const [month, setMonth] = useState<string>(getCurrentMonth());
   const [report, setReport] = useState<MonthlyReport | null>(null);
   const [budgets, setBudgets] = useState<Budget[]>([]);
@@ -61,6 +62,16 @@ export function ReportsScreen({ csrfToken, t, locale }: ReportsScreenProps) {
   const handleBudgetSuccess = () => {
     void loadData(month);
   };
+  const paymentCategories: Category[] = categories.filter(category => category.appliesTo === 'payment' && category.status === 'active');
+  const budgetCategories = paymentCategories.length > 0
+    ? paymentCategories
+    : (report?.categoryBreakdown.map(category => ({
+      id: category.categoryId,
+      name: { en: getCategoryName(category.categoryId, 'en'), vi: getCategoryName(category.categoryId, 'vi') },
+      appliesTo: 'payment' as const,
+      status: 'active' as const,
+      isDefault: true,
+    })) ?? []);
 
   const hasData =
     report &&
@@ -123,7 +134,11 @@ export function ReportsScreen({ csrfToken, t, locale }: ReportsScreenProps) {
         </div>
 
         <div className="reports-header-controls">
-          <MonthPicker month={month} onChange={setMonth} locale={locale} />
+          <MonthPicker
+            month={month}
+            onChange={nextMonth => { setEditBudgetCategory(null); setMonth(nextMonth); }}
+            locale={locale}
+          />
         </div>
       </div>
 
@@ -136,9 +151,20 @@ export function ReportsScreen({ csrfToken, t, locale }: ReportsScreenProps) {
           </div>
         </div>
       ) : !hasData ? (
-        <div className="empty-state panel">
-          <Calendar size={32} style={{ margin: '0 auto 10px', opacity: 0.5 }} />
-          <p>{t.noData}</p>
+        <div className="reports-content-grid">
+          <div className="empty-state panel"><Calendar size={32} style={{ margin: '0 auto 10px', opacity: 0.5 }} /><p>{t.noData}</p></div>
+          <div className="reports-budgets-card panel">
+            <div className="panel-heading"><div><h3>{t.budget}</h3><p className="muted">{isVi ? 'Thiết lập ngân sách cho tháng này' : 'Set budgets for this month'}</p></div></div>
+            <div className="budget-category-quick-list">
+              {budgetCategories.map(category => {
+                const categoryId = String(category.id);
+                const budget = getBudgetForCategory(categoryId);
+                const categoryName = locale === 'vi' ? (category.name.vi || category.name.en) : (category.name.en || category.name.vi);
+                const actionLabel = budget ? (isVi ? 'Sửa' : 'Edit') : (isVi ? 'Thêm' : 'Add');
+                return <button key={categoryId} type="button" className="secondary-button" onClick={() => setEditBudgetCategory({ id: categoryId, name: categoryName, limit: budget?.limitVnd ?? null })}>{actionLabel} {categoryName}</button>;
+              })}
+            </div>
+          </div>
         </div>
       ) : (
         <div className="reports-content-grid">
@@ -275,66 +301,41 @@ export function ReportsScreen({ csrfToken, t, locale }: ReportsScreenProps) {
                   </tr>
                 </thead>
                 <tbody>
-                  {report.categoryBreakdown.map(cat => {
-                    const budget = getBudgetForCategory(cat.categoryId);
-                    const isOverrun = budget?.isOverrun;
+                  {budgetCategories.map(cat => {
+                    const categoryId = String(cat.id);
+                    const budget = getBudgetForCategory(categoryId);
+                    const categoryTotal = report.categoryBreakdown.find(item => item.categoryId === categoryId);
+                    const spentVnd = categoryTotal?.amountVnd ?? budget?.usedVnd ?? 0;
+                    const isOverrun = budget?.isOverrun ?? false;
                     const usedPct = budget && budget.limitVnd > 0
-                      ? Math.min(Math.round((cat.amountVnd / budget.limitVnd) * 100), 100)
+                      ? Math.min(Math.round((spentVnd / budget.limitVnd) * 100), 100)
                       : 0;
-
+                    const categoryName = locale === 'vi' ? (cat.name.vi || cat.name.en) : (cat.name.en || cat.name.vi);
                     return (
-                      <tr key={cat.categoryId} className="transaction-table-row">
-                        <td>
-                          <strong className="tx-category-tag">{getCategoryName(cat.categoryId, locale)}</strong>
-                        </td>
-                        <td className="text-right">
-                          <strong className="negative">-{formatVnd(cat.amountVnd, locale)}</strong>
-                        </td>
-                        <td className="text-right">
-                          {budget ? formatVnd(budget.limitVnd, locale) : <span className="muted">—</span>}
-                        </td>
+                      <tr key={categoryId} className="transaction-table-row">
+                        <td><strong className="tx-category-tag">{categoryName}</strong></td>
+                        <td className="text-right"><strong className="negative">-{formatVnd(spentVnd, locale)}</strong></td>
+                        <td className="text-right">{budget ? formatVnd(budget.limitVnd, locale) : <span className="muted">—</span>}</td>
                         <td>
                           {budget ? (
                             <div className="budget-bar-cell">
-                              <div className="budget-bar-track">
-                                <div
-                                  className={`budget-bar-fill ${isOverrun ? 'overrun' : 'ok'}`}
-                                  style={{ width: `${usedPct}%` }}
-                                />
-                              </div>
+                              <div className="budget-bar-track"><div className={`budget-bar-fill ${isOverrun ? 'overrun' : 'ok'}`} style={{ width: `${usedPct}%` }} /></div>
                               <span className="budget-bar-pct">{usedPct}%</span>
                             </div>
-                          ) : (
-                            <span className="muted">{isVi ? 'Chưa đặt hạn mức' : 'No limit'}</span>
-                          )}
+                          ) : <span className="muted">{isVi ? 'Chưa đặt hạn mức' : 'No limit'}</span>}
                         </td>
                         <td>
-                          {isOverrun ? (
-                            <span className="status-badge warning">
-                              <AlertTriangle size={12} />
-                              <span>{isVi ? 'Vượt mức' : 'Exceeded'}</span>
-                            </span>
-                          ) : budget ? (
-                            <span className="status-badge success">
-                              <CheckCircle2 size={12} />
-                              <span>{isVi ? 'Trong mức' : 'On track'}</span>
-                            </span>
-                          ) : (
-                            <span className="muted">—</span>
-                          )}
+                          {isOverrun ? <span className="status-badge warning"><AlertTriangle size={12} /><span>{isVi ? 'Vượt mức' : 'Exceeded'}</span></span>
+                            : budget ? <span className="status-badge success"><CheckCircle2 size={12} /><span>{isVi ? 'Trong mức' : 'On track'}</span></span>
+                            : <span className="muted">—</span>}
                         </td>
                         <td className="text-center">
                           <button
                             type="button"
                             className="icon-button edit-budget-btn"
-                            onClick={() =>
-                              setEditBudgetCategory({
-                                id: cat.categoryId,
-                                name: getCategoryName(cat.categoryId, locale),
-                                limit: budget?.limitVnd ?? null,
-                              })
-                            }
-                            title={isVi ? `Sửa ngân sách ${getCategoryName(cat.categoryId, locale)}` : `Edit budget for ${getCategoryName(cat.categoryId, locale)}`}
+                            onClick={() => setEditBudgetCategory({ id: categoryId, name: categoryName, limit: budget?.limitVnd ?? null })}
+                            title={isVi ? `${budget ? 'Sửa' : 'Thêm'} ngân sách ${categoryName}` : `${budget ? 'Edit' : 'Add'} budget for ${categoryName}`}
+                            aria-label={isVi ? `${budget ? 'Sửa' : 'Thêm'} ngân sách ${categoryName}` : `${budget ? 'Edit' : 'Add'} budget for ${categoryName}`}
                           >
                             <Edit2 size={15} />
                           </button>
@@ -355,6 +356,7 @@ export function ReportsScreen({ csrfToken, t, locale }: ReportsScreenProps) {
           categoryName={editBudgetCategory.name}
           month={month}
           initialLimitVnd={editBudgetCategory.limit}
+          categoryOptions={budgetCategories}
           csrfToken={csrfToken}
           t={t}
           locale={locale}

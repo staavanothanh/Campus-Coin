@@ -522,6 +522,33 @@ if (!ENABLED) {
       assert.equal((await listMonthBudgets(getPool(), categoryOwnerId, month))[0]!.limitVnd, 250_000);
       assert.deepEqual(await listMonthBudgets(getPool(), otherUserId, month), []);
     });
+    test("budget remains month-scoped and new month usage starts at zero", async () => {
+      const userId = await newUserId();
+      const previousMonth = "2026-08";
+      const currentMonth = "2026-09";
+      await upsertUserBudget(getPool(), {
+        userId,
+        categoryId: 5,
+        month: previousMonth,
+        limitVnd: 200_000,
+        idempotencyKey: randomUUID(),
+        requestHash: canonicalHash({ categoryId: 5, month: previousMonth, limitVnd: 200_000 }),
+      });
+      assert.equal((await listMonthBudgets(getPool(), userId, previousMonth))[0]?.limitVnd, 200_000);
+      assert.deepEqual(await listMonthBudgets(getPool(), userId, currentMonth), []);
+      await upsertUserBudget(getPool(), {
+        userId,
+        categoryId: 5,
+        month: currentMonth,
+        limitVnd: 300_000,
+        idempotencyKey: randomUUID(),
+        requestHash: canonicalHash({ categoryId: 5, month: currentMonth, limitVnd: 300_000 }),
+      });
+      const current = await listMonthBudgets(getPool(), userId, currentMonth);
+      assert.equal(current[0]?.limitVnd, 300_000);
+      assert.equal(current[0]?.usedVnd, 0);
+      assert.equal(current[0]?.isOverrun, false);
+    });
   });
 
   describe("report HCMC", () => {

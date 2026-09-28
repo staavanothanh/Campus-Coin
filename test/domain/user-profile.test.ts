@@ -17,6 +17,8 @@ test('compares date of birth with the Vietnam calendar date', () => {
 });
 
 test('allows only the supported optional gender values', () => {
+  assert.equal(isProfileGender('gender_neutral'), true);
+  assert.equal(isProfileGender('non_binary'), false);
   assert.equal(isProfileGender('prefer_not_to_say'), true);
   assert.equal(isProfileGender('unknown'), false);
 });

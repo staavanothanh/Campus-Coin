@@ -302,7 +302,7 @@ export function SettingsScreen({
                 <option value="">{isVi ? 'Chưa chọn' : 'Not specified'}</option>
                 <option value="female">{isVi ? 'Nữ' : 'Female'}</option>
                 <option value="male">{isVi ? 'Nam' : 'Male'}</option>
-                <option value="non_binary">{isVi ? 'Phi nhị nguyên' : 'Non-binary'}</option>
+                <option value="gender_neutral">{isVi ? 'Giới tính trung tính' : 'Gender-neutral'}</option>
                 <option value="prefer_not_to_say">{isVi ? 'Không muốn tiết lộ' : 'Prefer not to say'}</option>
               </select>
             </div>

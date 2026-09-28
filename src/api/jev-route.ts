@@ -77,10 +77,11 @@ export async function handleJevSuggestion(
     try {
       const categories = await listUserCategories(options.db, options.actor.userId, { appliesTo: transactionType });
       const safeLabels = SAFE_CATEGORY_LABELS[transactionType][locale];
-      if (categories.some(category => !category.isDefault || !safeLabels.includes(category.name[locale]))) {
+      const canonicalCategories = categories.filter(category => category.isDefault);
+      if (canonicalCategories.length !== safeLabels.length || canonicalCategories.some(category => !safeLabels.includes(category.name[locale]))) {
         return success({ status: "manual", categoryId: null, confidence: null, reasonCode: "privacy" });
       }
-      const candidates = categories.map(category => ({
+      const candidates = canonicalCategories.map(category => ({
         providerId: randomUUID(),
         categoryId: category.id,
         semanticLabel: category.name[locale],
