@@ -8,7 +8,6 @@ export interface Copy {
   greetingEvening: string;
   overview: string;
   thisMonth: string;
-  balanceExplanation: string;
   preview: string;
   workspace: string;
   more: string;
@@ -124,7 +123,6 @@ export const copy: Record<Locale, Copy> = {
     greetingEvening: 'Chào buổi tối',
     overview: 'Một góc nhìn rõ ràng hơn về tiền của bạn.',
     thisMonth: 'Tháng này',
-    balanceExplanation: 'Số dư gồm số dư khởi tạo và toàn bộ thu, chi cùng các khoản chuyển tiết kiệm; hai thẻ thu và chi bên cạnh chỉ tính tháng này.',
     preview: 'Bản xem trước giao diện',
     workspace: 'Không gian',
     more: 'Thêm',
@@ -238,7 +236,6 @@ export const copy: Record<Locale, Copy> = {
     greetingEvening: 'Good evening',
     overview: 'A clearer view of where your money is going.',
     thisMonth: 'This month',
-    balanceExplanation: 'Balance includes your opening amount, all income and payments, and savings transfers; the income and spent cards show this month only.',
     preview: 'Interface preview',
     workspace: 'Workspace',
     more: 'More',

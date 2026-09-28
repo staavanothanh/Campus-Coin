@@ -1,6 +1,6 @@
 import type { Transaction } from './types.js';
 import type { Locale } from './types.js';
-import { formatMonth } from './format.js';
+import { formatMonth, getCurrentMonth, getCurrentVietnamDate, getCurrentVietnamMonthEnd } from './format.js';
 
 export type TransactionGrouping = 'day' | 'month';
 export type TransactionTypeFilter = 'all' | 'income' | 'payment';
@@ -33,6 +33,16 @@ export function calendarMonthRange(month: string): CalendarMonthRange | null {
   return {
     from: `${match[1]}-${match[2]}-01`,
     to: `${match[1]}-${match[2]}-${String(lastDay).padStart(2, '0')}`,
+  };
+}
+
+/** Default transaction history to the complete current month in the business timezone. */
+export function defaultTransactionDateRange(now: Date = new Date()): CalendarMonthRange {
+  const monthRange = calendarMonthRange(getCurrentMonth(now));
+  if (monthRange) return monthRange;
+  return {
+    from: getCurrentVietnamDate(now),
+    to: getCurrentVietnamMonthEnd(now),
   };
 }
 

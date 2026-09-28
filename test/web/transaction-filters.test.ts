@@ -1,8 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { Transaction } from '../../src/web/types.ts';
-import { getCurrentVietnamDate, getCurrentVietnamMonthEnd } from '../../src/web/format.ts';
-import { calendarMonthRange, groupTransactions, isValidDateRange, summarizeTransactions, transactionListPath } from '../../src/web/transaction-filters.ts';
+import { calendarMonthRange, defaultTransactionDateRange, groupTransactions, isValidDateRange, summarizeTransactions, transactionListPath } from '../../src/web/transaction-filters.ts';
 
 function transaction(id: string, occurredAt: string): Transaction {
   return {
@@ -49,11 +48,13 @@ test('keeps income, payment and net totals separate for the selected rows', () =
   assert.deepEqual(summarizeTransactions([]), { income: 0, payment: 0, net: 0 });
 });
 
-test('uses the Asia/Ho_Chi_Minh calendar month when calculating the default range', () => {
-  const now = new Date('2026-09-27T17:30:00.000Z');
-  assert.equal(getCurrentVietnamDate(now), '2026-09-28');
-  assert.equal(getCurrentVietnamMonthEnd(now), '2026-09-30');
-  assert.equal(getCurrentVietnamMonthEnd(new Date('2024-02-10T05:00:00.000Z')), '2024-02-29');
+test('defaults to the full Asia/Ho_Chi_Minh month so earlier transactions remain visible', () => {
+  const now = new Date('2026-08-31T17:30:00.000Z');
+  assert.deepEqual(defaultTransactionDateRange(now), { from: '2026-09-01', to: '2026-09-30' });
+  assert.deepEqual(defaultTransactionDateRange(new Date('2024-02-10T05:00:00.000Z')), {
+    from: '2024-02-01',
+    to: '2024-02-29',
+  });
 });
 
 test('groups and sorts transactions by their Asia/Ho_Chi_Minh date', () => {

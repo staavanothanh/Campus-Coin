@@ -577,7 +577,6 @@ function DashboardView({
         {isWalletInit ? (
           <>
             <strong>{formatVnd(dashboard?.wallet?.availableBalanceVnd, locale)}</strong>
-            <p className="balance-caption">{t.balanceExplanation}</p>
           </>
         ) : (
           <div style={{ marginTop: 4 }}>

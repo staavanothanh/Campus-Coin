@@ -3,7 +3,7 @@ import { usePagination } from '../hooks/use-pagination.js';
 import { useCategories } from '../hooks/use-categories.js';
 import type { Transaction, Locale } from '../types.js';
 import type { Copy } from '../i18n.js';
-import { formatVnd, formatDate, getCurrentMonth, getCurrentVietnamDate, getCurrentVietnamMonthEnd } from '../format.js';
+import { formatVnd, formatDate, getCurrentMonth } from '../format.js';
 import {
   ArrowDownLeft,
   ArrowUpRight,
@@ -14,7 +14,7 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { ErrorBanner } from '../components/ErrorBanner.js';
-import { calendarMonthRange, formatTransactionGroupLabel, groupTransactions, isValidDateRange, summarizeTransactions, transactionListPath, type TransactionGrouping } from '../transaction-filters.js';
+import { calendarMonthRange, defaultTransactionDateRange, formatTransactionGroupLabel, groupTransactions, isValidDateRange, summarizeTransactions, transactionListPath, type TransactionGrouping } from '../transaction-filters.js';
 
 interface TransactionsScreenProps {
   t: Copy;
@@ -28,11 +28,11 @@ export function TransactionsScreen({ t, locale }: TransactionsScreenProps) {
   const [grouping, setGrouping] = useState<TransactionGrouping>('month');
   const [searchTerm, setSearchTerm] = useState('');
   const now = new Date();
-  const currentDate = getCurrentVietnamDate(now);
   const currentMonth = getCurrentMonth(now);
+  const initialDateRange = defaultTransactionDateRange(now);
   const [selectedMonth, setSelectedMonth] = useState(currentMonth);
-  const [dateFrom, setDateFrom] = useState(currentDate);
-  const [dateTo, setDateTo] = useState(() => getCurrentVietnamMonthEnd(now));
+  const [dateFrom, setDateFrom] = useState(initialDateRange.from);
+  const [dateTo, setDateTo] = useState(initialDateRange.to);
 
   const validDateRange = isValidDateRange(dateFrom, dateTo);
   const basePath = transactionListPath(typeFilter, dateFrom, dateTo);
