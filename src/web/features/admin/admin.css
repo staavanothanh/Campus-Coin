@@ -1,0 +1,29 @@
+.admin-workspace { --border: #cbd5e1; --surface: #fff; display: grid; gap: var(--space-4, 16px); }
+.theme-dark .admin-workspace { --border: #475569; --surface: #1e293b; }
+.theme-dark .admin-priority-P0 { color: #fca5a5; }
+.admin-header h2 { margin-top: 0; }
+.admin-boundary { padding: 12px; border: 1px solid var(--border); border-radius: 12px; }
+.admin-filters { display: flex; flex-wrap: wrap; gap: 16px; }
+.admin-filters label, .admin-detail label { display: grid; gap: 8px; }
+.admin-filters select, .admin-detail select, .admin-detail textarea { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border); color: inherit; background: var(--surface); font: inherit; }
+.admin-metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.admin-metrics > div { display: grid; gap: 12px; }
+.admin-metrics strong { font-size: 1.6rem; }
+.admin-metric { display: grid; gap: 6px; border: 1px solid var(--border); border-radius: 10px; padding: 12px; }
+.admin-metric strong { font-size: 1.4rem; }
+.admin-report-title { max-width: 320px; overflow-wrap: anywhere; }
+.admin-priority { display: inline-block; border: 1px solid currentColor; border-radius: 8px; padding: 4px 8px; font-weight: 700; }
+.admin-priority-P0 { color: var(--danger, #b42318); }
+.admin-status { display: inline-block; border: 1px solid currentColor; border-radius: 8px; padding: 4px 8px; font-size: 12px; font-weight: 600; }
+.admin-status-active { color: #15803d; }
+.admin-status-disabled { color: var(--danger, #b42318); }
+.theme-dark .admin-status-active { color: #86efac; }
+.admin-detail { display: grid; gap: 16px; padding: 24px; }
+.modal:has(.admin-detail) { width: min(100%, 680px); max-height: calc(100dvh - 40px); overflow-y: auto; padding: 0; }
+.modal .admin-detail label { display: grid; }
+.admin-detail h2, .admin-detail p { margin: 0; }
+.admin-description { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 240px; overflow: auto; }
+.admin-detail textarea { resize: vertical; min-height: 120px; }
+.admin-detail .action-row { flex-wrap: wrap; }
+.admin-workspace select:focus-visible, .admin-detail select:focus-visible, .admin-detail textarea:focus-visible { outline: 3px solid #f0b15b; outline-offset: 3px; }
+@media (max-width: 640px) { .admin-metrics { grid-template-columns: 1fr; } .admin-filters label { flex: 1 1 100%; } .admin-detail { padding: 16px; } }

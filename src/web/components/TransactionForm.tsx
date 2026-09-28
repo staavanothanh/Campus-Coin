@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { apiPost, ApiRequestError } from '../api-client.js';
 import { parseAmountVnd, formatVnd } from '../format.js';
 import type {
@@ -6,7 +6,8 @@ import type {
   TransactionWithWarning,
   TransactionType,
   Locale,
-  BudgetWarning
+  BudgetWarning,
+  CategorySuggestion
 } from '../types.js';
 import type { Copy } from '../i18n.js';
 import { Modal } from './Modal.js';
@@ -58,6 +59,52 @@ export function TransactionForm({
   const [error, setError] = useState<ApiRequestError | string | null>(null);
   const [budgetWarning, setBudgetWarning] = useState<BudgetWarning | null>(null);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [suggestion, setSuggestion] = useState<CategorySuggestion | null>(null);
+  const [suggestionLoading, setSuggestionLoading] = useState(false);
+  const [suggestionError, setSuggestionError] = useState(false);
+  const [acceptedSuggestionId, setAcceptedSuggestionId] = useState<string | null>(null);
+  const suggestionSeq = useRef(0);
+
+  async function requestCategorySuggestion(silent = false) {
+    const trimmed = description.trim();
+    if (!trimmed) return;
+    const seq = ++suggestionSeq.current;
+    setSuggestionLoading(true);
+    setSuggestion(null);
+    if (!silent) setSuggestionError(false);
+    setAcceptedSuggestionId(null);
+    try {
+      const result = await apiPost<CategorySuggestion>('/ai/category-suggestion', {
+        transactionType: currentType,
+        description: trimmed,
+        locale,
+      }, { 'X-CSRF-Token': csrfToken });
+      if (seq !== suggestionSeq.current) return;
+      setSuggestion(result);
+    } catch {
+      if (seq !== suggestionSeq.current) return;
+      if (!silent) setSuggestionError(true);
+    } finally {
+      if (seq === suggestionSeq.current) setSuggestionLoading(false);
+    }
+  }
+
+  // Auto-suggest (debounced) while the user types a description; silent on
+  // non-"suggested" outcomes so typing never spams the manual picker.
+  useEffect(() => {
+    suggestionSeq.current += 1;
+    setSuggestionLoading(false);
+    if (description.trim().length < 2) {
+      setSuggestion(null);
+      setSuggestionError(false);
+      setAcceptedSuggestionId(null);
+      return;
+    }
+    const timer = setTimeout(() => {
+      void requestCategorySuggestion(true);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [description, currentType, locale]);
 
   function handleAddQuickAmount(addVal: number) {
     const currentNum = parseInt(amount.replace(/\D/g, ''), 10) || 0;
@@ -106,14 +153,17 @@ export function TransactionForm({
             'Idempotency-Key': crypto.randomUUID(),
           }
         );
-        if (newCat && newCat.id) {
-          finalCategoryId = String(newCat.id);
-          invalidateCategoriesCache();
+        if (!newCat || !newCat.id) {
+          setError(t.categoryCreateFailed);
+          setLoading(false);
+          return;
         }
+        finalCategoryId = String(newCat.id);
+        invalidateCategoriesCache();
       } catch {
-        if (!finalCategoryId || finalCategoryId.startsWith('preset:') || finalCategoryId === 'other') {
-          finalCategoryId = currentType === 'income' ? '4' : '11';
-        }
+        setError(t.categoryCreateFailed);
+        setLoading(false);
+        return;
       }
     } else if (finalCategoryId.startsWith('preset:')) {
       const [, pEn, pVi] = finalCategoryId.split(':');
@@ -130,12 +180,17 @@ export function TransactionForm({
             'Idempotency-Key': crypto.randomUUID(),
           }
         );
-        if (newCat && newCat.id) {
-          finalCategoryId = String(newCat.id);
-          invalidateCategoriesCache();
+        if (!newCat || !newCat.id) {
+          setError(t.categoryCreateFailed);
+          setLoading(false);
+          return;
         }
+        finalCategoryId = String(newCat.id);
+        invalidateCategoriesCache();
       } catch {
-        finalCategoryId = currentType === 'income' ? '4' : '11';
+        setError(t.categoryCreateFailed);
+        setLoading(false);
+        return;
       }
     } else if (finalCategoryId === 'other') {
       finalCategoryId = currentType === 'income' ? '4' : '11';
@@ -154,6 +209,9 @@ export function TransactionForm({
       categoryId: finalCategoryId,
       occurredAt: new Date().toISOString(),
       ...(finalDescription ? { description: finalDescription } : {}),
+      ...(acceptedSuggestionId !== null && acceptedSuggestionId === finalCategoryId
+        ? { confirmedCategorySuggestion: true }
+        : {}),
     };
 
     try {
@@ -227,6 +285,8 @@ export function TransactionForm({
                 setCategoryId('');
                 setIsOtherSelected(false);
                 setCustomCategoryName('');
+                setAcceptedSuggestionId(null);
+                setSuggestion(null);
               }}
             >
               <ArrowUpRight size={16} />
@@ -240,6 +300,8 @@ export function TransactionForm({
                 setCategoryId('');
                 setIsOtherSelected(false);
                 setCustomCategoryName('');
+                setAcceptedSuggestionId(null);
+                setSuggestion(null);
               }}
             >
               <ArrowDownLeft size={16} />
@@ -314,7 +376,10 @@ export function TransactionForm({
             <CategorySelect
               appliesTo={currentType}
               value={categoryId}
-              onChange={setCategoryId}
+              onChange={(nextCategoryId) => {
+                setCategoryId(nextCategoryId);
+                if (nextCategoryId !== acceptedSuggestionId) setAcceptedSuggestionId(null);
+              }}
               onOtherChange={(isOther) => {
                 setIsOtherSelected(isOther);
                 if (!isOther) setCustomCategoryName('');
@@ -358,11 +423,50 @@ export function TransactionForm({
               id="tx-desc"
               type="text"
               value={description}
-              onChange={e => setDescription(e.target.value)}
+              onChange={e => {
+                setDescription(e.target.value);
+                setAcceptedSuggestionId(null);
+                setSuggestion(null);
+              }}
               disabled={loading}
               maxLength={255}
               placeholder={isVi ? 'Ví dụ: Cơm trưa căng tin, giáo trình...' : 'e.g. Lunch, books...'}
             />
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={() => void requestCategorySuggestion()}
+              disabled={loading || suggestionLoading || !description.trim()}
+              style={{ marginTop: 8 }}
+            >
+              {suggestionLoading ? t.suggestionLoading : t.suggestCategory}
+            </button>
+            {suggestionError && <p role="status" className="muted">{t.suggestionFailed}</p>}
+            {suggestion?.status === 'disabled' && <p role="status" className="muted">{t.suggestionDisabled}</p>}
+            {suggestion?.status === 'unavailable' && <p role="status" className="muted">{t.suggestionUnavailable}</p>}
+            {suggestion?.status === 'manual' && <p role="status" className="muted">{t.suggestionManual}</p>}
+            {suggestion?.status === 'suggested' && suggestion.categoryId && (
+              <div role="status" className="muted">
+                <p>{t.suggestionAvailable}</p>
+                <button
+                  type="button"
+                  className="secondary-button"
+                  disabled={loading}
+                  onClick={() => {
+                    const suggestedId = suggestion.categoryId;
+                    if (suggestedId === null) return;
+                    setCategoryId(suggestedId);
+                    setIsOtherSelected(false);
+                    setCustomCategoryName('');
+                    setAcceptedSuggestionId(suggestedId);
+                    setError(null);
+                  }}
+                >
+                  {t.suggestionUse}
+                </button>
+                {acceptedSuggestionId === suggestion.categoryId && <p>{t.suggestionConfirm}</p>}
+              </div>
+            )}
           </div>
 
           {/* Actions */}

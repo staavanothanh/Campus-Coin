@@ -20,6 +20,14 @@ Google không cấu hình thì email flow vẫn hoạt động và provider disc
 
 ## 2. Trạng thái hiện tại
 
+### Bổ sung UI admin ngày 2026-09-28
+
+Dashboard vận hành dùng API hiện có đã có hàng đợi, bộ lọc, chi tiết, triage status/priority, note append-only và audit chỉ đọc, VI/EN. Counts chỉ phản ánh các trang đã tải. Typecheck/build và 31 test hẹp pass; Playwright smoke dùng API synthetic, không chứng minh live DB/admin authorization. Assign owner và controls content/incident còn thiếu contract, không được coi là hoàn tất toàn bộ gate admin. Evidence: [Admin dashboard](./working/admin-dashboard-2026-09-28.md).
+
+### Bổ sung quản trị tài khoản admin ngày 2026-09-28
+
+Thêm `GET /api/v1/admin/users` (email đã mask, paginated) và `PATCH /api/v1/admin/users/{userId}` đổi status active/disabled. Thay đổi status: admin-only, không cho tự disable tài khoản đang thao tác, reason bắt buộc (3–500), idempotent qua `mutation_idempotency`, audit append-only `admin.user.status_change`. Không migration, không đổi schema, không đụng role/balance/ledger. UI có tab Tài khoản (list, mask email, nút dừng/kích hoạt kèm modal reason, ẩn nút cho tài khoản hiện dùng). Thêm `GET /api/v1/admin/metrics` (aggregate users/issues/audit, không có tổng tiền user) + tab Chỉ số vận hành. OpenAPI + artifacts đã regenerate. Typecheck/lint/build pass; 38 test hẹp + 8 test admin pass; Playwright smoke dùng API synthetic. Còn chờ: test với tài khoản admin thật + DB, CI run và review log/redaction phía server. Assign owner và content admin còn bị chặn vì cần migration/trigger schema (xem evidence). Evidence: [Admin dashboard](./working/admin-dashboard-2026-09-28.md).
+
 | Hạng mục | Trạng thái | Bằng chứng / gate còn lại |
 |---|---|---|
 | Quyết định auth và canonical docs | Đã chốt; ADR-0008 giữ email auth, ADR-0009 thêm Google tùy chọn | Team Leader báo kết nối Google OAuth thành công; môi trường và việc login/link cả hai flow chưa được nêu |

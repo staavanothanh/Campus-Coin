@@ -1,5 +1,6 @@
 import { loadAiProviderConfig } from '../../config/ai-provider-config.js'
 import { createOpenRouterJevAdapter } from '../../infrastructure/providers/openrouter-jev.js'
+import { createNghienAiCategoryAdapter } from '../../infrastructure/providers/nghienai-category.js'
 import { redactJevDescription } from '../../lib/jev-description.js'
 
 const CATEGORY_QUESTION_ID = 'category'
@@ -187,17 +188,41 @@ export function createCategorySuggestionServiceFromEnvironment({
 } = {}) {
   const loadOptions = loadEnvFile === undefined ? { env } : { env, loadEnvFile }
   const config = loadAiProviderConfig(loadOptions)
-  const hasPolicy = isValidPolicy(config.jev.minimumConfidence, config.jev.maxCandidates)
-  const apiKey = config.jev.apiKey
-  const explicitlyEnabled = config.jev.enabled
-  const adapter = explicitlyEnabled && hasPolicy
-    ? createOpenRouterJevAdapter({ apiKey, fetchImpl, logger })
-    : undefined
+
+  // JEV (OpenRouter typed System One) is the canonical provider; it wins when
+  // explicitly enabled with a valid key and policy.
+  const jev = config.jev
+  if (jev.enabled && isValidPolicy(jev.minimumConfidence, jev.maxCandidates) && typeof jev.apiKey === 'string') {
+    return createCategorySuggestionService({
+      enabled: true,
+      minimumConfidence: jev.minimumConfidence,
+      maxCandidates: jev.maxCandidates,
+      adapter: createOpenRouterJevAdapter({ apiKey: jev.apiKey, fetchImpl, logger }),
+    })
+  }
+
+  // NghienAI (provisional generative LLM) is the fallback provider. It reuses
+  // the same shared decision contract and stays off without a valid key/policy.
+  const nghienAi = config.nghienAi
+  if (nghienAi.enabled && isValidPolicy(nghienAi.minimumConfidence, nghienAi.maxCandidates) && typeof nghienAi.apiKey === 'string') {
+    return createCategorySuggestionService({
+      enabled: true,
+      minimumConfidence: nghienAi.minimumConfidence,
+      maxCandidates: nghienAi.maxCandidates,
+      adapter: createNghienAiCategoryAdapter({
+        apiKey: nghienAi.apiKey,
+        baseUrl: nghienAi.baseUrl,
+        model: nghienAi.model,
+        fetchImpl,
+        logger,
+      }),
+    })
+  }
 
   return createCategorySuggestionService({
-    enabled: explicitlyEnabled,
-    minimumConfidence: config.jev.minimumConfidence,
-    maxCandidates: config.jev.maxCandidates,
-    adapter,
+    enabled: false,
+    minimumConfidence: null,
+    maxCandidates: null,
+    adapter: undefined,
   })
 }

@@ -20,8 +20,8 @@ import {
   WalletCards,
   X,
 } from 'lucide-react';
-import { apiGet, apiPost, setUnauthorizedHandler } from './api-client.js';
-import { formatVnd, formatDate, getCurrentMonthFormatted, getCurrentDateFormatted } from './format.js';
+import { apiGet, apiPost, setUnauthorizedHandler, ApiRequestError } from './api-client.js';
+import { formatVnd, formatDate, getCurrentMonth, getCurrentDateFormatted } from './format.js';
 import { copy, type Copy } from './i18n.js';
 import type { Locale, Theme, Screen, Session, Dashboard, BudgetSummary, Transaction } from './types.js';
 import { TransactionForm } from './components/TransactionForm.js';
@@ -112,6 +112,8 @@ export function App() {
     }
   });
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [signOutError, setSignOutError] = useState(false);
+  const dashboardRequestId = useRef(0);
   const t = copy[locale];
 
   function toggleNotifications() {
@@ -132,6 +134,8 @@ export function App() {
   // Configure global unauthorized handler for the API client
   useEffect(() => {
     setUnauthorizedHandler(() => {
+      dashboardRequestId.current += 1;
+      setDashboard(null);
       setSession(null);
       setState('unauthenticated');
     });
@@ -139,15 +143,24 @@ export function App() {
 
   async function loadDashboard(silent = false) {
     if (!session) return;
+    const requestId = ++dashboardRequestId.current;
     if (!silent) setState('loading');
     setError('');
     try {
       const data = await apiGet<Dashboard>('/reports/dashboard');
+      if (requestId !== dashboardRequestId.current) return;
       setDashboard(data);
       setState('ready');
     } catch (caught) {
+      if (requestId !== dashboardRequestId.current) return;
+      if (caught instanceof ApiRequestError && caught.isUnauthorized) {
+        setDashboard(null);
+        setSession(null);
+        setState('unauthenticated');
+        return;
+      }
       if (!silent) setState('error');
-      setError(caught instanceof Error ? caught.message : 'REQUEST_FAILED');
+      setError(t.unavailable);
     }
   }
 
@@ -173,11 +186,14 @@ export function App() {
 
   async function signOut() {
     if (!session) return;
+    setSignOutError(false);
     try {
       await apiPost('/auth/logout', {}, { 'X-CSRF-Token': session.csrfToken });
     } catch {
-      // ignore
+      setSignOutError(true);
+      return;
     }
+    dashboardRequestId.current += 1;
     setSession(null);
     setDashboard(null);
     setState('unauthenticated');
@@ -190,8 +206,11 @@ export function App() {
         locale={locale}
         onLocaleChange={setLocale}
         onAuthenticated={(newSession) => {
+          dashboardRequestId.current += 1;
+          setDashboard(null);
           setSession(newSession);
-          setState('ready');
+          setState('loading');
+          setSignOutError(false);
         }}
       />
     );
@@ -233,7 +252,7 @@ export function App() {
           <NavItem icon={<WalletCards size={18} />} label={t.goals} active={screen === 'savings'} onClick={() => { setScreen('savings'); setMenuOpen(false); }} />
           <NavItem icon={<FileText size={18} />} label={t.reports} active={screen === 'reports'} onClick={() => { setScreen('reports'); setMenuOpen(false); }} />
           <p className="nav-label nav-label-spaced">{t.more}</p>
-          {session.user.role !== 'user' && <NavItem icon={<CircleHelp size={18} />} label={t.admin} active={screen === 'admin'} onClick={() => { setScreen('admin'); setMenuOpen(false); }} />}
+          {session.user.role === 'admin' && <NavItem icon={<CircleHelp size={18} />} label={t.admin} active={screen === 'admin'} onClick={() => { setScreen('admin'); setMenuOpen(false); }} />}
           <NavItem icon={<Settings size={18} />} label={t.settings} active={screen === 'settings'} onClick={() => { setScreen('settings'); setMenuOpen(false); }} />
           <NavItem icon={<CircleHelp size={18} />} label={t.help} active={screen === 'help'} onClick={() => { setScreen('help'); setMenuOpen(false); }} />
         </nav>
@@ -288,6 +307,7 @@ export function App() {
         </header>
 
         <section className="content-wrap">
+          {signOutError && <p role="alert" className="error-banner">{t.signOutFailed}</p>}
           {screen === 'dashboard' && (
             <>
               <div className="page-intro">
@@ -568,31 +588,45 @@ function TransactionRow({
 
 function BudgetPanel({ locale, t, onSetBudget }: { locale: Locale; t: Copy; onSetBudget?: (() => void) | undefined }) {
   const [summary, setSummary] = useState<BudgetSummary | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loadState, setLoadState] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     let active = true;
+    setLoadState('loading');
     const load = async () => {
       try {
-        const month = new Date().toISOString().slice(0, 7);
+        const month = getCurrentMonth();
         const data = await apiGet<BudgetSummary>(`/budgets/summary?month=${month}`);
-        if (active) setSummary(data);
+        if (active) {
+          setSummary(data);
+          setLoadState('ready');
+        }
       } catch {
-        // ignore for now
-      } finally {
-        if (active) setLoading(false);
+        if (active) setLoadState('error');
       }
     };
     void load();
     return () => { active = false; };
-  }, []);
+  }, [refreshKey]);
 
-  if (loading) {
+  if (loadState === 'loading') {
     return (
       <section className="panel budget-panel">
         <div className="panel-heading">
           <div><h2>{t.budget}</h2><p className="muted">{t.loading}</p></div>
         </div>
+      </section>
+    );
+  }
+
+  if (loadState === 'error') {
+    return (
+      <section className="panel budget-panel" aria-live="polite">
+        <div className="panel-heading">
+          <div><h2>{t.budget}</h2><p role="alert" className="muted">{t.budgetLoadFailed}</p></div>
+        </div>
+        <button type="button" className="secondary-button" onClick={() => setRefreshKey((value) => value + 1)}>{t.retry}</button>
       </section>
     );
   }

@@ -1,5 +1,5 @@
-const DEFAULT_BASE_URL = 'https://api.aixingialaire.shop/v1'
-const DEFAULT_MODEL = 'gpt-6-luna'
+export const DEFAULT_BASE_URL = 'https://api.aixingialaire.shop/v1'
+export const DEFAULT_MODEL = 'gpt-6-luna'
 const DEFAULT_TIMEOUT_MS = 15_000
 const MAX_RESPONSE_BYTES = 65_536
 const MAX_REQUEST_BYTES = 65_536

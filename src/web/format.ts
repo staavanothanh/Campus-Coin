@@ -33,8 +33,7 @@ export function formatMonth(month: string, locale: Locale): string {
 }
 
 /** Get current YYYY-MM month in Asia/Ho_Chi_Minh timezone. */
-export function getCurrentMonth(): string {
-  const now = new Date();
+export function getCurrentMonth(now: Date = new Date()): string {
   const formatter = new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Asia/Ho_Chi_Minh',
     year: 'numeric',

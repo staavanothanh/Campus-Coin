@@ -745,6 +745,59 @@ paths:
         '403': {$ref: '#/components/responses/Forbidden'}
         '500': {$ref: '#/components/responses/InternalError'}
         default: {$ref: '#/components/responses/InternalError'}
+  /admin/metrics:
+    get:
+      operationId: getAdminMetrics
+      tags: [Admin]
+      summary: Các aggregate vận hành cần thiết (users/issues/audit) — không có tổng tiền user
+      description: Chỉ trả aggregate từ users, issues và audit_events; không đọc nội dung row, không trả balance/ledger.
+      responses:
+        '200': {description: Admin metrics, headers: {Cache-Control: {$ref: '#/components/headers/PrivateNoStore'}}, content: {application/json: {schema: {$ref: '#/components/schemas/AdminMetricsResponse'}}}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        default: {$ref: '#/components/responses/InternalError'}
+  /admin/users:
+    get:
+      operationId: getAdminUsers
+      tags: [Admin]
+      summary: Liệt kê user (email đã mask) để quản trị tài khoản
+      description: Admin-only; trả email đã mask. Không trả ledger/balance của user.
+      parameters: [{$ref: '#/components/parameters/Cursor'}, {$ref: '#/components/parameters/Limit'}]
+      responses:
+        '200': {description: User page (masked email), headers: {Cache-Control: {$ref: '#/components/headers/PrivateNoStore'}}, content: {application/json: {schema: {$ref: '#/components/schemas/AdminUserPageResponse'}}}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        default: {$ref: '#/components/responses/InternalError'}
+  /admin/users/{userId}:
+    patch:
+      operationId: patchAdminUserStatus
+      tags: [Admin]
+      summary: Đổi trạng thái tài khoản active/disabled (muốn audit và idempotent)
+      description: Không cho disable chính tài khoản admin đang thao tác; chỉ đổi status, không đổi role/balance/ledger.
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema: {type: string, pattern: '^[1-9][0-9]*$'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/AdminUserStatusUpdateRequest'}
+      responses:
+        '200': {description: Trạng thái mới của user, headers: {Cache-Control: {$ref: '#/components/headers/PrivateNoStore'}}, content: {application/json: {schema: {$ref: '#/components/schemas/AdminUserResponse'}}}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/CsrfInvalid'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/IdempotencyConflict'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '415': {$ref: '#/components/responses/UnsupportedMediaType'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        default: {$ref: '#/components/responses/InternalError'}
   /ai/category-suggestion:
     post:
       operationId: postAiCategorySuggestion
@@ -1147,6 +1200,69 @@ components:
         totalUsers: {type: integer, minimum: 0}
         verifiedUsers: {type: integer, minimum: 0}
     AdminStatsResponse: {type: object, required: [data], properties: {data: {$ref: '#/components/schemas/AdminStats'}}}
+    AdminMetrics:
+      type: object
+      required: [users, issues, audit]
+      properties:
+        users:
+          type: object
+          required: [totalUsers, verifiedUsers, activeUsers, disabledUsers]
+          properties:
+            totalUsers: {type: integer, minimum: 0}
+            verifiedUsers: {type: integer, minimum: 0}
+            activeUsers: {type: integer, minimum: 0}
+            disabledUsers: {type: integer, minimum: 0}
+        issues:
+          type: object
+          required: [total, byStatus, byPriority]
+          properties:
+            total: {type: integer, minimum: 0}
+            byStatus:
+              type: object
+              required: [open, in_triage, resolved, closed]
+              properties:
+                open: {type: integer, minimum: 0}
+                in_triage: {type: integer, minimum: 0}
+                resolved: {type: integer, minimum: 0}
+                closed: {type: integer, minimum: 0}
+            byPriority:
+              type: object
+              required: [P0, P1, P2]
+              properties:
+                P0: {type: integer, minimum: 0}
+                P1: {type: integer, minimum: 0}
+                P2: {type: integer, minimum: 0}
+        audit:
+          type: object
+          required: [success, failure]
+          properties:
+            success: {type: integer, minimum: 0}
+            failure: {type: integer, minimum: 0}
+    AdminMetricsResponse: {type: object, required: [data], properties: {data: {$ref: '#/components/schemas/AdminMetrics'}}}
+    AdminUser:
+      type: object
+      required: [id, emailMasked, displayName, role, status, locale, createdAt]
+      properties:
+        id: {type: string}
+        emailMasked: {type: string, description: Email đã mask để giảm PII trong admin list}
+        displayName: {type: string}
+        role: {type: string, enum: [user, admin, security]}
+        status: {type: string, enum: [active, disabled]}
+        locale: {$ref: '#/components/schemas/Locale'}
+        createdAt: {type: string, format: date-time}
+    AdminUserResponse: {type: object, required: [data], properties: {data: {$ref: '#/components/schemas/AdminUser'}}}
+    AdminUserPageResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data: {type: array, items: {$ref: '#/components/schemas/AdminUser'}}
+        meta: {$ref: '#/components/schemas/PageMeta'}
+    AdminUserStatusUpdateRequest:
+      type: object
+      required: [status, reason]
+      properties:
+        status: {type: string, enum: [active, disabled]}
+        reason: {type: string, minLength: 3, maxLength: 500, description: Lý do bắt buộc cho audit append-only}
     AuditEvent:
       type: object
       required: [id, action, outcome, createdAt]

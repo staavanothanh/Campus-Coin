@@ -27,6 +27,12 @@ function requireApiKey(env, name) {
   if (typeof value !== 'string' || value.trim() === '') throw createConfigurationError()
   return value
 }
+
+function readOptionalApiKey(env, name) {
+  const value = env[name]
+  if (typeof value !== 'string' || value.trim() === '') return undefined
+  return value
+}
 function readOptionalFiniteNumber(env, name, minimum, maximum, fallback = null) {
   const value = env[name]
   if (value === undefined || value.trim() === '') return fallback
@@ -56,7 +62,12 @@ function loadEnvironment(loadEnvFile) {
 export function loadAiProviderConfig({ env = process.env, loadEnvFile = defaultLoader } = {}) {
   loadEnvironment(loadEnvFile)
   const jevEnabled = readFeatureFlag(env, 'JEV_CATEGORY_SUGGESTION_ENABLED')
-  const nghienAiEnabled = readFeatureFlag(env, 'NGHIENAI_LLM_ENABLED')
+  const nghienAiFlag = readFeatureFlag(env, 'NGHIENAI_LLM_ENABLED')
+  const nghienAiApiKey = readOptionalApiKey(env, 'NGHIENAI_API_KEY')
+  // NghienAI is a provisional provider; enabling it without a usable key must
+  // degrade to disabled instead of crashing startup (the key is optional until
+  // a verified contract exists). JEV keeps strict fail-closed behaviour.
+  const nghienAiEnabled = nghienAiFlag && nghienAiApiKey !== undefined
 
   return {
     jev: {
@@ -67,9 +78,11 @@ export function loadAiProviderConfig({ env = process.env, loadEnvFile = defaultL
     },
     nghienAi: {
       enabled: nghienAiEnabled,
-      ...(nghienAiEnabled ? { apiKey: requireApiKey(env, 'NGHIENAI_API_KEY') } : {}),
+      ...(nghienAiEnabled ? { apiKey: nghienAiApiKey } : {}),
       baseUrl: env.NGHIENAI_BASE_URL ?? DEFAULT_NGHIENAI_BASE_URL,
       model: NGHIENAI_MODEL,
+      minimumConfidence: readOptionalFiniteNumber(env, 'NGHIENAI_MINIMUM_CONFIDENCE', 0, 1, nghienAiEnabled ? 0.8 : null),
+      maxCandidates: readOptionalPositiveInteger(env, 'NGHIENAI_MAX_CANDIDATES', 254, nghienAiEnabled ? 10 : null),
     },
   }
 }
