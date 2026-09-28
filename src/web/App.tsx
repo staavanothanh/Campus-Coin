@@ -181,7 +181,7 @@ export function App() {
   }, []);
 
   useEffect(() => {
-    if (session?.user.role === 'admin' && !['admin', 'settings', 'help'].includes(screen)) {
+    if (session?.user.role === 'admin' && !['admin', 'settings'].includes(screen)) {
       setScreen('admin');
     }
   }, [session, screen]);
@@ -264,7 +264,7 @@ export function App() {
           <p className="nav-label nav-label-spaced">{t.more}</p>
           {session.user.role === 'admin' && <NavItem icon={<CircleHelp size={18} />} label={t.admin} active={screen === 'admin'} onClick={() => { setScreen('admin'); setMenuOpen(false); }} />}
           <NavItem icon={<Settings size={18} />} label={t.settings} active={screen === 'settings'} onClick={() => { setScreen('settings'); setMenuOpen(false); }} />
-          <NavItem icon={<CircleHelp size={18} />} label={t.help} active={screen === 'help'} onClick={() => { setScreen('help'); setMenuOpen(false); }} />
+          {session.user.role !== 'admin' && <NavItem icon={<CircleHelp size={18} />} label={t.help} active={screen === 'help'} onClick={() => { setScreen('help'); setMenuOpen(false); }} />}
         </nav>
 
         <div className="sidebar-bottom">
