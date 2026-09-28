@@ -278,6 +278,52 @@ if (!ENABLED) {
     assert.equal((await wallet.json()).data.availableBalanceVnd, 10_000);
   });
 
+  test('AI/OCR endpoints require consent and remain disabled without provider configuration', async () => {
+    const previousJevFlag = process.env.JEV_CATEGORY_SUGGESTION_ENABLED;
+    const previousOcrFlag = process.env.RECEIPT_OCR_ENABLED;
+    delete process.env.JEV_CATEGORY_SUGGESTION_ENABLED;
+    delete process.env.RECEIPT_OCR_ENABLED;
+    try {
+      const session = await registerSession('Provider Consent Student', '198.51.100.120');
+      const missingOcrConsent = await call('POST', '/api/v1/receipts/parse', {
+        cookie: session.cookie,
+        csrf: session.csrf,
+        body: { mimeType: 'image/jpeg', imageBase64: 'YWJj' },
+      });
+      assert.equal(missingOcrConsent.status, 422);
+      assert.equal((await missingOcrConsent.json()).error.code, 'PROVIDER_CONSENT_REQUIRED');
+
+      const disabledOcr = await call('POST', '/api/v1/receipts/parse', {
+        cookie: session.cookie,
+        csrf: session.csrf,
+        body: { mimeType: 'image/jpeg', imageBase64: 'YWJj', providerConsent: true },
+      });
+      assert.equal(disabledOcr.status, 503);
+      assert.equal((await disabledOcr.json()).error.code, 'OCR_UNAVAILABLE');
+
+      const noJevConsent = await call('POST', '/api/v1/ai/category-suggestion', {
+        cookie: session.cookie,
+        csrf: session.csrf,
+        body: { transactionType: 'payment', description: 'Cà phê' },
+      });
+      assert.equal(noJevConsent.status, 422);
+      assert.equal((await noJevConsent.json()).error.code, 'PROVIDER_CONSENT_REQUIRED');
+
+      const disabledJev = await call('POST', '/api/v1/ai/category-suggestion', {
+        cookie: session.cookie,
+        csrf: session.csrf,
+        body: { transactionType: 'payment', description: 'Cà phê', providerConsent: true },
+      });
+      assert.equal(disabledJev.status, 200);
+      assert.equal((await disabledJev.json()).data.status, 'disabled');
+    } finally {
+      if (previousJevFlag === undefined) delete process.env.JEV_CATEGORY_SUGGESTION_ENABLED;
+      else process.env.JEV_CATEGORY_SUGGESTION_ENABLED = previousJevFlag;
+      if (previousOcrFlag === undefined) delete process.env.RECEIPT_OCR_ENABLED;
+      else process.env.RECEIPT_OCR_ENABLED = previousOcrFlag;
+    }
+  });
+
   test('domain API chỉ trả dữ liệu của owner trong session', async () => {
     const userA = await registerSession('Owner A', '198.51.100.51');
     const userB = await registerSession('Owner B', '198.51.100.52');
@@ -310,7 +356,8 @@ if (!ENABLED) {
     const payment = await call('POST', '/api/v1/ledger/transactions', {
       body: {
         type: 'payment', amountVnd: 10_000, categoryId: Number(categoryId),
-        occurredAt: new Date().toISOString(), description: 'Private payment A', userId: userB.userId,
+        occurredAt: new Date().toISOString(), itemName: 'Trà chanh',
+        description: 'Private payment A', userId: userB.userId,
       },
       cookie: userA.cookie, csrf: userA.csrf, key: randomUUID(),
     });
@@ -370,6 +417,11 @@ if (!ENABLED) {
     assert.equal(transactionsA.length, 2);
     assert.equal(transactionsB.length, 0);
     assert.equal((await call('GET', `/api/v1/ledger/transactions/${transactionId}`, { cookie: userB.cookie })).status, 404);
+
+    const itemSuggestionsA = (await (await call('GET', '/api/v1/ledger/item-suggestions', { cookie: userA.cookie })).json()).data;
+    const itemSuggestionsB = (await (await call('GET', '/api/v1/ledger/item-suggestions', { cookie: userB.cookie })).json()).data;
+    assert.deepEqual(itemSuggestionsA.items.map((item: { itemName: string }) => item.itemName), ['Trà chanh']);
+    assert.equal(itemSuggestionsB.items.length, 0);
 
     const savingsA = (await (await call('GET', '/api/v1/savings', { cookie: userA.cookie })).json()).data;
     const savingsB = (await (await call('GET', '/api/v1/savings', { cookie: userB.cookie })).json()).data;
@@ -541,6 +593,104 @@ if (!ENABLED) {
     assert.equal(sessionData.user.email, email);
     assert.equal(sessionData.user.id, emailSession.user.id);
     assert.equal(sessionData.googleLinked, true);
+  });
+
+  test('Google account có thể thiết lập mật khẩu ban đầu một lần bằng session và CSRF', async () => {
+    const email = `google-password-${randomUUID()}@example.test`;
+    const ip = '198.51.100.44';
+    nextGoogleIdentity = {
+      subject: `google-${randomUUID()}`,
+      email,
+      displayName: 'Google Password User',
+    };
+
+    const start = await call('GET', '/api/v1/auth/google/start', { ip });
+    const state = new URL(start.headers.get('location') || 'https://accounts.example.test').searchParams.get('state');
+    const flowCookie = start.headers.get('set-cookie')?.split(';', 1)[0] || '';
+    const callback = await call('GET', `/api/v1/auth/google/callback?state=${state}&code=test-code`, {
+      cookie: flowCookie,
+      ip,
+    });
+    assert.equal(callback.status, 302);
+    const cookie = sessionCookie(callback);
+
+    const before = await call('GET', '/api/v1/auth/session', { cookie, ip });
+    const beforeData = (await before.json()).data;
+    assert.equal(beforeData.user.requiresProfileCompletion, true);
+    const blockedDomain = await call('GET', '/api/v1/categories', { cookie, ip });
+    assert.equal(blockedDomain.status, 403);
+    assert.equal((await blockedDomain.json()).error.code, 'PROFILE_COMPLETION_REQUIRED');
+
+    assert.equal((await call('POST', '/api/v1/auth/set-password', {
+      body: { newPassword: 'Password12345' },
+      ip,
+    })).status, 401);
+    assert.equal((await call('POST', '/api/v1/auth/set-password', {
+      body: { newPassword: 'Password12345' },
+      cookie,
+      ip,
+    })).status, 403);
+    assert.equal((await call('POST', '/api/v1/auth/set-password', {
+      body: { newPassword: 'short' },
+      cookie,
+      csrf: beforeData.csrfToken,
+      ip,
+    })).status, 422);
+
+    const setPassword = await call('POST', '/api/v1/auth/set-password', {
+      body: { newPassword: 'Password12345' },
+      cookie,
+      csrf: beforeData.csrfToken,
+      ip,
+    });
+    assert.equal(setPassword.status, 200);
+    assert.equal((await setPassword.json()).data.message, 'Đã thiết lập mật khẩu');
+
+    const after = await call('GET', '/api/v1/auth/session', { cookie, ip });
+    const afterData = (await after.json()).data;
+    assert.equal(afterData.user.requiresProfileCompletion, false);
+    const duplicate = await call('POST', '/api/v1/auth/set-password', {
+      body: { newPassword: 'AnotherPassword123' },
+      cookie,
+      csrf: afterData.csrfToken,
+      ip,
+    });
+    assert.equal(duplicate.status, 409);
+    assert.equal((await duplicate.json()).error.code, 'PASSWORD_ALREADY_SET');
+
+    await getPool().execute('UPDATE users SET display_name = ? WHERE id = ?', ['   ', afterData.user.id]);
+    const missingName = await call('GET', '/api/v1/auth/session', { cookie, ip });
+    const missingNameData = (await missingName.json()).data;
+    assert.equal(missingNameData.user.requiresProfileCompletion, true);
+    const blockedUntilName = await call('GET', '/api/v1/categories', { cookie, ip });
+    assert.equal(blockedUntilName.status, 403);
+    assert.equal((await blockedUntilName.json()).error.code, 'PROFILE_COMPLETION_REQUIRED');
+    assert.equal((await call('PATCH', '/api/v1/users/me/preferences', {
+      body: { displayName: 'Restored Google Student' },
+      cookie,
+      csrf: missingNameData.csrfToken,
+      ip,
+    })).status, 200);
+
+    const completed = await call('GET', '/api/v1/auth/session', { cookie, ip });
+    assert.equal((await completed.json()).data.user.requiresProfileCompletion, false);
+    assert.equal((await call('GET', '/api/v1/categories', { cookie, ip })).status, 200);
+    const passwordLogin = await call('POST', '/api/v1/auth/login', {
+      body: { email, password: 'Password12345' },
+      ip,
+    });
+    assert.equal(passwordLogin.status, 200);
+    assert.equal((await passwordLogin.json()).data.user.requiresProfileCompletion, false);
+
+    const emailUser = await registerSession('Email Password User', ip);
+    const notGoogle = await call('POST', '/api/v1/auth/set-password', {
+      body: { newPassword: 'Password12345' },
+      cookie: emailUser.cookie,
+      csrf: emailUser.csrf,
+      ip,
+    });
+    assert.equal(notGoogle.status, 403);
+    assert.equal((await notGoogle.json()).error.code, 'PASSWORD_SETUP_NOT_ALLOWED');
   });
 
   test('email provider và database failure trả lỗi tổng quát, không lộ chi tiết', async () => {

@@ -2,11 +2,21 @@ import type { IncomingHttpHeaders } from 'node:http';
 import { getPool } from '../infrastructure/db/pool.ts';
 import { canonicalHash } from '../lib/hash.js';
 import { initializeWallet, getWallet } from '../application/wallet.service.ts';
-import { createTransaction, createCorrection, getTransaction, listTransactions } from '../application/ledger.service.ts';
+import { createTransaction, createCorrection, getTransaction, listFrequentPaymentItems, listTransactions } from '../application/ledger.service.ts';
 import { createTransfer, getSavings, listTransfers } from '../application/savings.service.ts';
 import { createCustomCategory, listUserCategories, updateUserCategory } from '../application/category.service.ts';
 import { listMonthBudgets, monthBudgetSummary, upsertUserBudget } from '../application/budget.service.ts';
 import { dashboard, monthlyReport } from '../application/report.service.ts';
+import {
+  cashflowForecast,
+  cashflowMonthReflection,
+  cashflowUpcoming,
+  cashflowWhatIf,
+  createCashflowPlan,
+  forecastDays,
+  listOwnerCashflowPlans,
+  updateCashflowPlanOptions,
+} from '../application/cashflow-plan.service.ts';
 import { isCorrectionRole, isTransactionType } from '../domain/money.ts';
 import { AppError } from '../features/auth/auth.service.js';
 
@@ -38,6 +48,12 @@ function requiredString(value: unknown, name: string, maxLength = 4096) {
 function optionalString(value: unknown, name: string, maxLength: number): string | null {
   if (value === undefined || value === null) return null;
   if (typeof value !== 'string' || value.length > maxLength) throw invalid(`${name} không hợp lệ`);
+  return value;
+}
+
+function optionalBoolean(value: unknown, name: string, fallback?: boolean): boolean {
+  if (value === undefined && fallback !== undefined) return fallback;
+  if (typeof value !== 'boolean') throw invalid(`${name} không hợp lệ`);
   return value;
 }
 
@@ -108,6 +124,9 @@ export async function handleDomainRequest(
     });
     return page(result.data, result.meta);
   }
+  if (method === 'GET' && path === '/ledger/item-suggestions') {
+    return ok(await listFrequentPaymentItems(db, userId));
+  }
   if (method === 'POST' && path === '/ledger/transactions') {
     if (!isTransactionType(body.type)) throw invalid('type không hợp lệ');
     const result = await createTransaction(db, {
@@ -117,6 +136,7 @@ export async function handleDomainRequest(
       categoryId: requiredInteger(body.categoryId, 'categoryId'),
       occurredAt: requiredString(body.occurredAt, 'occurredAt'),
       description: optionalString(body.description, 'description', 500),
+      itemName: optionalString(body.itemName, 'itemName', 120),
       idempotencyKey: idempotencyKey(headers),
       requestHash: canonicalHash(body),
     });
@@ -239,6 +259,69 @@ export async function handleDomainRequest(
     return ok(await monthlyReport(db, userId, month));
   }
   if (method === 'GET' && path === '/reports/dashboard') return ok(await dashboard(db, userId));
+
+  if (method === 'GET' && path === '/cashflow/plans') {
+    return ok(await listOwnerCashflowPlans(db, userId));
+  }
+  if (method === 'POST' && path === '/cashflow/plans') {
+    const kind = body.kind;
+    if (kind !== 'obligation' && kind !== 'expected_income') throw invalid('kind không hợp lệ');
+    const frequency = body.frequency;
+    if (frequency !== 'once' && frequency !== 'monthly') throw invalid('frequency không hợp lệ');
+    const categoryId = body.categoryId === undefined || body.categoryId === null
+      ? null
+      : requiredInteger(body.categoryId, 'categoryId');
+    const dueDay = body.dueDay === undefined || body.dueDay === null
+      ? null
+      : requiredInteger(body.dueDay, 'dueDay');
+    return ok(await createCashflowPlan(db, {
+      userId,
+      kind,
+      title: requiredString(body.title, 'title', 120),
+      amountVnd: requiredInteger(body.amountVnd, 'amountVnd'),
+      categoryId,
+      frequency,
+      startsOn: requiredString(body.startsOn, 'startsOn', 10),
+      dueDay,
+      reserveInForecast: optionalBoolean(body.reserveInForecast, 'reserveInForecast', false),
+      idempotencyKey: idempotencyKey(headers),
+      requestHash: canonicalHash(body),
+    }), 201);
+  }
+  const cashflowPlanMatch = path.match(/^\/cashflow\/plans\/(\d+)$/);
+  if (method === 'PATCH' && cashflowPlanMatch) {
+    const allowedKeys = new Set(['reserveInForecast', 'isActive']);
+    if (Object.keys(body).some((key) => !allowedKeys.has(key))) throw invalid('Trường cập nhật không được hỗ trợ');
+    const isActive = body.isActive === undefined ? undefined : optionalBoolean(body.isActive, 'isActive');
+    const plan = await updateCashflowPlanOptions(db, {
+      userId,
+      planId: requiredInteger(cashflowPlanMatch[1], 'planId'),
+      ...(body.reserveInForecast === undefined ? {} : { reserveInForecast: optionalBoolean(body.reserveInForecast, 'reserveInForecast') }),
+      ...(isActive === undefined ? {} : { isActive }),
+      idempotencyKey: idempotencyKey(headers),
+      requestHash: canonicalHash(body),
+    });
+    return ok(plan);
+  }
+  if (method === 'GET' && path === '/cashflow/upcoming') {
+    const days = forecastDays(search.get('days'));
+    return ok(await cashflowUpcoming(db, userId, days));
+  }
+  if (method === 'GET' && path === '/cashflow/forecast') {
+    const days = forecastDays(search.get('days'));
+    return ok(await cashflowForecast(db, userId, days));
+  }
+  if (method === 'POST' && path === '/cashflow/what-if') {
+    return ok(await cashflowWhatIf(db, userId, {
+      amountVnd: requiredInteger(body.amountVnd, 'amountVnd'),
+      paymentDate: requiredString(body.paymentDate, 'paymentDate', 10),
+      ...(body.days === undefined ? {} : { days: requiredInteger(body.days, 'days') }),
+    }));
+  }
+  if (method === 'GET' && path === '/cashflow/reflection') {
+    const month = requiredString(search.get('month'), 'month', 7);
+    return ok(await cashflowMonthReflection(db, userId, month));
+  }
 
   return null;
 }

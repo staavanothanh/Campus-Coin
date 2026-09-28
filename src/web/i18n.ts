@@ -37,8 +37,23 @@ export interface Copy {
   addIncome: string;
   addPayment: string;
   amount: string;
+  transactionDate: string;
+  transactionDateInvalid: string;
   category: string;
   description: string;
+  itemName: string;
+  itemNamePlaceholder: string;
+  itemSuggestionsEmpty: string;
+  itemSuggestionsUnavailable: string;
+  itemHistoryLastPurchase: string;
+  itemHistoryCurrentInterval: string;
+  itemHistoryPreviousInterval: string;
+  itemHistoryIntervalShorter: string;
+  itemHistoryIntervalLonger: string;
+  itemHistoryIntervalSame: string;
+  itemHistoryPriceHigher: string;
+  itemHistoryPriceLower: string;
+  itemHistoryPriceSame: string;
   submit: string;
   close: string;
   selectCategory: string;
@@ -119,8 +134,23 @@ export const copy: Record<Locale, Copy> = {
     addIncome: 'Thêm thu nhập',
     addPayment: 'Thêm thanh toán',
     amount: 'Số tiền (VND)',
+    transactionDate: 'Ngày giao dịch',
+    transactionDateInvalid: 'Ngày giao dịch không hợp lệ hoặc nằm trong tương lai.',
     category: 'Danh mục',
     description: 'Mô tả (không bắt buộc)',
+    itemName: 'Tên sản phẩm (không bắt buộc)',
+    itemNamePlaceholder: 'Ví dụ: cà phê, tiền gửi xe...',
+    itemSuggestionsEmpty: 'Chưa có lịch sử mặt hàng. Sau khi bạn ghi các khoản thanh toán có tên sản phẩm, tối đa 10 mặt hàng mua thường xuyên sẽ hiện ở đây.',
+    itemSuggestionsUnavailable: 'Không tải được gợi ý. Bạn vẫn có thể tự nhập tên sản phẩm.',
+    itemHistoryLastPurchase: 'Lần gần nhất: {amount} vào {date}.',
+    itemHistoryCurrentInterval: 'Lần này cách lần mua trước {days} ngày.',
+    itemHistoryPreviousInterval: 'Hai lần mua trước đó cách nhau {days} ngày.',
+    itemHistoryIntervalShorter: 'Khoảng cách lần này ngắn hơn nhịp trước {days} ngày.',
+    itemHistoryIntervalLonger: 'Khoảng cách lần này dài hơn nhịp trước {days} ngày.',
+    itemHistoryIntervalSame: 'Khoảng cách lần này bằng nhịp trước.',
+    itemHistoryPriceHigher: 'Lần này cao hơn {amount}.',
+    itemHistoryPriceLower: 'Lần này thấp hơn {amount}.',
+    itemHistoryPriceSame: 'Số tiền bằng lần mua trước.',
     submit: 'Lưu giao dịch',
     close: 'Đóng',
     selectCategory: 'Chọn danh mục',
@@ -199,8 +229,23 @@ export const copy: Record<Locale, Copy> = {
     addIncome: 'Add income',
     addPayment: 'Add payment',
     amount: 'Amount (VND)',
+    transactionDate: 'Transaction date',
+    transactionDateInvalid: 'Choose a valid date that is not in the future.',
     category: 'Category',
     description: 'Description (optional)',
+    itemName: 'Product name (optional)',
+    itemNamePlaceholder: 'For example: coffee, parking...',
+    itemSuggestionsEmpty: 'No item history yet. After you record payments with product names, up to 10 frequent items will appear here.',
+    itemSuggestionsUnavailable: 'Suggestions could not be loaded. You can still enter a product name.',
+    itemHistoryLastPurchase: 'Last purchase: {amount} on {date}.',
+    itemHistoryCurrentInterval: 'This entry is {days} days after the last purchase.',
+    itemHistoryPreviousInterval: 'The two purchases before that were {days} days apart.',
+    itemHistoryIntervalShorter: 'This interval is {days} days shorter than before.',
+    itemHistoryIntervalLonger: 'This interval is {days} days longer than before.',
+    itemHistoryIntervalSame: 'This interval matches the previous one.',
+    itemHistoryPriceHigher: 'This is {amount} more than last time.',
+    itemHistoryPriceLower: 'This is {amount} less than last time.',
+    itemHistoryPriceSame: 'The amount matches the last purchase.',
     submit: 'Save transaction',
     close: 'Close',
     selectCategory: 'Select a category',

@@ -2,6 +2,8 @@ export interface User {
   id: string;
   email: string;
   displayName: string;
+  hasLocalPassword: boolean;
+  requiresProfileCompletion: boolean;
   locale: string;
   role: string;
 }

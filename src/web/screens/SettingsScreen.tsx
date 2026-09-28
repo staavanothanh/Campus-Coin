@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import {
   User,
   Mail,
@@ -14,18 +14,24 @@ import {
   Wallet,
   Lock,
   CheckCircle2,
-  Copy as CopyIcon
+  Copy as CopyIcon,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import { apiPatch, apiPost, ApiRequestError } from '../api-client.js';
-import type { Session, Locale, Theme } from '../types.js';
+import type { ApiError, Session, Locale, Theme } from '../types.js';
 import type { Copy } from '../i18n.js';
 import { ErrorBanner } from '../components/ErrorBanner.js';
+import { CategoryManagementPanel } from '../components/CategoryManagementPanel.js';
+
+const PASSWORD_OTP_RESEND_SECONDS = 60;
 
 interface SettingsScreenProps {
   session: Session;
   theme: Theme;
   onThemeChange: (theme: Theme) => void;
   onSessionUpdate: (session: Session) => void;
+  onPasswordReset: () => void;
   t: Copy;
   locale: Locale;
 }
@@ -35,6 +41,7 @@ export function SettingsScreen({
   theme,
   onThemeChange,
   onSessionUpdate,
+  onPasswordReset,
   t,
   locale
 }: SettingsScreenProps) {
@@ -49,11 +56,39 @@ export function SettingsScreen({
   const [successMsg, setSuccessMsg] = useState('');
   const [copiedId, setCopiedId] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [passwordStepActive, setPasswordStepActive] = useState(false);
+  const [passwordBusy, setPasswordBusy] = useState<'request' | 'resend' | 'reset' | null>(null);
+  const [passwordError, setPasswordError] = useState<ApiError | string | null>(null);
+  const [passwordStatus, setPasswordStatus] = useState('');
+  const [otp, setOtp] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [passwordSubmitted, setPasswordSubmitted] = useState(false);
+  const [resendCooldownSeconds, setResendCooldownSeconds] = useState(0);
+  const passwordRequestInProgress = useRef(false);
 
   const isVi = locale === 'vi';
   const hasChanges =
     displayName.trim() !== initialName.trim() ||
     prefLocale !== initialLocale;
+
+  useEffect(() => {
+    setPrefLocale(initialLocale);
+  }, [initialLocale]);
+
+  useEffect(() => {
+    if (passwordStepActive) document.getElementById('settings-password-otp')?.focus();
+  }, [passwordStepActive]);
+
+  useEffect(() => {
+    if (resendCooldownSeconds <= 0) return;
+    const timer = window.setTimeout(() => {
+      setResendCooldownSeconds(current => Math.max(0, current - 1));
+    }, 1000);
+    return () => window.clearTimeout(timer);
+  }, [resendCooldownSeconds]);
 
   const userIdStr = String(user?.id ?? '');
   const idDisplay = userIdStr
@@ -73,13 +108,22 @@ export function SettingsScreen({
     setSuccessMsg('');
   }
 
-  function handleCopyUserId() {
+  async function handleCopyUserId() {
     if (!userIdStr) return;
-    if (navigator?.clipboard?.writeText) {
-      navigator.clipboard.writeText(userIdStr).catch(() => {});
+    setError(null);
+    setSuccessMsg('');
+    try {
+      await navigator.clipboard.writeText(userIdStr);
+      setSuccessMsg(isVi ? 'Đã sao chép mã định danh.' : 'User ID copied.');
+      setCopiedId(true);
+      window.setTimeout(() => {
+        setCopiedId(false);
+        setSuccessMsg('');
+      }, 2000);
+    } catch {
+      setCopiedId(false);
+      setError(isVi ? 'Không thể sao chép mã định danh trên trình duyệt này.' : 'This browser could not copy the user ID.');
     }
-    setCopiedId(true);
-    setTimeout(() => setCopiedId(false), 2000);
   }
 
   async function submit(event: FormEvent) {
@@ -138,6 +182,118 @@ export function SettingsScreen({
     }
   }
 
+  function passwordValidationMessage(field: 'otp' | 'newPassword' | 'confirmPassword') {
+    if (field === 'otp' && !/^\d{6}$/.test(otp)) {
+      return isVi ? 'Nhập mã xác minh gồm 6 chữ số.' : 'Enter the 6-digit verification code.';
+    }
+    if (field === 'newPassword' && (newPassword.length < 8 || newPassword.length > 128)) {
+      return isVi ? 'Mật khẩu phải có từ 8 đến 128 ký tự.' : 'Password must be 8 to 128 characters.';
+    }
+    if (field === 'confirmPassword') {
+      if (!confirmPassword) return isVi ? 'Nhập lại mật khẩu mới.' : 'Confirm your new password.';
+      if (newPassword !== confirmPassword) return isVi ? 'Hai mật khẩu chưa khớp.' : 'Passwords do not match.';
+    }
+    return '';
+  }
+
+  function passwordFieldError(field: 'otp' | 'newPassword' | 'confirmPassword') {
+    return passwordSubmitted ? passwordValidationMessage(field) : '';
+  }
+
+  function showPasswordRequestError(error: unknown) {
+    if (error instanceof ApiRequestError) {
+      if (error.isRateLimited && error.retryAfter) {
+        setResendCooldownSeconds(error.retryAfter);
+        setPasswordError(isVi
+          ? `Vui lòng đợi ${error.retryAfter} giây rồi thử lại.`
+          : `Please wait ${error.retryAfter} seconds before trying again.`);
+      } else {
+        setPasswordError(error.apiError ?? t.serverError);
+      }
+      return;
+    }
+    setPasswordError(t.serverError);
+  }
+
+  function genericOtpStatus() {
+    return isVi
+      ? 'Nếu email đủ điều kiện, mã xác minh sẽ được gửi. Hãy kiểm tra cả thư mục spam.'
+      : 'If this email is eligible, a verification code will be sent. Check your spam folder too.';
+  }
+
+  async function requestPasswordOtp() {
+    if (passwordRequestInProgress.current || !user?.email) return;
+    passwordRequestInProgress.current = true;
+    setPasswordBusy('request');
+    setPasswordError(null);
+    setPasswordStatus('');
+    try {
+      await apiPost('/auth/forgot-password', { email: user.email });
+      setPasswordStepActive(true);
+      setResendCooldownSeconds(PASSWORD_OTP_RESEND_SECONDS);
+      setPasswordStatus(genericOtpStatus());
+    } catch (caught) {
+      showPasswordRequestError(caught);
+    } finally {
+      passwordRequestInProgress.current = false;
+      setPasswordBusy(null);
+    }
+  }
+
+  async function resendPasswordOtp() {
+    if (passwordRequestInProgress.current || resendCooldownSeconds > 0 || !user?.email) return;
+    passwordRequestInProgress.current = true;
+    setPasswordBusy('resend');
+    setPasswordError(null);
+    setPasswordStatus('');
+    try {
+      await apiPost('/auth/resend-otp', { email: user.email, purpose: 'password_reset' });
+      setResendCooldownSeconds(PASSWORD_OTP_RESEND_SECONDS);
+      setPasswordStatus(genericOtpStatus());
+    } catch (caught) {
+      showPasswordRequestError(caught);
+    } finally {
+      passwordRequestInProgress.current = false;
+      setPasswordBusy(null);
+    }
+  }
+
+  async function submitPasswordReset(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (passwordRequestInProgress.current || !user?.email) return;
+    setPasswordSubmitted(true);
+    setPasswordError(null);
+    setPasswordStatus('');
+    setShowNewPassword(false);
+    setShowConfirmPassword(false);
+
+    const firstInvalidField = (['otp', 'newPassword', 'confirmPassword'] as const)
+      .find(field => passwordValidationMessage(field));
+    if (firstInvalidField) {
+      document.getElementById(`settings-password-${firstInvalidField}`)?.focus();
+      return;
+    }
+
+    passwordRequestInProgress.current = true;
+    setPasswordBusy('reset');
+    let resetSucceeded = false;
+    try {
+      await apiPost('/auth/reset-password', {
+        email: user.email,
+        otp,
+        newPassword,
+      });
+      resetSucceeded = true;
+    } catch (caught) {
+      showPasswordRequestError(caught);
+    } finally {
+      passwordRequestInProgress.current = false;
+      setPasswordBusy(null);
+    }
+
+    if (resetSucceeded) onPasswordReset();
+  }
+
   const roleLabel =
     user?.role === 'admin'
       ? isVi ? 'Quản trị viên' : 'Administrator'
@@ -177,6 +333,7 @@ export function SettingsScreen({
               type="button"
               className="id-pill"
               onClick={handleCopyUserId}
+              aria-label={isVi ? 'Sao chép mã định danh' : 'Copy user ID'}
               title={isVi ? 'Nhấp để sao chép' : 'Click to copy'}
             >
               <code>{idDisplay}</code>
@@ -443,7 +600,7 @@ export function SettingsScreen({
           </div>
         </section>
 
-        {/* Section 4: Security & Environment Information */}
+        {/* Security & Environment Information */}
         <section className="settings-section-card">
           <div className="settings-section-header">
             <div className="settings-section-icon green">
@@ -480,7 +637,7 @@ export function SettingsScreen({
               <div className="sec-icon"><Lock size={16} /></div>
               <div>
                 <strong>{isVi ? 'Phiên đăng nhập' : 'Session Security'}</strong>
-                <p>{isVi ? 'Cookie HttpOnly an toàn' : 'Encrypted HttpOnly cookie'}</p>
+                <p>{isVi ? 'Cookie phiên có cờ HttpOnly' : 'HttpOnly session cookie'}</p>
               </div>
             </div>
 
@@ -495,7 +652,7 @@ export function SettingsScreen({
         </section>
 
         {/* Action Bar */}
-        <div className="settings-action-bar">
+        <div className={`settings-action-bar ${hasChanges ? 'has-changes' : 'is-saved'}`}>
           <div className="action-bar-status">
             {hasChanges ? (
               <span className="unsaved-badge">
@@ -538,6 +695,151 @@ export function SettingsScreen({
           </div>
         </div>
       </form>
+
+      <CategoryManagementPanel locale={locale} csrfToken={session.csrfToken} />
+
+      <section className="settings-section-card settings-password-card" aria-labelledby="settings-password-title">
+        <div className="settings-section-header">
+          <div className="settings-section-icon green">
+            <Lock size={18} />
+          </div>
+          <div>
+            <h3 id="settings-password-title">{isVi ? 'Mật khẩu đăng nhập email' : 'Email sign-in password'}</h3>
+            <p className="settings-section-desc">
+              {isVi
+                ? 'Tạo hoặc đổi mật khẩu bằng mã xác minh gửi đến email tài khoản.'
+                : 'Create or change your password with a verification code sent to your account email.'}
+            </p>
+          </div>
+        </div>
+
+        {!passwordStepActive ? (
+          <div className="settings-password-start">
+            <p className="field-hint">
+              {isVi ? `Email xác minh: ${user?.email || '—'}` : `Verification email: ${user?.email || '—'}`}
+            </p>
+            <button
+              type="button"
+              className="primary-button"
+              onClick={() => void requestPasswordOtp()}
+              disabled={passwordBusy !== null || !user?.email}
+            >
+              <Mail size={15} />
+              {passwordBusy === 'request'
+                ? (isVi ? 'Đang gửi yêu cầu…' : 'Requesting code…')
+                : (isVi ? 'Gửi mã xác minh' : 'Send verification code')}
+            </button>
+          </div>
+        ) : (
+          <form className="settings-password-form" aria-labelledby="settings-password-title" onSubmit={submitPasswordReset}>
+            <p className="field-hint">
+              {isVi ? `Nhập mã gửi đến ${user?.email || 'email tài khoản'}.` : `Enter the code sent to ${user?.email || 'your account email'}.`}
+            </p>
+
+            <ErrorBanner error={passwordError} locale={locale} />
+            {passwordStatus && <p className="settings-password-status" role="status" aria-live="polite">{passwordStatus}</p>}
+
+            <div className="settings-fields-group settings-password-fields">
+              <div className="settings-field">
+                <label htmlFor="settings-password-otp">{isVi ? 'Mã xác minh' : 'Verification code'}</label>
+                <input
+                  id="settings-password-otp"
+                  className="settings-password-input"
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  value={otp}
+                  onChange={event => setOtp(event.target.value.replace(/\D/g, '').slice(0, 6))}
+                  maxLength={6}
+                  aria-required="true"
+                  aria-invalid={Boolean(passwordFieldError('otp'))}
+                  aria-describedby={passwordFieldError('otp') ? 'settings-password-otp-error' : undefined}
+                  disabled={passwordBusy !== null}
+                />
+                {passwordFieldError('otp') && <span id="settings-password-otp-error" className="field-error" role="alert">{passwordFieldError('otp')}</span>}
+              </div>
+
+              <div className="settings-field">
+                <label htmlFor="settings-password-newPassword">{isVi ? 'Mật khẩu mới' : 'New password'}</label>
+                <div className="settings-password-input-row">
+                  <input
+                    id="settings-password-newPassword"
+                    type={showNewPassword ? 'text' : 'password'}
+                    autoComplete="new-password"
+                    value={newPassword}
+                    onChange={event => setNewPassword(event.target.value)}
+                    maxLength={128}
+                    aria-required="true"
+                    aria-invalid={Boolean(passwordFieldError('newPassword'))}
+                    aria-describedby={passwordFieldError('newPassword') ? 'settings-password-newPassword-error' : undefined}
+                    disabled={passwordBusy !== null}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowNewPassword(value => !value)}
+                    aria-label={showNewPassword ? (isVi ? 'Ẩn mật khẩu mới' : 'Hide new password') : (isVi ? 'Hiện mật khẩu mới' : 'Show new password')}
+                    aria-pressed={showNewPassword}
+                    disabled={passwordBusy !== null}
+                  >
+                    {showNewPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+                <span className="field-hint">{isVi ? 'Mật khẩu cần có từ 8 đến 128 ký tự.' : 'Use 8 to 128 characters.'}</span>
+                {passwordFieldError('newPassword') && <span id="settings-password-newPassword-error" className="field-error" role="alert">{passwordFieldError('newPassword')}</span>}
+              </div>
+
+              <div className="settings-field">
+                <label htmlFor="settings-password-confirmPassword">{isVi ? 'Nhập lại mật khẩu mới' : 'Confirm new password'}</label>
+                <div className="settings-password-input-row">
+                  <input
+                    id="settings-password-confirmPassword"
+                    type={showConfirmPassword ? 'text' : 'password'}
+                    autoComplete="new-password"
+                    value={confirmPassword}
+                    onChange={event => setConfirmPassword(event.target.value)}
+                    maxLength={128}
+                    aria-required="true"
+                    aria-invalid={Boolean(passwordFieldError('confirmPassword'))}
+                    aria-describedby={passwordFieldError('confirmPassword') ? 'settings-password-confirmPassword-error' : undefined}
+                    disabled={passwordBusy !== null}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(value => !value)}
+                    aria-label={showConfirmPassword ? (isVi ? 'Ẩn mật khẩu xác nhận' : 'Hide confirmation password') : (isVi ? 'Hiện mật khẩu xác nhận' : 'Show confirmation password')}
+                    aria-pressed={showConfirmPassword}
+                    disabled={passwordBusy !== null}
+                  >
+                    {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+                {passwordFieldError('confirmPassword') && <span id="settings-password-confirmPassword-error" className="field-error" role="alert">{passwordFieldError('confirmPassword')}</span>}
+              </div>
+            </div>
+
+            <div className="settings-password-actions">
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() => void resendPasswordOtp()}
+                disabled={passwordBusy !== null || resendCooldownSeconds > 0}
+              >
+                {passwordBusy === 'resend'
+                  ? (isVi ? 'Đang gửi lại…' : 'Resending…')
+                  : resendCooldownSeconds > 0
+                    ? (isVi ? `Gửi lại mã sau ${resendCooldownSeconds} giây` : `Resend code in ${resendCooldownSeconds}s`)
+                    : (isVi ? 'Gửi lại mã' : 'Resend code')}
+              </button>
+              <button type="submit" className="primary-button" disabled={passwordBusy !== null}>
+                <Lock size={15} />
+                {passwordBusy === 'reset'
+                  ? (isVi ? 'Đang đổi mật khẩu…' : 'Changing password…')
+                  : (isVi ? 'Lưu mật khẩu mới' : 'Save new password')}
+              </button>
+            </div>
+          </form>
+        )}
+      </section>
     </div>
   );
 }

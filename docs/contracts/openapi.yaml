@@ -30,6 +30,8 @@ tags:
     description: Category hệ thống và category do user tạo.
   - name: Budgets
     description: Budget theo tháng HCMC; overrun chỉ là cảnh báo.
+  - name: Cashflow
+    description: Kế hoạch dòng tiền tự khai báo, chỉ ảnh hưởng dự báo và không ghi ledger.
   - name: Reports
     description: Báo cáo deterministic do server tính.
   - name: Issues
@@ -37,7 +39,9 @@ tags:
   - name: Admin
     description: Triage issue và đọc audit đã redact.
   - name: JEV
-    description: JEV optional; endpoint chưa mở trong API runtime.
+    description: Gợi ý danh mục JEV tùy chọn; chỉ chạy khi người dùng đồng ý và server đã bật provider.
+  - name: Receipts
+    description: Đọc ảnh hóa đơn thành bản nháp; user xem lại và tự xác nhận giao dịch.
   - name: Health
     description: Liveness và readiness của API.
 paths:
@@ -266,6 +270,36 @@ paths:
         '400': {$ref: '#/components/responses/BadRequest'}
         '413': {$ref: '#/components/responses/PayloadTooLarge'}
         default: {$ref: '#/components/responses/InternalError'}
+  /auth/set-password:
+    post:
+      operationId: postAuthSetInitialPassword
+      tags: [Auth]
+      summary: Thiết lập mật khẩu email ban đầu cho tài khoản Google đã xác minh
+      x-csrf-required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SetInitialPasswordRequest'
+      responses:
+        '200':
+          headers:
+            Cache-Control:
+              $ref: '#/components/headers/PrivateNoStore'
+          description: Mật khẩu ban đầu đã được thiết lập
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/PasswordSetupForbidden'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        default: {$ref: '#/components/responses/InternalError'}
   /auth/csrf:
     get:
       operationId: getAuthCsrf
@@ -412,8 +446,8 @@ paths:
         - {$ref: '#/components/parameters/Limit'}
         - {name: type, in: query, schema: {$ref: '#/components/schemas/TransactionType'}}
         - {name: categoryId, in: query, schema: {type: string}}
-        - {name: from, in: query, schema: {type: string, format: date-time}}
-        - {name: to, in: query, schema: {type: string, format: date-time}}
+        - {name: from, in: query, description: Inclusive UTC bound with at most three fractional-second digits in MySQL DATETIME(3) range from 1000-01-01 00:00:00.000 to 9999-12-31 23:59:59.499; future filter bounds are allowed., schema: {type: string, format: date-time}}
+        - {name: to, in: query, description: Exclusive UTC bound with at most three fractional-second digits in MySQL DATETIME(3) range from 1000-01-01 00:00:00.000 to 9999-12-31 23:59:59.499; future filter bounds are allowed., schema: {type: string, format: date-time}}
       responses:
         '200': {description: Ledger page, headers: {Cache-Control: {$ref: '#/components/headers/PrivateNoStore'}}, content: {application/json: {schema: {$ref: '#/components/schemas/TransactionPageResponse'}}}}
         '401': {$ref: '#/components/responses/Unauthorized'}
@@ -436,6 +470,50 @@ paths:
         '500': {$ref: '#/components/responses/InternalError'}
         '400': {$ref: '#/components/responses/BadRequest'}
         '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        default: {$ref: '#/components/responses/InternalError'}
+  /ledger/item-suggestions:
+    get:
+      operationId: getFrequentPaymentItemSuggestions
+      tags: [Ledger]
+      summary: Gợi ý sản phẩm payment thường gặp của user hiện tại
+      responses:
+        '200': {description: Tối đa 10 sản phẩm đã nhập của owner, headers: {Cache-Control: {$ref: '#/components/headers/PrivateNoStore'}}, content: {application/json: {schema: {$ref: '#/components/schemas/FrequentPaymentItemsResponse'}}}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        default: {$ref: '#/components/responses/InternalError'}
+  /ai/category-suggestion:
+    post:
+      operationId: postAiCategorySuggestion
+      tags: [JEV]
+      summary: Gợi ý category từ mô tả sau khi người dùng đồng ý gửi dữ liệu tới OpenRouter
+      x-csrf-required: true
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/CategorySuggestionRequest'}}}}
+      responses:
+        '200': {description: Gợi ý hoặc trạng thái fallback; không ghi dữ liệu tiền, headers: {Cache-Control: {$ref: '#/components/headers/PrivateNoStore'}}, content: {application/json: {schema: {$ref: '#/components/schemas/CategorySuggestionResponse'}}}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/CsrfInvalid'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+        '429': {$ref: '#/components/responses/RateLimited'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        default: {$ref: '#/components/responses/InternalError'}
+  /receipts/parse:
+    post:
+      operationId: postReceiptParse
+      tags: [Receipts]
+      summary: Đọc ảnh hóa đơn thành bản nháp payment sau khi người dùng đồng ý
+      x-csrf-required: true
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/ReceiptParseRequest'}}}}
+      responses:
+        '200': {description: "Chỉ trả số tiền/mô tả dự thảo, không ghi ledger hoặc lưu ảnh", headers: {Cache-Control: {$ref: '#/components/headers/PrivateNoStore'}}, content: {application/json: {schema: {$ref: '#/components/schemas/ReceiptDraftResponse'}}}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/CsrfInvalid'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        '415': {description: Chỉ hỗ trợ JPEG hoặc PNG, headers: {Cache-Control: {$ref: '#/components/headers/PrivateNoStore'}}, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorResponse'}}}}
+        '422': {$ref: '#/components/responses/ValidationError'}
+        '429': {$ref: '#/components/responses/RateLimited'}
+        '502': {description: Provider OCR không xử lý được ảnh, headers: {Cache-Control: {$ref: '#/components/headers/PrivateNoStore'}}, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorResponse'}}}}
+        '503': {$ref: '#/components/responses/ServiceUnavailable'}
+        '500': {$ref: '#/components/responses/InternalError'}
         default: {$ref: '#/components/responses/InternalError'}
   /ledger/transactions/{transactionId}:
     get:
@@ -598,6 +676,108 @@ paths:
       parameters: [{$ref: '#/components/parameters/Month'}]
       responses:
         '200': {description: Budget summary, headers: {Cache-Control: {$ref: '#/components/headers/PrivateNoStore'}}, content: {application/json: {schema: {$ref: '#/components/schemas/BudgetSummaryResponse'}}}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        default: {$ref: '#/components/responses/InternalError'}
+  /cashflow/plans:
+    get:
+      operationId: getCashflowPlans
+      tags: [Cashflow]
+      summary: Liệt kê kế hoạch dòng tiền của owner trong session
+      responses:
+        '200': {description: 'Các kế hoạch đã khai báo, gồm cả mục đã tắt', headers: {Cache-Control: {$ref: '#/components/headers/PrivateNoStore'}}, content: {application/json: {schema: {$ref: '#/components/schemas/CashflowPlanListResponse'}}}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        default: {$ref: '#/components/responses/InternalError'}
+    post:
+      operationId: postCashflowPlans
+      tags: [Cashflow]
+      summary: Tạo một kế hoạch nghĩa vụ hoặc khoản thu dự kiến do user khai báo
+      description: Không tạo income/payment hoặc thay đổi wallet. Chỉ account trong session được dùng làm owner.
+      x-csrf-required: true
+      x-idempotency-required: true
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/CreateCashflowPlanRequest'}}}}
+      responses:
+        '201': {description: Kế hoạch đã tạo, headers: {Cache-Control: {$ref: '#/components/headers/PrivateNoStore'}}, content: {application/json: {schema: {$ref: '#/components/schemas/CashflowPlanResponse'}}}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/CsrfInvalid'}
+        '409': {$ref: '#/components/responses/IdempotencyConflict'}
+        '422': {$ref: '#/components/responses/DomainValidationError'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        default: {$ref: '#/components/responses/InternalError'}
+  /cashflow/plans/{planId}:
+    patch:
+      operationId: patchCashflowPlansByPlanId
+      tags: [Cashflow]
+      summary: Bật hoặc tắt kế hoạch, hoặc đổi tùy chọn dự báo của chính owner
+      description: isActive=false tắt kế hoạch mà không xóa lịch sử; isActive=true bật lại kế hoạch đã tắt. Trạng thái không đổi hoặc tùy chọn không hợp lệ trả lỗi 422.
+      x-csrf-required: true
+      x-idempotency-required: true
+      parameters: [{$ref: '#/components/parameters/PlanId'}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/UpdateCashflowPlanOptionsRequest'}}}}
+      responses:
+        '200': {description: Tùy chọn kế hoạch đã cập nhật, headers: {Cache-Control: {$ref: '#/components/headers/PrivateNoStore'}}, content: {application/json: {schema: {$ref: '#/components/schemas/CashflowPlanResponse'}}}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/CsrfInvalid'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/IdempotencyConflict'}
+        '422': {$ref: '#/components/responses/DomainValidationError'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        default: {$ref: '#/components/responses/InternalError'}
+  /cashflow/upcoming:
+    get:
+      operationId: getCashflowUpcoming
+      tags: [Cashflow]
+      summary: Lấy lịch dự kiến và trạng thái nhắc ngày đến hạn
+      parameters: [{$ref: '#/components/parameters/ForecastDays'}]
+      responses:
+        '200': {description: Sự kiện trong kỳ xem; due-soon được gắn cờ trong 10 ngày tới, headers: {Cache-Control: {$ref: '#/components/headers/PrivateNoStore'}}, content: {application/json: {schema: {$ref: '#/components/schemas/CashflowOccurrenceListResponse'}}}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        default: {$ref: '#/components/responses/InternalError'}
+  /cashflow/forecast:
+    get:
+      operationId: getCashflowForecast
+      tags: [Cashflow]
+      summary: Tính dự báo dòng tiền theo kế hoạch do owner khai báo
+      parameters: [{$ref: '#/components/parameters/ForecastDays'}]
+      responses:
+        '200': {description: Dự báo chỉ để tham khảo; không đổi wallet/ledger, headers: {Cache-Control: {$ref: '#/components/headers/PrivateNoStore'}}, content: {application/json: {schema: {$ref: '#/components/schemas/CashflowForecastResponse'}}}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        default: {$ref: '#/components/responses/InternalError'}
+  /cashflow/what-if:
+    post:
+      operationId: postCashflowWhatIf
+      tags: [Cashflow]
+      summary: Mô phỏng một payment giả định mà không ghi giao dịch
+      description: Tính trên wallet hiện tại và kế hoạch active của chính owner; không giữ tiền, không authorize và không tạo payment/budget row.
+      x-csrf-required: true
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/CashflowWhatIfRequest'}}}}
+      responses:
+        '200': {description: Kết quả kịch bản giả định, headers: {Cache-Control: {$ref: '#/components/headers/PrivateNoStore'}}, content: {application/json: {schema: {$ref: '#/components/schemas/CashflowWhatIfResponse'}}}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/CsrfInvalid'}
+        '422': {$ref: '#/components/responses/DomainValidationError'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        default: {$ref: '#/components/responses/InternalError'}
+  /cashflow/reflection:
+    get:
+      operationId: getCashflowReflection
+      tags: [Cashflow]
+      summary: So sánh kế hoạch với ledger đã ghi cho một tháng đã kết thúc
+      parameters: [{$ref: '#/components/parameters/Month'}]
+      responses:
+        '200': {description: So sánh dữ liệu owner đã khai báo/ghi; dữ liệu thiếu giữ trạng thái unrecorded, headers: {Cache-Control: {$ref: '#/components/headers/PrivateNoStore'}}, content: {application/json: {schema: {$ref: '#/components/schemas/CashflowReflectionResponse'}}}}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '422': {$ref: '#/components/responses/ValidationError'}
         '500': {$ref: '#/components/responses/InternalError'}
@@ -784,6 +964,8 @@ components:
     Month: {name: month, in: query, required: true, schema: {type: string, pattern: '^\d{4}-(0[1-9]|1[0-2])$'}, example: '2026-09'}
     TransactionId: {name: transactionId, in: path, required: true, schema: {type: string}}
     CategoryId: {name: categoryId, in: path, required: true, schema: {type: string}}
+    PlanId: {name: planId, in: path, required: true, schema: {type: string}}
+    ForecastDays: {name: days, in: query, schema: {type: integer, minimum: 1, maximum: 365, default: 30}}
     IssueId: {name: issueId, in: path, required: true, schema: {type: string}}
   responses:
     BadRequest: {description: Request body JSON không hợp lệ, headers: {Cache-Control: {$ref: '#/components/headers/PrivateNoStore'}}, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorResponse'}}}}
@@ -792,7 +974,8 @@ components:
     LoginForbidden: {description: "Origin không hợp lệ, tài khoản bị vô hiệu hoặc email chưa xác minh", headers: {Cache-Control: {$ref: '#/components/headers/PrivateNoStore'}}, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorResponse'}}}}
     OriginInvalid: {description: Origin của request không được phép, headers: {Cache-Control: {$ref: '#/components/headers/PrivateNoStore'}}, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorResponse'}}}}
     CsrfInvalid: {description: Origin không hợp lệ hoặc CSRF token thiếu/sai; error code trong body phân biệt hai trường hợp, headers: {Cache-Control: {$ref: '#/components/headers/PrivateNoStore'}}, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorResponse'}}}}
-    Forbidden: {description: Không đủ quyền, headers: {Cache-Control: {$ref: '#/components/headers/PrivateNoStore'}}, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorResponse'}}}}
+    Forbidden: {description: Không đủ quyền hoặc tài khoản cần hoàn thiện hồ sơ, headers: {Cache-Control: {$ref: '#/components/headers/PrivateNoStore'}}, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorResponse'}}}}
+    PasswordSetupForbidden: {description: "Origin hoặc CSRF không hợp lệ, hoặc tài khoản chưa liên kết Google/không còn đủ điều kiện", headers: {Cache-Control: {$ref: '#/components/headers/PrivateNoStore'}}, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorResponse'}}}}
     NotFound: {description: Không tìm thấy resource hoặc resource ngoài owner scope, headers: {Cache-Control: {$ref: '#/components/headers/PrivateNoStore'}}, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorResponse'}}}}
     Conflict: {description: Xung đột state hoặc uniqueness, headers: {Cache-Control: {$ref: '#/components/headers/PrivateNoStore'}}, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorResponse'}}}}
     IdempotencyConflict: {description: Idempotency key đã dùng với body khác, headers: {Cache-Control: {$ref: '#/components/headers/PrivateNoStore'}}, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorResponse'}}}}
@@ -806,16 +989,19 @@ components:
     TransactionType: {type: string, enum: [income, payment]}
     Locale: {type: string, enum: [en, vi]}
     MoneyVnd: {type: integer, minimum: 0, maximum: 9007199254740991, description: Số nguyên VND trong miền integer an toàn của JavaScript; không dùng floating point}
+    SignedMoneyVnd: {type: integer, minimum: -9007199254740991, maximum: 9007199254740991, description: Số dư dự kiến hoặc chênh lệch có thể âm; không biểu diễn amount giao dịch}
     PositiveMoneyVnd: {type: integer, minimum: 1, maximum: 9007199254740991, description: Số nguyên VND dương trong miền integer an toàn của JavaScript}
     User:
       type: object
-      required: [id, displayName, email, locale, role]
+      required: [id, displayName, email, hasLocalPassword, locale, role, requiresProfileCompletion]
       properties:
         id: {type: string}
         displayName: {type: string}
+        hasLocalPassword: {type: boolean, description: Tài khoản hiện tại đã có thông tin đăng nhập bằng mật khẩu hay chưa}
         email: {type: string, format: email}
         locale: {$ref: '#/components/schemas/Locale'}
         role: {type: string, enum: [user, admin, security]}
+        requiresProfileCompletion: {type: boolean, description: True khi thiếu tên hiển thị hoặc mật khẩu đăng nhập cục bộ}
     UserResponse: {type: object, required: [data], properties: {data: {$ref: '#/components/schemas/User'}}}
     Session:
       type: object
@@ -871,8 +1057,9 @@ components:
         type: {$ref: '#/components/schemas/TransactionType'}
         amountVnd: {$ref: '#/components/schemas/PositiveMoneyVnd'}
         categoryId: {type: string}
-        occurredAt: {type: string, format: date-time}
+        occurredAt: {type: string, format: date-time, description: "RFC3339 date-time có múi giờ và tối đa ba chữ số phần giây; UTC sau quy đổi phải nằm trong miền MySQL DATETIME(3) từ 1000-01-01 00:00:00.000 đến 9999-12-31 23:59:59.499 và không ở tương lai. Giao diện quy đổi ngày người dùng chọn theo Asia/Ho_Chi_Minh thành đầu ngày."}
         description: {type: string, maxLength: 500}
+        itemName: {type: string, maxLength: 120, description: Tên sản phẩm riêng biệt với description; chỉ dùng cho payment}
         confirmedCategorySuggestion: {type: boolean, default: false}
     CorrectionRole: {type: string, enum: [reversal, adjustment, replacement]}
     TransactionRole: {type: string, enum: [original, reversal, adjustment, replacement]}
@@ -886,7 +1073,7 @@ components:
         newCategoryId: {type: string}
     Transaction:
       type: object
-      required: [id, type, amountVnd, categoryId, occurredAt, role, createdAt]
+      required: [id, type, amountVnd, categoryId, occurredAt, itemName, role, createdAt]
       properties:
         id: {type: string}
         type: {$ref: '#/components/schemas/TransactionType'}
@@ -894,6 +1081,7 @@ components:
         categoryId: {type: string}
         occurredAt: {type: string, format: date-time}
         description: {type: [string, 'null']}
+        itemName: {type: [string, 'null'], maxLength: 120}
         role: {$ref: '#/components/schemas/TransactionRole'}
         referenceId: {type: [string, 'null']}
         createdAt: {type: string, format: date-time}
@@ -914,6 +1102,55 @@ components:
           properties:
             transaction: {$ref: '#/components/schemas/Transaction'}
             budgetWarning: {$ref: '#/components/schemas/BudgetWarning'}
+    FrequentPaymentItem:
+      type: object
+      required: [itemName, frequency, lastAmountVnd, lastOccurredAt, previousOccurredAt]
+      properties:
+        itemName: {type: string, minLength: 1, maxLength: 120}
+        frequency: {type: integer, minimum: 1}
+        lastAmountVnd: {$ref: '#/components/schemas/PositiveMoneyVnd'}
+        lastOccurredAt: {type: string, format: date-time}
+        previousOccurredAt: {type: [string, 'null'], format: date-time}
+    FrequentPaymentItems:
+      type: object
+      required: [asOf, items]
+      properties:
+        asOf: {type: string, format: date-time}
+        items:
+          type: array
+          maxItems: 10
+          items: {$ref: '#/components/schemas/FrequentPaymentItem'}
+    FrequentPaymentItemsResponse: {type: object, required: [data], properties: {data: {$ref: '#/components/schemas/FrequentPaymentItems'}}}
+    CategorySuggestionRequest:
+      type: object
+      required: [transactionType, description, providerConsent]
+      properties:
+        transactionType: {$ref: '#/components/schemas/TransactionType'}
+        description: {type: string, minLength: 1, maxLength: 500}
+        providerConsent: {type: boolean, const: true, description: Người dùng chủ động đồng ý gửi văn bản đã lọc thông tin và nhãn category tới OpenRouter.}
+    CategorySuggestion:
+      type: object
+      required: [status, categoryId, confidence, reasonCode]
+      properties:
+        status: {type: string, enum: [suggested, manual, disabled, unavailable]}
+        categoryId: {type: [string, 'null']}
+        confidence: {type: [number, 'null'], minimum: 0, maximum: 1}
+        reasonCode: {type: [string, 'null']}
+    CategorySuggestionResponse: {type: object, required: [data], properties: {data: {$ref: '#/components/schemas/CategorySuggestion'}}}
+    ReceiptParseRequest:
+      type: object
+      required: [mimeType, imageBase64, providerConsent]
+      properties:
+        mimeType: {type: string, enum: [image/jpeg, image/png]}
+        imageBase64: {type: string, minLength: 1, maxLength: 3000000, description: JPEG/PNG tối đa 2.2 MB sau khi trình duyệt thu nhỏ ảnh.}
+        providerConsent: {type: boolean, const: true, description: Người dùng đồng ý gửi ảnh đã chọn tới Google Cloud Vision.}
+    ReceiptDraft:
+      type: object
+      required: [amountVnd, description]
+      properties:
+        amountVnd: {type: [integer, 'null'], minimum: 1, maximum: 9007199254740991}
+        description: {type: [string, 'null'], maxLength: 80}
+    ReceiptDraftResponse: {type: object, required: [data], properties: {data: {$ref: '#/components/schemas/ReceiptDraft'}}}
     PageMeta:
       type: object
       required: [hasNext]
@@ -984,6 +1221,141 @@ components:
         nameEn: {type: string, minLength: 1, maxLength: 80}
         nameVi: {type: string, maxLength: 80}
         status: {$ref: '#/components/schemas/CategoryStatus'}
+    CashflowPlanKind: {type: string, enum: [obligation, expected_income]}
+    CashflowPlanFrequency: {type: string, enum: [once, monthly]}
+    CashflowReminderStatus: {type: string, enum: [date_passed, due_soon, upcoming]}
+    CashflowAssumption:
+      type: string
+      enum:
+        - current_recorded_wallet_balance
+        - active_user_plans_only
+        - same_day_events_visible_but_not_counted
+        - declared_income_added_to_projection
+        - reserved_obligations_subtracted_only
+        - not_bank_balance_or_payment_authorization
+        - hypothetical_payment_subtracted_once
+        - hypothetical_payment_not_recorded_or_authorized
+        - same_date_events_net_at_day_end
+    CashflowPlan:
+      type: object
+      required: [id, kind, title, amountVnd, categoryId, frequency, startsOn, dueDay, reserveInForecast, isActive, createdAt, disabledAt]
+      properties:
+        id: {type: string}
+        kind: {$ref: '#/components/schemas/CashflowPlanKind'}
+        title: {type: string, minLength: 1, maxLength: 120}
+        amountVnd: {type: integer, minimum: 1, maximum: 9007199254740991}
+        categoryId: {type: [string, 'null']}
+        frequency: {$ref: '#/components/schemas/CashflowPlanFrequency'}
+        startsOn: {type: string, format: date, description: One-time due date or first monthly due date.}
+        dueDay: {type: [integer, 'null'], minimum: 1, maximum: 31, description: Monthly day; 29–31 clamp to month end.}
+        reserveInForecast: {type: boolean, description: Only obligations may reserve; never changes wallet.}
+        isActive: {type: boolean}
+        createdAt: {type: string, format: date-time}
+        disabledAt: {type: [string, 'null'], format: date-time}
+    CashflowPlanResponse: {type: object, required: [data], properties: {data: {$ref: '#/components/schemas/CashflowPlan'}}}
+    CashflowPlanListResponse: {type: object, required: [data], properties: {data: {type: array, items: {$ref: '#/components/schemas/CashflowPlan'}}}}
+    CreateCashflowPlanRequest:
+      type: object
+      required: [kind, title, amountVnd, frequency, startsOn, reserveInForecast]
+      properties:
+        kind: {$ref: '#/components/schemas/CashflowPlanKind'}
+        title: {type: string, minLength: 1, maxLength: 120}
+        amountVnd: {type: integer, minimum: 1, maximum: 9007199254740991}
+        categoryId: {type: [string, 'null'], description: Optional payment category for an obligation; expected income must be null.}
+        frequency: {$ref: '#/components/schemas/CashflowPlanFrequency'}
+        startsOn: {type: string, format: date, description: One-time due date or first monthly due date.}
+        dueDay: {type: [integer, 'null'], minimum: 1, maximum: 31}
+        reserveInForecast: {type: boolean, description: Must be false for expected income.}
+      allOf:
+        - if: {properties: {frequency: {const: once}}, required: [frequency]}
+          then: {properties: {dueDay: {type: 'null'}}}
+        - if: {properties: {frequency: {const: monthly}}, required: [frequency]}
+          then: {required: [dueDay], properties: {dueDay: {type: integer, minimum: 1, maximum: 31}}}
+        - if: {properties: {kind: {const: expected_income}}, required: [kind]}
+          then: {properties: {categoryId: {type: 'null'}, reserveInForecast: {const: false}}}
+    UpdateCashflowPlanOptionsRequest:
+      type: object
+      minProperties: 1
+      additionalProperties: false
+      properties:
+        reserveInForecast: {type: boolean, description: Cannot be true for expected income.}
+        isActive: {type: boolean, description: Set false to disable an active plan or true to reactivate a disabled plan.}
+    CashflowOccurrence:
+      type: object
+      required: [planId, kind, title, amountVnd, categoryId, dueDate, reserveInForecast, isActive, reminderStatus, isDueWithin10Days]
+      properties:
+        planId: {type: string}
+        kind: {$ref: '#/components/schemas/CashflowPlanKind'}
+        title: {type: string}
+        amountVnd: {type: integer, minimum: 1, maximum: 9007199254740991}
+        categoryId: {type: [string, 'null']}
+        dueDate: {type: string, format: date}
+        reserveInForecast: {type: boolean}
+        isActive: {type: boolean}
+        reminderStatus: {$ref: '#/components/schemas/CashflowReminderStatus'}
+        isDueWithin10Days: {type: boolean}
+    CashflowOccurrenceListResponse: {type: object, required: [data], properties: {data: {type: array, items: {$ref: '#/components/schemas/CashflowOccurrence'}}}}
+    CashflowForecast:
+      type: object
+      required: [asOfDate, days, endDate, walletStatus, currentWalletBalanceVnd, plannedIncomeVnd, plannedObligationsVnd, reservedObligationsVnd, unreservedObligationsVnd, projectedWalletBalanceVnd, events, assumptions]
+      properties:
+        asOfDate: {type: string, format: date}
+        days: {type: integer, minimum: 1, maximum: 365}
+        endDate: {type: string, format: date}
+        walletStatus: {type: string, enum: [initialized, not_initialized]}
+        currentWalletBalanceVnd: {anyOf: [{$ref: '#/components/schemas/MoneyVnd'}, {type: 'null'}]}
+        plannedIncomeVnd: {$ref: '#/components/schemas/MoneyVnd'}
+        plannedObligationsVnd: {$ref: '#/components/schemas/MoneyVnd'}
+        reservedObligationsVnd: {$ref: '#/components/schemas/MoneyVnd'}
+        unreservedObligationsVnd: {$ref: '#/components/schemas/MoneyVnd'}
+        projectedWalletBalanceVnd: {anyOf: [{$ref: '#/components/schemas/SignedMoneyVnd'}, {type: 'null'}]}
+        events: {type: array, items: {$ref: '#/components/schemas/CashflowOccurrence'}}
+        assumptions: {type: array, items: {$ref: '#/components/schemas/CashflowAssumption'}, uniqueItems: true}
+    CashflowForecastResponse: {type: object, required: [data], properties: {data: {$ref: '#/components/schemas/CashflowForecast'}}}
+    CashflowWhatIfRequest:
+      type: object
+      required: [amountVnd, paymentDate]
+      properties:
+        amountVnd: {type: integer, minimum: 1, maximum: 9007199254740991}
+        paymentDate: {type: string, format: date}
+        days: {type: integer, minimum: 1, maximum: 365, default: 30}
+    CashflowWhatIf:
+      type: object
+      required: [asOfDate, days, paymentDate, hypotheticalPaymentVnd, baselineProjectedWalletBalanceVnd, scenarioProjectedWalletBalanceVnd, baselineProjectedWalletBalanceOnPaymentDateVnd, scenarioProjectedWalletBalanceOnPaymentDateVnd, baselineLowestProjectedWalletBalanceVnd, scenarioLowestProjectedWalletBalanceVnd, assumptions]
+      properties:
+        asOfDate: {type: string, format: date}
+        days: {type: integer, minimum: 1, maximum: 365}
+        paymentDate: {type: string, format: date}
+        hypotheticalPaymentVnd: {type: integer, minimum: 1, maximum: 9007199254740991}
+        baselineProjectedWalletBalanceVnd: {$ref: '#/components/schemas/SignedMoneyVnd'}
+        scenarioProjectedWalletBalanceVnd: {$ref: '#/components/schemas/SignedMoneyVnd'}
+        baselineProjectedWalletBalanceOnPaymentDateVnd: {$ref: '#/components/schemas/SignedMoneyVnd'}
+        scenarioProjectedWalletBalanceOnPaymentDateVnd: {$ref: '#/components/schemas/SignedMoneyVnd'}
+        baselineLowestProjectedWalletBalanceVnd: {$ref: '#/components/schemas/SignedMoneyVnd'}
+        scenarioLowestProjectedWalletBalanceVnd: {$ref: '#/components/schemas/SignedMoneyVnd'}
+        assumptions: {type: array, items: {$ref: '#/components/schemas/CashflowAssumption'}, uniqueItems: true}
+    CashflowWhatIfResponse: {type: object, required: [data], properties: {data: {$ref: '#/components/schemas/CashflowWhatIf'}}}
+    CashflowReflectionPart:
+      type: object
+      required: [plannedVnd, plannedOccurrenceCount, plannedStatus, recordedVnd, recordedTransactionCount, recordedStatus, recordedMinusPlannedVnd]
+      properties:
+        plannedVnd: {anyOf: [{$ref: '#/components/schemas/MoneyVnd'}, {type: 'null'}]}
+        plannedOccurrenceCount: {type: integer, minimum: 0}
+        plannedStatus: {type: string, enum: [planned, unplanned]}
+        recordedVnd: {anyOf: [{$ref: '#/components/schemas/MoneyVnd'}, {type: 'null'}]}
+        recordedTransactionCount: {type: integer, minimum: 0}
+        recordedStatus: {type: string, enum: [recorded, unrecorded]}
+        recordedMinusPlannedVnd: {anyOf: [{$ref: '#/components/schemas/SignedMoneyVnd'}, {type: 'null'}]}
+    CashflowReflection:
+      type: object
+      required: [month, periodStatus, income, obligations, noteCode]
+      properties:
+        month: {type: string, pattern: '^\d{4}-(0[1-9]|1[0-2])$'}
+        periodStatus: {type: string, enum: [ended]}
+        income: {$ref: '#/components/schemas/CashflowReflectionPart'}
+        obligations: {$ref: '#/components/schemas/CashflowReflectionPart'}
+        noteCode: {type: string, enum: [unrecorded_does_not_mean_zero_activity]}
+    CashflowReflectionResponse: {type: object, required: [data], properties: {data: {$ref: '#/components/schemas/CashflowReflection'}}}
     Budget:
       type: object
       required: [categoryId, month, limitVnd, usedVnd, isOverrun]
@@ -1178,6 +1550,11 @@ components:
         email: {type: string, format: email}
         otp: {type: string, minLength: 6, maxLength: 6}
         newPassword: {type: string, minLength: 8}
+    SetInitialPasswordRequest:
+      type: object
+      required: [newPassword]
+      properties:
+        newPassword: {type: string, minLength: 8, maxLength: 128}
     MessageResponse:
       type: object
       required: [data]

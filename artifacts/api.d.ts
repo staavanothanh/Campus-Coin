@@ -174,6 +174,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/set-password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Thiết lập mật khẩu email ban đầu cho tài khoản Google đã xác minh */
+        post: operations["postAuthSetInitialPassword"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/csrf": {
         parameters: {
             query?: never;
@@ -328,6 +345,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/ledger/item-suggestions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Gợi ý sản phẩm payment thường gặp của user hiện tại */
+        get: operations["getFrequentPaymentItemSuggestions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/ai/category-suggestion": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Gợi ý category từ mô tả sau khi người dùng đồng ý gửi dữ liệu tới OpenRouter */
+        post: operations["postAiCategorySuggestion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/receipts/parse": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Đọc ảnh hóa đơn thành bản nháp payment sau khi người dùng đồng ý */
+        post: operations["postReceiptParse"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/ledger/transactions/{transactionId}": {
         parameters: {
             query?: never;
@@ -475,6 +543,118 @@ export interface paths {
         };
         /** Lấy tổng quan budget theo tháng */
         get: operations["getBudgetsSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/cashflow/plans": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Liệt kê kế hoạch dòng tiền của owner trong session */
+        get: operations["getCashflowPlans"];
+        put?: never;
+        /**
+         * Tạo một kế hoạch nghĩa vụ hoặc khoản thu dự kiến do user khai báo
+         * @description Không tạo income/payment hoặc thay đổi wallet. Chỉ account trong session được dùng làm owner.
+         */
+        post: operations["postCashflowPlans"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/cashflow/plans/{planId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Bật hoặc tắt kế hoạch, hoặc đổi tùy chọn dự báo của chính owner
+         * @description isActive=false tắt kế hoạch mà không xóa lịch sử; isActive=true bật lại kế hoạch đã tắt. Trạng thái không đổi hoặc tùy chọn không hợp lệ trả lỗi 422.
+         */
+        patch: operations["patchCashflowPlansByPlanId"];
+        trace?: never;
+    };
+    "/cashflow/upcoming": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lấy lịch dự kiến và trạng thái nhắc ngày đến hạn */
+        get: operations["getCashflowUpcoming"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/cashflow/forecast": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Tính dự báo dòng tiền theo kế hoạch do owner khai báo */
+        get: operations["getCashflowForecast"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/cashflow/what-if": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Mô phỏng một payment giả định mà không ghi giao dịch
+         * @description Tính trên wallet hiện tại và kế hoạch active của chính owner; không giữ tiền, không authorize và không tạo payment/budget row.
+         */
+        post: operations["postCashflowWhatIf"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/cashflow/reflection": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** So sánh kế hoạch với ledger đã ghi cho một tháng đã kết thúc */
+        get: operations["getCashflowReflection"];
         put?: never;
         post?: never;
         delete?: never;
@@ -681,16 +861,22 @@ export interface components {
         Locale: "en" | "vi";
         /** @description Số nguyên VND trong miền integer an toàn của JavaScript; không dùng floating point */
         MoneyVnd: number;
+        /** @description Số dư dự kiến hoặc chênh lệch có thể âm; không biểu diễn amount giao dịch */
+        SignedMoneyVnd: number;
         /** @description Số nguyên VND dương trong miền integer an toàn của JavaScript */
         PositiveMoneyVnd: number;
         User: {
             id: string;
             displayName: string;
+            /** @description Tài khoản hiện tại đã có thông tin đăng nhập bằng mật khẩu hay chưa */
+            hasLocalPassword: boolean;
             /** Format: email */
             email: string;
             locale: components["schemas"]["Locale"];
             /** @enum {string} */
             role: "user" | "admin" | "security";
+            /** @description True khi thiếu tên hiển thị hoặc mật khẩu đăng nhập cục bộ */
+            requiresProfileCompletion: boolean;
         };
         UserResponse: {
             data: components["schemas"]["User"];
@@ -740,9 +926,14 @@ export interface components {
             type: components["schemas"]["TransactionType"];
             amountVnd: components["schemas"]["PositiveMoneyVnd"];
             categoryId: string;
-            /** Format: date-time */
+            /**
+             * Format: date-time
+             * @description RFC3339 date-time có múi giờ và tối đa ba chữ số phần giây; UTC sau quy đổi phải nằm trong miền MySQL DATETIME(3) từ 1000-01-01 00:00:00.000 đến 9999-12-31 23:59:59.499 và không ở tương lai. Giao diện quy đổi ngày người dùng chọn theo Asia/Ho_Chi_Minh thành đầu ngày.
+             */
             occurredAt: string;
             description?: string;
+            /** @description Tên sản phẩm riêng biệt với description; chỉ dùng cho payment */
+            itemName?: string;
             /** @default false */
             confirmedCategorySuggestion: boolean;
         };
@@ -764,6 +955,7 @@ export interface components {
             /** Format: date-time */
             occurredAt: string;
             description?: string | null;
+            itemName: string | null;
             role: components["schemas"]["TransactionRole"];
             referenceId?: string | null;
             /** Format: date-time */
@@ -779,6 +971,60 @@ export interface components {
                 transaction: components["schemas"]["Transaction"];
                 budgetWarning?: components["schemas"]["BudgetWarning"];
             };
+        };
+        FrequentPaymentItem: {
+            itemName: string;
+            frequency: number;
+            lastAmountVnd: components["schemas"]["PositiveMoneyVnd"];
+            /** Format: date-time */
+            lastOccurredAt: string;
+            /** Format: date-time */
+            previousOccurredAt: string | null;
+        };
+        FrequentPaymentItems: {
+            /** Format: date-time */
+            asOf: string;
+            items: components["schemas"]["FrequentPaymentItem"][];
+        };
+        FrequentPaymentItemsResponse: {
+            data: components["schemas"]["FrequentPaymentItems"];
+        };
+        CategorySuggestionRequest: {
+            transactionType: components["schemas"]["TransactionType"];
+            description: string;
+            /**
+             * @description Người dùng chủ động đồng ý gửi văn bản đã lọc thông tin và nhãn category tới OpenRouter.
+             * @constant
+             */
+            providerConsent: true;
+        };
+        CategorySuggestion: {
+            /** @enum {string} */
+            status: "suggested" | "manual" | "disabled" | "unavailable";
+            categoryId: string | null;
+            confidence: number | null;
+            reasonCode: string | null;
+        };
+        CategorySuggestionResponse: {
+            data: components["schemas"]["CategorySuggestion"];
+        };
+        ReceiptParseRequest: {
+            /** @enum {string} */
+            mimeType: "image/jpeg" | "image/png";
+            /** @description JPEG/PNG tối đa 2.2 MB sau khi trình duyệt thu nhỏ ảnh. */
+            imageBase64: string;
+            /**
+             * @description Người dùng đồng ý gửi ảnh đã chọn tới Google Cloud Vision.
+             * @constant
+             */
+            providerConsent: true;
+        };
+        ReceiptDraft: {
+            amountVnd: number | null;
+            description: string | null;
+        };
+        ReceiptDraftResponse: {
+            data: components["schemas"]["ReceiptDraft"];
         };
         PageMeta: {
             cursor?: string | null;
@@ -847,6 +1093,148 @@ export interface components {
             nameEn?: string;
             nameVi?: string;
             status?: components["schemas"]["CategoryStatus"];
+        };
+        /** @enum {string} */
+        CashflowPlanKind: "obligation" | "expected_income";
+        /** @enum {string} */
+        CashflowPlanFrequency: "once" | "monthly";
+        /** @enum {string} */
+        CashflowReminderStatus: "date_passed" | "due_soon" | "upcoming";
+        /** @enum {string} */
+        CashflowAssumption: "current_recorded_wallet_balance" | "active_user_plans_only" | "same_day_events_visible_but_not_counted" | "declared_income_added_to_projection" | "reserved_obligations_subtracted_only" | "not_bank_balance_or_payment_authorization" | "hypothetical_payment_subtracted_once" | "hypothetical_payment_not_recorded_or_authorized" | "same_date_events_net_at_day_end";
+        CashflowPlan: {
+            id: string;
+            kind: components["schemas"]["CashflowPlanKind"];
+            title: string;
+            amountVnd: number;
+            categoryId: string | null;
+            frequency: components["schemas"]["CashflowPlanFrequency"];
+            /**
+             * Format: date
+             * @description One-time due date or first monthly due date.
+             */
+            startsOn: string;
+            /** @description Monthly day; 29–31 clamp to month end. */
+            dueDay: number | null;
+            /** @description Only obligations may reserve; never changes wallet. */
+            reserveInForecast: boolean;
+            isActive: boolean;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            disabledAt: string | null;
+        };
+        CashflowPlanResponse: {
+            data: components["schemas"]["CashflowPlan"];
+        };
+        CashflowPlanListResponse: {
+            data: components["schemas"]["CashflowPlan"][];
+        };
+        CreateCashflowPlanRequest: {
+            kind: components["schemas"]["CashflowPlanKind"];
+            title: string;
+            amountVnd: number;
+            /** @description Optional payment category for an obligation; expected income must be null. */
+            categoryId?: string | null;
+            frequency: components["schemas"]["CashflowPlanFrequency"];
+            /**
+             * Format: date
+             * @description One-time due date or first monthly due date.
+             */
+            startsOn: string;
+            dueDay?: number | null;
+            /** @description Must be false for expected income. */
+            reserveInForecast: boolean;
+        } & (unknown & unknown & unknown);
+        UpdateCashflowPlanOptionsRequest: {
+            /** @description Cannot be true for expected income. */
+            reserveInForecast?: boolean;
+            /** @description Set false to disable an active plan or true to reactivate a disabled plan. */
+            isActive?: boolean;
+        };
+        CashflowOccurrence: {
+            planId: string;
+            kind: components["schemas"]["CashflowPlanKind"];
+            title: string;
+            amountVnd: number;
+            categoryId: string | null;
+            /** Format: date */
+            dueDate: string;
+            reserveInForecast: boolean;
+            isActive: boolean;
+            reminderStatus: components["schemas"]["CashflowReminderStatus"];
+            isDueWithin10Days: boolean;
+        };
+        CashflowOccurrenceListResponse: {
+            data: components["schemas"]["CashflowOccurrence"][];
+        };
+        CashflowForecast: {
+            /** Format: date */
+            asOfDate: string;
+            days: number;
+            /** Format: date */
+            endDate: string;
+            /** @enum {string} */
+            walletStatus: "initialized" | "not_initialized";
+            currentWalletBalanceVnd: components["schemas"]["MoneyVnd"] | null;
+            plannedIncomeVnd: components["schemas"]["MoneyVnd"];
+            plannedObligationsVnd: components["schemas"]["MoneyVnd"];
+            reservedObligationsVnd: components["schemas"]["MoneyVnd"];
+            unreservedObligationsVnd: components["schemas"]["MoneyVnd"];
+            projectedWalletBalanceVnd: components["schemas"]["SignedMoneyVnd"] | null;
+            events: components["schemas"]["CashflowOccurrence"][];
+            assumptions: components["schemas"]["CashflowAssumption"][];
+        };
+        CashflowForecastResponse: {
+            data: components["schemas"]["CashflowForecast"];
+        };
+        CashflowWhatIfRequest: {
+            amountVnd: number;
+            /** Format: date */
+            paymentDate: string;
+            /** @default 30 */
+            days: number;
+        };
+        CashflowWhatIf: {
+            /** Format: date */
+            asOfDate: string;
+            days: number;
+            /** Format: date */
+            paymentDate: string;
+            hypotheticalPaymentVnd: number;
+            baselineProjectedWalletBalanceVnd: components["schemas"]["SignedMoneyVnd"];
+            scenarioProjectedWalletBalanceVnd: components["schemas"]["SignedMoneyVnd"];
+            baselineProjectedWalletBalanceOnPaymentDateVnd: components["schemas"]["SignedMoneyVnd"];
+            scenarioProjectedWalletBalanceOnPaymentDateVnd: components["schemas"]["SignedMoneyVnd"];
+            baselineLowestProjectedWalletBalanceVnd: components["schemas"]["SignedMoneyVnd"];
+            scenarioLowestProjectedWalletBalanceVnd: components["schemas"]["SignedMoneyVnd"];
+            assumptions: components["schemas"]["CashflowAssumption"][];
+        };
+        CashflowWhatIfResponse: {
+            data: components["schemas"]["CashflowWhatIf"];
+        };
+        CashflowReflectionPart: {
+            plannedVnd: components["schemas"]["MoneyVnd"] | null;
+            plannedOccurrenceCount: number;
+            /** @enum {string} */
+            plannedStatus: "planned" | "unplanned";
+            recordedVnd: components["schemas"]["MoneyVnd"] | null;
+            recordedTransactionCount: number;
+            /** @enum {string} */
+            recordedStatus: "recorded" | "unrecorded";
+            recordedMinusPlannedVnd: components["schemas"]["SignedMoneyVnd"] | null;
+        };
+        CashflowReflection: {
+            month: string;
+            /** @enum {string} */
+            periodStatus: "ended";
+            income: components["schemas"]["CashflowReflectionPart"];
+            obligations: components["schemas"]["CashflowReflectionPart"];
+            /** @enum {string} */
+            noteCode: "unrecorded_does_not_mean_zero_activity";
+        };
+        CashflowReflectionResponse: {
+            data: components["schemas"]["CashflowReflection"];
         };
         Budget: {
             categoryId: string;
@@ -1033,6 +1421,9 @@ export interface components {
             otp: string;
             newPassword: string;
         };
+        SetInitialPasswordRequest: {
+            newPassword: string;
+        };
         MessageResponse: {
             data: {
                 message: string;
@@ -1105,8 +1496,18 @@ export interface components {
                 "application/json": components["schemas"]["ErrorResponse"];
             };
         };
-        /** @description Không đủ quyền */
+        /** @description Không đủ quyền hoặc tài khoản cần hoàn thiện hồ sơ */
         Forbidden: {
+            headers: {
+                "Cache-Control": components["headers"]["PrivateNoStore"];
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["ErrorResponse"];
+            };
+        };
+        /** @description Origin hoặc CSRF không hợp lệ, hoặc tài khoản chưa liên kết Google/không còn đủ điều kiện */
+        PasswordSetupForbidden: {
             headers: {
                 "Cache-Control": components["headers"]["PrivateNoStore"];
                 [name: string]: unknown;
@@ -1214,6 +1615,8 @@ export interface components {
         Month: string;
         TransactionId: string;
         CategoryId: string;
+        PlanId: string;
+        ForecastDays: number;
         IssueId: string;
     };
     requestBodies: never;
@@ -1535,6 +1938,39 @@ export interface operations {
             default: components["responses"]["InternalError"];
         };
     };
+    postAuthSetInitialPassword: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetInitialPasswordRequest"];
+            };
+        };
+        responses: {
+            /** @description Mật khẩu ban đầu đã được thiết lập */
+            200: {
+                headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["PasswordSetupForbidden"];
+            409: components["responses"]["Conflict"];
+            413: components["responses"]["PayloadTooLarge"];
+            422: components["responses"]["ValidationError"];
+            500: components["responses"]["InternalError"];
+            default: components["responses"]["InternalError"];
+        };
+    };
     getAuthCsrf: {
         parameters: {
             query?: never;
@@ -1759,7 +2195,9 @@ export interface operations {
                 limit?: components["parameters"]["Limit"];
                 type?: components["schemas"]["TransactionType"];
                 categoryId?: string;
+                /** @description Inclusive UTC bound with at most three fractional-second digits in MySQL DATETIME(3) range from 1000-01-01 00:00:00.000 to 9999-12-31 23:59:59.499; future filter bounds are allowed. */
                 from?: string;
+                /** @description Exclusive UTC bound with at most three fractional-second digits in MySQL DATETIME(3) range from 1000-01-01 00:00:00.000 to 9999-12-31 23:59:59.499; future filter bounds are allowed. */
                 to?: string;
             };
             header?: never;
@@ -1814,6 +2252,114 @@ export interface operations {
             413: components["responses"]["PayloadTooLarge"];
             422: components["responses"]["DomainValidationError"];
             500: components["responses"]["InternalError"];
+            default: components["responses"]["InternalError"];
+        };
+    };
+    getFrequentPaymentItemSuggestions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Tối đa 10 sản phẩm đã nhập của owner */
+            200: {
+                headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FrequentPaymentItemsResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            500: components["responses"]["InternalError"];
+            default: components["responses"]["InternalError"];
+        };
+    };
+    postAiCategorySuggestion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CategorySuggestionRequest"];
+            };
+        };
+        responses: {
+            /** @description Gợi ý hoặc trạng thái fallback; không ghi dữ liệu tiền */
+            200: {
+                headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CategorySuggestionResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["CsrfInvalid"];
+            422: components["responses"]["ValidationError"];
+            429: components["responses"]["RateLimited"];
+            500: components["responses"]["InternalError"];
+            default: components["responses"]["InternalError"];
+        };
+    };
+    postReceiptParse: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReceiptParseRequest"];
+            };
+        };
+        responses: {
+            /** @description Chỉ trả số tiền/mô tả dự thảo, không ghi ledger hoặc lưu ảnh */
+            200: {
+                headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReceiptDraftResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["CsrfInvalid"];
+            413: components["responses"]["PayloadTooLarge"];
+            /** @description Chỉ hỗ trợ JPEG hoặc PNG */
+            415: {
+                headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            422: components["responses"]["ValidationError"];
+            429: components["responses"]["RateLimited"];
+            500: components["responses"]["InternalError"];
+            /** @description Provider OCR không xử lý được ảnh */
+            502: {
+                headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            503: components["responses"]["ServiceUnavailable"];
             default: components["responses"]["InternalError"];
         };
     };
@@ -2146,6 +2692,213 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BudgetSummaryResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            422: components["responses"]["ValidationError"];
+            500: components["responses"]["InternalError"];
+            default: components["responses"]["InternalError"];
+        };
+    };
+    getCashflowPlans: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Các kế hoạch đã khai báo, gồm cả mục đã tắt */
+            200: {
+                headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CashflowPlanListResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            500: components["responses"]["InternalError"];
+            default: components["responses"]["InternalError"];
+        };
+    };
+    postCashflowPlans: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateCashflowPlanRequest"];
+            };
+        };
+        responses: {
+            /** @description Kế hoạch đã tạo */
+            201: {
+                headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CashflowPlanResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["CsrfInvalid"];
+            409: components["responses"]["IdempotencyConflict"];
+            413: components["responses"]["PayloadTooLarge"];
+            422: components["responses"]["DomainValidationError"];
+            500: components["responses"]["InternalError"];
+            default: components["responses"]["InternalError"];
+        };
+    };
+    patchCashflowPlansByPlanId: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                planId: components["parameters"]["PlanId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateCashflowPlanOptionsRequest"];
+            };
+        };
+        responses: {
+            /** @description Tùy chọn kế hoạch đã cập nhật */
+            200: {
+                headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CashflowPlanResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["CsrfInvalid"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["IdempotencyConflict"];
+            413: components["responses"]["PayloadTooLarge"];
+            422: components["responses"]["DomainValidationError"];
+            500: components["responses"]["InternalError"];
+            default: components["responses"]["InternalError"];
+        };
+    };
+    getCashflowUpcoming: {
+        parameters: {
+            query?: {
+                days?: components["parameters"]["ForecastDays"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Sự kiện trong kỳ xem; due-soon được gắn cờ trong 10 ngày tới */
+            200: {
+                headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CashflowOccurrenceListResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            422: components["responses"]["ValidationError"];
+            500: components["responses"]["InternalError"];
+            default: components["responses"]["InternalError"];
+        };
+    };
+    getCashflowForecast: {
+        parameters: {
+            query?: {
+                days?: components["parameters"]["ForecastDays"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Dự báo chỉ để tham khảo; không đổi wallet/ledger */
+            200: {
+                headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CashflowForecastResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            422: components["responses"]["ValidationError"];
+            500: components["responses"]["InternalError"];
+            default: components["responses"]["InternalError"];
+        };
+    };
+    postCashflowWhatIf: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CashflowWhatIfRequest"];
+            };
+        };
+        responses: {
+            /** @description Kết quả kịch bản giả định */
+            200: {
+                headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CashflowWhatIfResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["CsrfInvalid"];
+            413: components["responses"]["PayloadTooLarge"];
+            422: components["responses"]["DomainValidationError"];
+            500: components["responses"]["InternalError"];
+            default: components["responses"]["InternalError"];
+        };
+    };
+    getCashflowReflection: {
+        parameters: {
+            query: {
+                /** @example 2026-09 */
+                month: components["parameters"]["Month"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description So sánh dữ liệu owner đã khai báo/ghi; dữ liệu thiếu giữ trạng thái unrecorded */
+            200: {
+                headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CashflowReflectionResponse"];
                 };
             };
             401: components["responses"]["Unauthorized"];

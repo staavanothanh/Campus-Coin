@@ -1,6 +1,6 @@
 # DevB — DB test, backup/restore và benchmark
 
-> Cập nhật: 2026-09-27
+> Cập nhật: 2026-09-28
 > Người nhận: DevB và coding agent làm việc trong nhánh DevB
 > Đây là handoff công việc, không thay thế ADR hay quyết định của Team Leader.
 
@@ -10,10 +10,20 @@ Hoàn thiện lane database để nhóm kiểm tra an toàn trên môi trường
 
 Coding agent bên DevB được kỳ vọng tự đọc repo, sửa code/test/docs trong phạm vi dưới đây và chạy gate local an toàn. Agent không cần dừng lại để hỏi những việc có thể xác minh hoặc làm trong working tree. Khi gặp thao tác cần quyền DB/cloud, agent tiếp tục phần code độc lập rồi trả hướng dẫn cụ thể cho DevB/Team Leader.
 
+## Trạng thái runner ngày 2026-09-28
+
+- Đã thêm `npm run db:benchmark` dùng `benchmark/runner.ts` và guard thuần trong `benchmark/runner-core.ts`. Script tắt mặc định: cần `CAMPUS_COIN_BENCHMARK=1` cùng `CAMPUS_COIN_BENCHMARK_CONFIRM_LOCAL_DISPOSABLE=YES`; sau đó vẫn chỉ chấp nhận `localhost`, `127.0.0.1` hoặc loopback IPv6. Host allowlist không chứng minh MySQL service là disposable; DB owner vẫn phải xác nhận service local riêng.
+- Runner tạo tên schema ngẫu nhiên có prefix riêng, apply migration hiện hành, thêm một user synthetic trực tiếp trong schema tạm rồi tạo wallet/ledger qua application services hiện có. Runner đo `dashboard`, transaction list keyset và monthly report; in p50/p95 và `EXPLAIN` dạng đã lọc. Mặc định 100 dòng, 100 mẫu, 5 warm-up, concurrency 1; trần lần lượt 500 dòng, 500 mẫu, 20 warm-up, concurrency 4 và 120 giây.
+- Schema chỉ được drop sau khi lệnh `CREATE DATABASE` thành công và tên còn khớp pattern do runner sinh. Lỗi trước khi xác nhận tạo schema sẽ không thử drop; lỗi trong migration/seed/đo vẫn đi qua cleanup. Không dùng các file SQL cũ trong `benchmark/`.
+- Test guard thuần: `node --import tsx --test test/db-benchmark.test.ts` — 10/10 pass. Test này không mở kết nối, không chạy SQL và không chứng minh runner hoạt động với MySQL.
+- Chưa chạy `npm run db:benchmark`, migration, integration DB, typecheck/build, benchmark cloud hoặc Vercel. Cần review code; DevB chỉ chạy sau khi xác nhận local MySQL disposable. Không báo số benchmark cho tới khi có kết quả thật và cleanup được xác nhận.
+- Các file implementation: `benchmark/runner.ts`, `benchmark/runner-core.ts`, `src/infrastructure/db/pool.ts`, `test/db-benchmark.test.ts`, `package.json`. Handoff này chỉ ghi trạng thái; `docs/DELIVERY-PLAN.md` là canonical status do Team Leader cập nhật.
+
 ## Bối cảnh đã biết
 
 - Nhánh sản phẩm chuẩn là hiep. Khi tài liệu này được viết, commit mới nhất là 6e0b812; kiểm tra lại nhánh/commit thực tế trước khi làm.
 - Team Leader đã báo campus_coin_clone kết nối TLS được, MySQL 8.4.8, migrations 0001–0005 applied. Đây là kết quả ngày 2026-09-26; xác minh lại trước mọi thao tác mới.
+- Changeset hiện tại thêm migrations `0011` (tên mặt hàng trong ledger), `0012` (kế hoạch dòng tiền) và `0013` (lịch sử bật/tắt kế hoạch). `0013` backfill trạng thái từ audit history hiện có rồi khóa update/delete sự kiện mới. CI kiểm tra trên MySQL disposable; không apply lên `campus_coin_clone` cho đến khi DevB giải quyết checksum mismatch `0006`–`0010`, xác nhận backup/restore và target.
 - Team Leader đã báo db:datatest 23/23, MySQL domain integration 31/31, contract smoke 13/13, Auth MySQL 8/8 và auth security 1/1 trên MySQL service thử nghiệm. Đây là evidence do Team Leader cung cấp; không chứng minh backup/restore hoặc benchmark.
 - MySQL test harness hiện tạo schema ngẫu nhiên dạng campus_coin_test với PID và mã ngẫu nhiên, apply migrations trong db/migrations rồi drop schema khi dừng. Prefix trong CAMPUS_COIN_DB_NAME xác nhận ý định chạy test, không chứng minh host MySQL là môi trường riêng.
 - Bộ SQL cũ trong benchmark không an toàn để chạy: setup chọn campus_coin, dùng ID cố định và cleanup để lại users, ledger và savings transfers. Không chạy các file SQL này.

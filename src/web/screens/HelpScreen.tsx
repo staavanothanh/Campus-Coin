@@ -170,32 +170,24 @@ export function HelpScreen({ t, locale, csrfToken }: HelpScreenProps) {
           </div>
         </div>
 
-        {/* Right Column: Contact & Quick Links */}
-        <div className="help-contact-column">
-          {/* Contact Card */}
+          {/* Right Column: in-app support and feedback */}
+          <div className="help-contact-column">
+          {/* In-app feedback channel */}
           <div className="help-card contact-card">
             <div className="help-card-header">
               <Headphones size={20} className="contact-icon" />
               <div>
-                <h4>{isVi ? 'Kênh hỗ trợ trực tiếp' : 'Direct Support'}</h4>
-                <p className="muted">{isVi ? 'Phản hồi trong giờ hành chính' : 'Fast response within working hours'}</p>
+                <h4>{isVi ? 'Kênh góp ý trong ứng dụng' : 'In-app feedback channel'}</h4>
+                <p className="muted">{isVi ? 'Gửi báo lỗi hoặc góp ý bằng biểu mẫu Campus Coin.' : 'Send a bug report or suggestion with the Campus Coin form.'}</p>
               </div>
             </div>
 
             <div className="contact-item">
-              <span>{isVi ? 'Email hỗ trợ kỹ thuật:' : 'Technical Support Email:'}</span>
-              <strong>support@campuscoin.edu.vn</strong>
+              <span>{isVi ? 'Kênh tiếp nhận:' : 'Submitted through:'}</span>
+              <strong>{isVi ? 'Biểu mẫu góp ý bên dưới' : 'The form below'}</strong>
             </div>
 
-            <div className="contact-item">
-              <span>{isVi ? 'Đường dây nóng trường:' : 'Campus Hotline:'}</span>
-              <strong>1900 - CAMPUS (Ext 102)</strong>
-            </div>
-
-            <div className="contact-item">
-              <span>{isVi ? 'Thời gian làm việc:' : 'Working Hours:'}</span>
-              <strong>{isVi ? 'Thứ 2 - Thứ 6 (08:00 - 17:30)' : 'Mon - Fri (08:00 - 17:30)'}</strong>
-            </div>
+            <a className="secondary-button" href="#support-feedback-form">{isVi ? 'Tới biểu mẫu góp ý' : 'Go to feedback form'}</a>
           </div>
 
           {/* Feedback Card */}
@@ -211,7 +203,7 @@ export function HelpScreen({ t, locale, csrfToken }: HelpScreenProps) {
             {feedbackSent ? (
               <div className="feedback-success" role="status" aria-live="polite">
                 <CheckCircle2 size={18} color="#36856e" />
-                <span>{isVi ? 'Cảm ơn bạn! Ý kiến đã được gửi đến nhóm hỗ trợ.' : 'Thank you! Your feedback was sent to the support team.'}</span>
+                <span>{isVi ? 'Cảm ơn bạn! Ý kiến đã được ghi nhận trong Campus Coin.' : 'Thank you! Your feedback was recorded in Campus Coin.'}</span>
                 <button type="button" className="secondary-button" onClick={() => {
                   idempotencyKey.current = crypto.randomUUID();
                   setFeedbackSent(false);
@@ -220,10 +212,10 @@ export function HelpScreen({ t, locale, csrfToken }: HelpScreenProps) {
                 </button>
               </div>
             ) : (
-              <form onSubmit={(event) => void handleSendFeedback(event)} className="feedback-form">
+              <form id="support-feedback-form" onSubmit={(event) => void handleSendFeedback(event)} className="feedback-form">
+                <label htmlFor="support-feedback">{isVi ? 'Nội dung góp ý hoặc báo lỗi' : 'Feedback or bug report'}</label>
                 <textarea
                   id="support-feedback"
-                  aria-label={isVi ? 'Nội dung góp ý hoặc báo lỗi' : 'Feedback or bug report'}
                   rows={3}
                   value={feedbackText}
                   maxLength={4000}

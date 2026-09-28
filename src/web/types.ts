@@ -22,6 +22,8 @@ export type Screen = 'dashboard' | 'transactions' | 'savings' | 'reports' | 'adm
 export interface User {
   id: string;
   displayName: string;
+  hasLocalPassword: boolean;
+  requiresProfileCompletion: boolean;
   email: string;
   locale: Locale;
   role: UserRole;
@@ -50,6 +52,7 @@ export interface Transaction {
   categoryId: string;
   occurredAt: string;
   description: string | null;
+  itemName: string | null;
   role: CorrectionRole;
   referenceId: string | null;
   createdAt: string;
@@ -64,6 +67,18 @@ export interface BudgetWarning {
 export interface TransactionWithWarning {
   transaction: Transaction;
   budgetWarning?: BudgetWarning;
+}
+
+export interface ReceiptDraft {
+  amountVnd: number | null;
+  description: string | null;
+}
+
+export interface CategorySuggestion {
+  status: 'suggested' | 'manual' | 'disabled' | 'unavailable';
+  categoryId: string | null;
+  confidence: number | null;
+  reasonCode: string | null;
 }
 
 export interface Category {
@@ -169,7 +184,21 @@ export interface CreateTransactionRequest {
   categoryId: string;
   occurredAt: string;
   description?: string;
+  itemName?: string;
   confirmedCategorySuggestion?: boolean;
+}
+
+export interface FrequentPaymentItem {
+  itemName: string;
+  frequency: number;
+  lastAmountVnd: number;
+  lastOccurredAt: string;
+  previousOccurredAt: string | null;
+}
+
+export interface FrequentPaymentItems {
+  asOf: string;
+  items: FrequentPaymentItem[];
 }
 
 export interface CreateSavingsTransferRequest {

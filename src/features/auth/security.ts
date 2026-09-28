@@ -46,6 +46,26 @@ export function csrfForSession(token: string) {
   return createHmac('sha256', secret).update(`csrf:${token}`).digest('hex');
 }
 
-export function publicUser(user: { id: string | number; email: string; display_name: string; role: string; locale: string }) {
-  return { id: String(user.id), email: user.email, displayName: user.display_name, role: user.role, locale: user.locale };
+export function requiresProfileCompletion(displayName: string, hasLocalPassword: boolean) {
+  return displayName.trim().length === 0 || !hasLocalPassword;
+}
+
+export function publicUser(user: {
+  id: string | number;
+  email: string;
+  display_name: string;
+  role: string;
+  locale: string;
+  has_local_password: number | boolean;
+}) {
+  const hasLocalPassword = user.has_local_password === true || user.has_local_password === 1;
+  return {
+    id: String(user.id),
+    email: user.email,
+    displayName: user.display_name,
+    hasLocalPassword,
+    role: user.role,
+    locale: user.locale,
+    requiresProfileCompletion: requiresProfileCompletion(user.display_name, hasLocalPassword),
+  };
 }

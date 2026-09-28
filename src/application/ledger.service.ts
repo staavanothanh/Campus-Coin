@@ -11,6 +11,7 @@ import {
   findCorrectionForTarget,
   findTransactionById,
   insertLedgerRow,
+  listFrequentPaymentItems as queryFrequentPaymentItems,
   listTransactionsPage,
   type LedgerRow,
 } from "../infrastructure/persistence/ledger.repository.ts";
@@ -60,9 +61,59 @@ export interface TransactionResult {
   budgetWarning: BudgetWarningView;
 }
 
+function parseIsoDateTime(value: string, fieldName = "occurredAt"): number {
+  const match = /^(\d{4})-(\d{2})-(\d{2})[Tt](\d{2}):(\d{2}):(\d{2})(?:\.(\d+))?([Zz]|[+-]\d{2}:\d{2})$/.exec(value);
+  if (match === null) throw invalidInput(`${fieldName} must be a valid ISO-8601 instant`);
+
+  const [, yearText, monthText, dayText, hourText, minuteText, secondText, fraction, zone] = match;
+  if (
+    yearText === undefined || monthText === undefined || dayText === undefined ||
+    hourText === undefined || minuteText === undefined || secondText === undefined || zone === undefined
+  ) {
+    throw invalidInput(`${fieldName} must be a valid ISO-8601 instant`);
+  }
+  if (fraction !== undefined && fraction.length > 3) {
+    throw invalidInput(`${fieldName} supports at most three fractional digits`);
+  }
+  const year = Number(yearText);
+  const month = Number(monthText);
+  const day = Number(dayText);
+  const hour = Number(hourText);
+  const minute = Number(minuteText);
+  const second = Number(secondText);
+  const daysInMonth = month === 2
+    ? (year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0) ? 29 : 28)
+    : ([4, 6, 9, 11].includes(month) ? 30 : 31);
+
+  if (
+    month < 1 || month > 12 || day < 1 || day > daysInMonth ||
+    hour > 23 || minute > 59 || second > 59
+  ) {
+    throw invalidInput(`${fieldName} must be a valid ISO-8601 instant`);
+  }
+
+  if (zone.toUpperCase() !== "Z") {
+    const offsetHour = Number(zone.slice(1, 3));
+    const offsetMinute = Number(zone.slice(4, 6));
+    if (offsetHour > 23 || offsetMinute > 59) {
+      throw invalidInput(`${fieldName} must be a valid ISO-8601 instant`);
+    }
+  }
+
+  const normalized = value.replace("t", "T").replace(/z$/, "Z");
+  const ms = Date.parse(normalized);
+  if (!Number.isFinite(ms)) throw invalidInput(`${fieldName} must be a valid ISO-8601 instant`);
+  const minDateTimeUtcMs = Date.parse("1000-01-01T00:00:00.000Z");
+  const maxDateTimeUtcMs = Date.parse("9999-12-31T23:59:59.499Z");
+  if (ms < minDateTimeUtcMs || ms > maxDateTimeUtcMs) {
+    throw invalidInput(`${fieldName} is outside the supported calendar range`);
+  }
+  return ms;
+}
+
 function parseOccurredAt(value: string): number {
-  const ms = Date.parse(value);
-  if (!Number.isFinite(ms)) throw invalidInput("occurredAt must be a valid ISO-8601 instant");
+  const ms = parseIsoDateTime(value);
+  if (ms > Date.now()) throw invalidInput("occurredAt cannot be in the future");
   return ms;
 }
 
@@ -139,6 +190,7 @@ export interface CreateTransactionInput {
   categoryId: number;
   occurredAt: string;
   description: string | null;
+  itemName?: string | null;
   idempotencyKey: string;
   requestHash: string;
 }
@@ -151,6 +203,10 @@ export async function createTransaction(
   if (!isPositiveVnd(input.amountVnd)) throw invalidInput("amountVnd must be a positive integer VND");
   if (input.description !== null && input.description.length > 500) {
     throw invalidInput("description too long (max 500)");
+  }
+  const itemName = input.itemName?.trim() || null;
+  if (itemName !== null && (input.type !== "payment" || itemName.length > 120)) {
+    throw invalidInput("itemName is only allowed for payments and must be at most 120 characters");
   }
   const occurredAtMs = parseOccurredAt(input.occurredAt);
   return withIdempotentMutation({
@@ -183,6 +239,7 @@ export async function createTransaction(
         role: "original",
         referenceId: null,
         description: input.description,
+        itemName,
         reason: null,
         idempotencyId,
       });
@@ -218,6 +275,23 @@ export interface ListTransactionsQuery {
   to?: string;
 }
 
+export interface FrequentPaymentItemView {
+  itemName: string;
+  frequency: number;
+  lastAmountVnd: number;
+  lastOccurredAt: string;
+  previousOccurredAt: string | null;
+}
+
+/** Trả tối đa 10 mặt hàng payment thường gặp của owner hiện tại. */
+export async function listFrequentPaymentItems(
+  db: Db,
+  userId: number,
+): Promise<{ asOf: string; items: FrequentPaymentItemView[] }> {
+  const items = await queryFrequentPaymentItems(db, userId, 10);
+  return { asOf: new Date().toISOString(), items };
+}
+
 export async function listTransactions(
   db: Db,
   userId: number,
@@ -236,8 +310,8 @@ export async function listTransactions(
   }
   let fromUtcMs: number | undefined;
   let toExclusiveUtcMs: number | undefined;
-  if (query.from !== undefined) fromUtcMs = parseOccurredAt(query.from);
-  if (query.to !== undefined) toExclusiveUtcMs = parseOccurredAt(query.to);
+  if (query.from !== undefined) fromUtcMs = parseIsoDateTime(query.from, "from");
+  if (query.to !== undefined) toExclusiveUtcMs = parseIsoDateTime(query.to, "to");
   const repoQuery: {
     cursorId: number | null;
     limit: number;
@@ -335,6 +409,7 @@ export async function createCorrection(db: Db, input: CreateCorrectionInput): Pr
         role: input.role,
         referenceId: input.targetId,
         description: null,
+        itemName: null,
         reason: input.reason,
         idempotencyId,
       });

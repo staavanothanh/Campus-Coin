@@ -1,6 +1,6 @@
 # Trạng thái hiện tại — Campus Coin
 
-> Cập nhật: 2026-09-27 · Nhánh tích hợp: `hiep`
+> Cập nhật: 2026-09-28 · Nhánh tích hợp: `hiep`
 
 Tài liệu này giúp thành viên mới nắm quyết định hiện hành, phần đã triển khai và cổng còn chờ. Chi tiết quyết định thuộc ADR; hướng dẫn kiểm tra ở [DB-STAGING-TESTING.md](./DB-STAGING-TESTING.md); trạng thái giao hàng ở [DELIVERY-PLAN.md](./DELIVERY-PLAN.md).
 
@@ -29,7 +29,7 @@ Tài liệu này giúp thành viên mới nắm quyết định hiện hành, ph
 - `be7aac6` — tách MySQL suites để CI cô lập lỗi.
 - Chốt DB test không chạy trên `defaultdb`. CI tạo MySQL riêng cho job; test harness tạo schema tạm có tên rõ ràng rồi xóa schema đó sau khi chạy.
 - Câu hỏi nguyên lý và cách áp dụng được ghi tại [ENGINEERING-PRINCIPLES-APPLICATION.md](./ENGINEERING-PRINCIPLES-APPLICATION.md); nội dung không khẳng định các gate staging hoặc sản phẩm còn thiếu đã pass.
-- Team Leader xác nhận Phần 2 auth staging hoàn tất: đăng ký/reset email, OTP sai/hết hạn/resend và logout/session. Đây là báo cáo của Team Leader, không phải lần chạy live từ task này; SMTP/provider failure timeout/retry vẫn cần kiểm tra riêng.
+- Team Leader xác nhận các luồng SMTP gửi và nhận email qua đăng ký/đặt lại mật khẩu đã hoạt động chuẩn. Bằng chứng này xác nhận gửi thư bình thường; không suy rộng thành thử nghiệm sự cố provider/outage.
 
 ## Evidence kiểm tra gần nhất
 
@@ -63,7 +63,7 @@ Tài liệu này giúp thành viên mới nắm quyết định hiện hành, ph
 - Ba MySQL suite trên schema tạm: `test/mysql.integration.test.ts` 32/32, `test/e2e.contract.smoke.test.ts` 13/13, `test/auth.mysql.integration.test.ts` 8/8. Regression dựng trigger trong schema tạm để xác nhận income, reversal, deposit và withdraw không cập nhật ví/savings hai lần.
 - Góp ý ở trang trợ giúp nay gửi vào issue API với CSRF và idempotency; FAQ mô tả đúng email/OTP cùng Google tùy chọn. Báo cáo bỏ qua phản hồi tháng cũ; có thể mở form ngân sách cả khi danh mục chưa có giao dịch. Theme lưu như tùy chọn giao diện trong trình duyệt; toast tự ẩn và được đọc bởi công nghệ hỗ trợ.
 - Kiểm tra chỉ đọc `npm run db:preflight` và `npm run db:status` tới `campus_coin_clone` vẫn FAIL checksum `0006`–`0010`. TLS/database connection pass; không chạy migration hoặc suite ghi trên clone. Clone cần DevB đối chiếu riêng trước deploy; chi tiết ở [DB-STAGING-TESTING.md](./DB-STAGING-TESTING.md).
-- Các kết quả trên là local evidence trước push. GitHub Actions chưa chạy trên commit mới; CI sẽ được theo dõi sau khi push. SMTP outage thật, Vercel Preview, backup/restore, benchmark cloud và đánh giá browser/accessibility vẫn chưa được chứng minh trong lượt này.
+- Các kết quả trên là local evidence trước push. GitHub Actions chưa chạy trên commit mới; CI sẽ được theo dõi sau khi push. SMTP gửi/nhận bình thường đã được Team Leader xác nhận; SMTP outage/recovery thật, Vercel Preview, backup/restore, benchmark cloud và đánh giá browser/accessibility vẫn cần evidence riêng.
 
 ## Cập nhật kiểm tra và tích hợp ngày 2026-09-25–26
 
@@ -94,18 +94,55 @@ Snapshot remote `2026-09-27`: giữ `hiep` làm nhánh sản phẩm theo quyết
 - Sau đăng nhập, người dùng có thể khởi tạo wallet, xem số dư và tóm tắt tháng, ghi `income`/`payment`, chuyển savings, xem lịch sử phân trang và báo cáo tháng với ngân sách.
 - Client gửi `Idempotency-Key` cho mutation, giữ nội dung form khi request lỗi, khóa nút khi đang gửi và đọc số dư/tổng tiền/budget từ API server.
 - Giao diện dùng VI/EN, native controls, semantic forms/tables, nhãn trạng thái, keyboard focus và layout responsive. Giao dịch correction được đánh dấu trong lịch sử.
-- Chưa có giao diện category management, correction, savings transfer history, issue/admin/preferences. Cần kiểm thử browser, responsive và screen reader thực tế; source semantics chưa thay cho evidence kiểm tra.
+- Giao diện category management đã có trong Cài đặt. Chưa có giao diện correction; savings transfer history và issue/admin/preferences có các màn hoặc khu vực riêng theo phạm vi hiện tại. Cần kiểm thử browser, responsive và screen reader thực tế; source semantics chưa thay cho evidence kiểm tra.
 
 ## Còn cần hoàn tất
 
-1. **Hoàn thiện giao diện domain còn thiếu**: category management, correction, savings transfer history và issue/admin/preferences. Các lát cắt wallet/dashboard, income/payment/history, savings, budget và report đã nối API; owner luôn lấy từ session.
+1. **Hoàn thiện giao diện domain còn thiếu**: correction UI là phần nghiệp vụ lớn còn thiếu; sau đó xác nhận đủ phạm vi issue/admin theo SRS. Category management nay đã có UI/API source; migration clone và luồng provider còn cần kiểm chứng.
 2. **Đối chiếu SRS với tính năng và test**: tạo bảng yêu cầu → màn/API → test → kết quả. Checkout hiện không có bản SRS; dùng bản có thẩm quyền của nhóm và không sửa bản gốc.
-3. **Auth staging**: Team Leader xác nhận Phần 2 đã hoàn tất (register/reset email, OTP sai/hết hạn/resend, logout/session) và cung cấp ảnh Google link/login thành công. Chưa có bằng chứng độc lập cho staging CSRF/Origin hoặc SMTP/provider failure timeout/retry.
+3. **Auth staging**: Team Leader xác nhận đã thử và gửi/nhận SMTP bình thường thành công trong luồng tài khoản, đồng thời cung cấp ảnh Google link/login thành công. Chưa có bằng chứng độc lập cho SMTP provider outage/recovery hoặc staging CSRF/Origin; môi trường SMTP chạy không được xác định trong ghi chú này.
 4. **Chốt DB với DevB/DB owner**: `campus_coin_clone` kết nối TLS nhưng `db:preflight`/`db:status` mới nhất báo checksum mismatch `0006`–`0010`. Đối chiếu lineage trước khi migration hoặc deploy. Còn backup/restore rehearsal, runtime role least-privilege và xác nhận các target triển khai khác. Không dùng Aiven `defaultdb` cho test destructive.
 5. **Kiểm tra UI/accessibility/compatibility**: bàn phím, focus, screen reader cơ bản, màn hình nhỏ và Chrome/Firefox/Edge/Opera; ghi phiên bản, viewport, ngày và kết quả.
 6. **Hoàn thiện Project Report và evidence originality**: problem statement, sơ đồ, module/logic, phân công, hướng dẫn cài/chạy/kiểm tra, giới hạn, test evidence và nguồn tham khảo; thành viên cần giải thích được phần mình làm.
 7. **Đóng gói cuối**: chạy CI trên commit chốt, kiểm tra demo/build, lưu commit/tag và chuẩn bị gói nộp.
-8. **Preview Vercel và SMTP**: DevD cấu hình secrets/environment, chờ CI pass rồi chạy deploy workflow ở Preview; kiểm tra API/readiness, register/reset gửi và nhận email, controlled provider outage trong Preview và redacted logs. Chỉ chạy Production qua GitHub Environment có approval.
+8. **Preview Vercel và SMTP**: DevD cấu hình secrets/environment, chờ CI pass rồi chạy deploy workflow ở Preview; kiểm tra API/readiness, controlled provider outage/recovery và redacted logs. SMTP gửi/nhận bình thường đã được Team Leader xác nhận; chỉ lặp lại trên Preview nếu cần evidence đúng môi trường. Chỉ chạy Production qua GitHub Environment có approval.
+
+## Bổ sung xác nhận ngày 2026-09-28
+
+- Team Leader nhắc lại SMTP đã được cấu hình và đã thử gửi/nhận email thành công trong các luồng cần thiết. Đây là xác nhận của Team Leader; ghi nhận thành công luồng gửi bình thường, không gắn nhầm là kiểm tra SMTP outage hoặc production readiness.
+- Giao diện auth cục bộ đã được đo ở 320×720, 390×844, 768×1024, 1280×800 và 667×375 landscape. Sau khi bỏ `min-width: 320px` gây tràn tại viewport CSS 305px, các màn login, nhập email đăng ký và quên mật khẩu không còn tràn ngang; nút ngôn ngữ, hiện mật khẩu và hành động dạng chữ có vùng bấm tối thiểu 44px. Đây là kiểm tra trên một browser local, không thay cho ma trận Chrome/Firefox/Edge/Opera hoặc screen reader.
+- Các kết quả kiểm tra auth không gửi email, không submit biểu mẫu có email thật và không đăng nhập vào tài khoản của Team Leader.
+
+### Cập nhật code và kiểm tra cục bộ ngày 2026-09-28 — working tree, chưa push
+
+- Header language switch và lưu lựa chọn trong Settings cập nhật chung `session.user.locale`; regression test kiểm tra cả hai hướng. SMTP không được gọi lại trong lượt này vì Team Leader đã xác nhận các luồng email gửi/nhận bình thường.
+- Settings có tạo/đổi mật khẩu bằng OTP và yêu cầu đăng nhập lại sau khi reset. Tài khoản Google thiếu tên hoặc mật khẩu email bị server chặn khỏi domain cho tới khi hoàn tất profile; đặt mật khẩu đầu tiên dùng Google identity đã xác minh.
+- Giao diện Reports có lịch khoản phải trả/thu dự kiến, nhắc trong 10 ngày, tùy chọn tính trước trong forecast, bộ chọn forecast 30/90/180/365 ngày, what-if và reflection tổng tháng. Mọi con số là kế hoạch/ước tính; không tự tạo payment, trừ wallet hoặc gắn một kế hoạch vào giao dịch cụ thể.
+- Gợi ý top 10 item và so sánh số tiền/khoảng cách lịch sử được owner-scope; form giải thích trạng thái chưa có lịch sử thay vì hiện dữ liệu giả. Báo cáo so category theo tháng trước. Source có migrations `0011`–`0013`; không apply lên `campus_coin_clone` vì checksum `0006`–`0010` chưa được DevB đối chiếu.
+- Cài đặt có giao diện quản lý danh mục cá nhân: tạo danh mục thu/chi với tên VI/EN, tạm ẩn và bật lại danh mục cá nhân; danh mục mặc định chỉ đọc, lịch sử giao dịch không bị xóa. Form tạo danh mục tách riêng khỏi form lưu hồ sơ nên không submit nhầm thay đổi cá nhân; nút ẩn/bật đọc được kèm tên danh mục. Form payment có trạng thái nhóm thu/chi cho công nghệ hỗ trợ và nêu rõ nhịp mua lần này ngắn/dài hơn nhịp trước bao nhiêu ngày. Các thao tác này có component/regression tests; chưa có kiểm chứng MySQL trên clone hiện tại.
+- Form thu/chi cho phép nhập ngày phát sinh theo `Asia/Ho_Chi_Minh`; API chỉ nhận timestamp ISO-8601 có múi giờ, ngày/tháng hợp lệ và không ở tương lai. Khi nhập lùi trước lần mua gần nhất, form ẩn so sánh để không dùng dữ liệu xảy ra sau giao dịch đang nhập. Kế hoạch dòng tiền đã có thể bật lại sau khi tắt; thao tác được ghi audit.
+- Sau khi user báo không thấy thay đổi, đã cập nhật đường dùng rõ trong product proposal và sửa nút bật lại kế hoạch để khớp API/service (trước đó UI có nút nhưng service từ chối).
+- JEV/OpenRouter gợi ý category và OCR hóa đơn có route/UI, consent, quota/timeout và fallback nhập tay; hai feature flag mặc định tắt. Chưa có live provider probe, key/quota/cost evidence hoặc privacy review. Cấu hình secret phải ở server environment, không gửi qua chat.
+- Xác minh cục bộ ngày 2026-09-28: `npm run test:web` đạt `70/70` trên 16 file; `npm test` đạt `72 pass, 3 MySQL-gated skip` (75 test tổng); `npm run build` pass. `npm run api:bundle`, `npm run api:types` và `npm run verify:docs` pass sau đồng bộ contract.
+- Browser local đo màn đăng nhập ở 320×640, 375×812, 390×844, 768×1024, 1200×800 và 667×375 landscape; cả sáu phép đo không có horizontal overflow. Browser đang đăng xuất nên không đi qua dashboard/Reports/Settings để đo trực tiếp; các màn có component tests. Chưa chạy ma trận Chrome/Firefox/Edge/Opera hoặc screen reader.
+- Kiểm tra lại ngày 2026-09-28: local browser mở trang Campus Coin và render form đăng nhập; GET `/api/v1/health` trả `200`, GET `/api/v1/auth/session` không có cookie trả `401` như yêu cầu. Phiên browser vẫn đăng xuất nên chưa thể kiểm tra trực tiếp payment form/Reports trong phiên này.
+- Không chạy MySQL migration/integration, cloud benchmark, Preview deploy hoặc live AI/OCR provider trong vòng này. Clone `campus_coin_clone` vẫn có checksum mismatch `0006`–`0010`; không chạy write test hoặc migrations `0011`–`0013` lên clone. Benchmark runner chỉ cho MySQL local disposable và chưa có target local được xác nhận.
+- Vòng bổ sung ngày 2026-09-28: `CategoryManagementPanel` cho phép tạo, tạm ẩn và bật lại danh mục cá nhân trong Settings; form payment diễn giải nhịp mua ngắn/dài hơn lần trước bằng số ngày; nhóm chọn thu/chi có trạng thái `aria-pressed`; kiểu API cho phép bật lại kế hoạch dòng tiền. Regression tests xác nhận tạo danh mục không submit thay đổi hồ sơ chưa lưu và giao diện tiếng Anh báo đúng khi nhịp mua bằng nhịp trước. `npm run test:web` đạt `79/79` trên 17 file; `npm run typecheck`, `npm run build` và `npm run verify:docs` exit 0. `npm run api:validate` báo 5 warning thiếu phản hồi 4xx ở endpoint discovery/redirect/health; lệnh này nằm trong `verify:docs` và không làm command thất bại. Đây là source/component-test evidence; chưa phải xác minh MySQL hay browser đã đăng nhập.
+- Browser local ở trạng thái đăng xuất: trang login không tràn ngang tại 320×640 và 768×1024. Settings/payment form không được mở trực tiếp vì cần phiên đăng nhập; test component bao phủ các phần sửa trong lượt này. Không nhập tài khoản hay mật khẩu trong browser.
+- Lượt rà mới khẳng định rõ các ý tưởng: item suggestions/compare chỉ có dữ liệu sau khi owner ghi payment có `itemName`; khoản cố định/what-if/reflection nằm trong **Báo cáo → Kế hoạch dòng tiền**; so sánh danh mục nằm ở trang **Báo cáo**. Ba hướng mở rộng đã được Team Leader đồng ý nhưng phần tuần chi tiết, ghép từng khoản với payment và gắn nguyên nhân chênh lệch vẫn chưa có.
+- Các thay đổi này đang ở working tree `hiep`, chưa commit/push. GitHub Actions chỉ có thể xác nhận commit sau khi nhóm chốt push; các run lịch sử phía trên không áp dụng cho diff này.
+- Lượt hoàn thiện rubric ngày 2026-09-28 đồng bộ OpenAPI patch kế hoạch để cho phép cả disable/reactivate; query history chấp nhận mốc from/to tương lai trong miền UTC của MySQL `DATETIME(3)`; server chặn timestamp giao dịch sai định dạng, ngày không hợp lệ, độ chính xác trên milli giây hoặc UTC ngoài miền. Parser chấp nhận `t`/`z` viết thường theo RFC3339. Regression unit/contract pass; integration bật lại plan vẫn là kiểm thử MySQL-gated chưa chạy. Không kết nối DB hoặc chạy migration vì checksum clone cần DevB đối chiếu.
+
+### Rà soát bổ sung trước push ngày 2026-09-28
+
+- Chạy lại trên working tree: `npm run test:web` — 86/86 trên 17 file; `npm test` với `CAMPUS_COIN_TEST_DB=0` — 77 pass, 3 MySQL-gated skip trên 80 test; `npm run build` và `npm run verify:docs` — pass. `api:bundle` và `api:types` pass ở lượt kiểm tra trước. OpenAPI còn 5 warning thiếu response 4xx cho discovery/redirect/health. `verify:docs` chạy `git diff --check`.
+- Mở local app trong browser khi chưa đăng nhập. Login hiển thị tại 1280×720, document width 1280; bước đăng ký hiển thị `Xác minh email`, cùng chiều rộng, không tràn ngang. Không gửi form, không dùng mật khẩu, không gửi email/OTP và không xem session storage. Đây không phải browser matrix hay kiểm tra trang domain có dữ liệu.
+- Mở và tương tác trực tiếp với Bencho: magnetic selection tự đổi theo con trỏ, time scrubber cập nhật tiến trình, eye-tracker chỉ trang trí, inline confirm đổi `Delete` thành `Deleted` rồi đưa ra `Undo`. Nguyên tắc phù hợp và giới hạn đã ghi tại [interaction review](./working/INTERACTION-QUALITY-2026-09-27.md); không đưa animation hoặc thao tác xóa ledger vào Campus Coin.
+- Migration `0013_cashflow_plan_status_history.sql` lưu lịch sử bật/tắt theo owner và plan để reflection tháng cũ không mất khoảng thời gian kế hoạch đã tắt. Kế hoạch đến hạn hôm nay vẫn hiện trong lịch; forecast/what-if không cộng/trừ những khoản đó lần nữa trên số dư ví hiện tại. API assumption và ghi chú VI/EN giải thích rằng hoạt động hôm nay chưa ghi thành giao dịch có thể chưa được phản ánh. Unit và integration regression đã được thêm.
+- OAuth callback chỉ thông báo đăng nhập/kết nối thành công sau khi `/auth/session` xác nhận session; nội dung dùng locale lưu trong tài khoản. Không có session hoặc Google chưa được liên kết sẽ hiện lỗi chung với thông báo trợ năng phù hợp. Lỗi hồ sơ được xóa khi người dùng sửa trường liên quan, trường sai nhận focus và được đánh dấu trực quan. Lịch nhắc/dự báo phản ánh trạng thái kế hoạch hiện tại ngay; đối chiếu tháng đã qua dùng trạng thái đầu ngày HCMC, nên thay đổi đúng ngày đến hạn có hiệu lực trong lịch sử từ ngày kế tiếp.
+- JEV adapter hủy response stream ngay khi vượt 16 KB; CI gọi thêm unit tests domain/adapters mới. Ba lượt review độc lập được yêu cầu kiểm tra auth/UI, domain/DB/CI và release/docs trước khi push.
+- Không chạy MySQL integration/migration, `db:benchmark`, live OCR/JEV, controlled SMTP outage, staging test hoặc Vercel deployment. Lý do DB: clone còn checksum mismatch `0006`–`0010`; provider/runtime cần DevB/DevD cấu hình và evidence riêng. MySQL integration mới chạy trong GitHub Actions với DB disposable sau push.
+- Changeset được chuẩn bị trên `hiep`; GitHub Actions của commit mới chưa có kết quả tại thời điểm cập nhật này. Chi tiết rubric và evidence còn thiếu nằm trong [QUALITY-AND-SCORING.md](./QUALITY-AND-SCORING.md).
 
 Checklist theo từng trọng số và thứ tự thực hiện nằm trong [QUALITY-AND-SCORING.md](./QUALITY-AND-SCORING.md). Các câu hỏi nguyên lý đã có câu trả lời và trạng thái áp dụng trong [ENGINEERING-PRINCIPLES-APPLICATION.md](./ENGINEERING-PRINCIPLES-APPLICATION.md); phần ghi trong tài liệu không đồng nghĩa mọi hạng mục đã được kiểm thử.
 

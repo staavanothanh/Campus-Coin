@@ -2,10 +2,11 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { apiGet } from '../api-client.js';
 import type { MonthlyReport, Budget, Locale, CategoryTotal } from '../types.js';
 import type { Copy } from '../i18n.js';
-import { formatVnd, getCurrentMonth } from '../format.js';
+import { formatMonth, formatVnd, getCurrentMonth } from '../format.js';
 import { MonthPicker } from '../components/MonthPicker.js';
 import { ErrorBanner } from '../components/ErrorBanner.js';
 import { BudgetForm } from '../components/BudgetForm.js';
+import { CashflowPlanningPanel } from '../components/CashflowPlanningPanel.js';
 import { useCategories } from '../hooks/use-categories.js';
 import {
   Edit2,
@@ -26,11 +27,31 @@ interface ReportsScreenProps {
   locale: Locale;
 }
 
+function getPreviousMonth(month: string): string {
+  const [yearText, monthText] = month.split('-');
+  const year = Number(yearText);
+  const monthNumber = Number(monthText);
+  if (!Number.isInteger(year) || !Number.isInteger(monthNumber) || monthNumber < 1 || monthNumber > 12) {
+    return month;
+  }
+
+  if (monthNumber === 1) return `${year - 1}-12`;
+  return `${year}-${String(monthNumber - 1).padStart(2, '0')}`;
+}
+
+function formatSignedVndChange(amountVnd: number, locale: Locale): string {
+  const sign = amountVnd > 0 ? '+' : amountVnd < 0 ? '−' : '';
+  return `${sign}${formatVnd(Math.abs(amountVnd), locale)}`;
+}
+
 export function ReportsScreen({ csrfToken, t, locale }: ReportsScreenProps) {
   const isVi = locale === 'vi';
   const { categories, getCategoryName } = useCategories();
   const [month, setMonth] = useState<string>(getCurrentMonth());
   const [report, setReport] = useState<MonthlyReport | null>(null);
+  const [previousReport, setPreviousReport] = useState<MonthlyReport | null>(null);
+  const [comparisonLoading, setComparisonLoading] = useState(true);
+  const [comparisonUnavailable, setComparisonUnavailable] = useState(false);
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
@@ -43,25 +64,41 @@ export function ReportsScreen({ csrfToken, t, locale }: ReportsScreenProps) {
 
   const loadData = useCallback(async (targetMonth: string) => {
     const currentRequest = ++requestNumber.current;
+    const previousMonth = getPreviousMonth(targetMonth);
     setLoading(true);
     setError(null);
     setReport(null);
+    setPreviousReport(null);
+    setComparisonLoading(true);
+    setComparisonUnavailable(false);
     setBudgets([]);
     try {
       const [reportData, budgetsData] = await Promise.all([
         apiGet<MonthlyReport>(`/reports/monthly?month=${targetMonth}`),
         apiGet<Budget[]>(`/budgets?month=${targetMonth}`),
       ]);
-      if (currentRequest === requestNumber.current) {
-        setReport(reportData);
-        setBudgets(budgetsData);
+      if (currentRequest !== requestNumber.current) return;
+
+      setReport(reportData);
+      setBudgets(budgetsData);
+      // The selected month is the primary report. Show it while loading the comparison.
+      setLoading(false);
+
+      try {
+        const previousReportData = await apiGet<MonthlyReport>(`/reports/monthly?month=${previousMonth}`);
+        if (currentRequest === requestNumber.current) setPreviousReport(previousReportData);
+      } catch {
+        if (currentRequest === requestNumber.current) setComparisonUnavailable(true);
       }
     } catch (err) {
       if (currentRequest === requestNumber.current) {
         setError(err instanceof Error ? err : new Error('Failed to load reports'));
       }
     } finally {
-      if (currentRequest === requestNumber.current) setLoading(false);
+      if (currentRequest === requestNumber.current) {
+        setLoading(false);
+        setComparisonLoading(false);
+      }
     }
   }, []);
 
@@ -134,6 +171,30 @@ export function ReportsScreen({ csrfToken, t, locale }: ReportsScreenProps) {
     }
   }
 
+  const previousMonth = getPreviousMonth(month);
+  const comparisonRows = (() => {
+    if (!report || !previousReport) return [];
+
+    const currentAmounts = new Map(report.categoryBreakdown.map(category => [category.categoryId, category.amountVnd]));
+    const previousAmounts = new Map(previousReport.categoryBreakdown.map(category => [category.categoryId, category.amountVnd]));
+    const categoryIds = new Set([...currentAmounts.keys(), ...previousAmounts.keys()]);
+
+    return [...categoryIds]
+      .map(categoryId => {
+        const currentAmountVnd = currentAmounts.get(categoryId) ?? 0;
+        const previousAmountVnd = previousAmounts.get(categoryId) ?? 0;
+        return {
+          categoryId,
+          currentAmountVnd,
+          previousAmountVnd,
+          hasCurrentSpending: currentAmounts.has(categoryId),
+          hasPreviousSpending: previousAmounts.has(categoryId),
+          changeVnd: currentAmountVnd - previousAmountVnd,
+        };
+      })
+      .sort((left, right) => right.currentAmountVnd - left.currentAmountVnd || left.categoryId.localeCompare(right.categoryId));
+  })();
+
   return (
     <div className="reports-page">
       {/* Top Header Card */}
@@ -179,6 +240,8 @@ export function ReportsScreen({ csrfToken, t, locale }: ReportsScreenProps) {
           </div>
         </div>
       </div>
+
+      <CashflowPlanningPanel csrfToken={csrfToken} locale={locale} categories={categories} />
 
       <ErrorBanner error={error?.message ?? null} locale={locale} />
 
@@ -412,6 +475,82 @@ export function ReportsScreen({ csrfToken, t, locale }: ReportsScreenProps) {
             </div>
           </div>
         </div>
+      )}
+
+      {!loading && !error && report && (
+        <section className="reports-budgets-card panel" aria-labelledby="reports-category-comparison-title">
+          <div className="panel-heading">
+            <div>
+              <h3 id="reports-category-comparison-title">
+                {isVi ? 'So sánh chi tiêu theo danh mục' : 'Compare spending by category'}
+              </h3>
+              <p className="muted">
+                {isVi
+                  ? `Khoản chi của riêng bạn trong ${formatMonth(month, locale)} so với ${formatMonth(previousMonth, locale)}.`
+                  : `Your recorded spending in ${formatMonth(month, locale)} compared with ${formatMonth(previousMonth, locale)}.`}
+              </p>
+            </div>
+          </div>
+
+          {comparisonLoading ? (
+            <p className="muted" role="status">
+              {isVi ? 'Đang tải dữ liệu tháng trước…' : 'Loading the previous month…'}
+            </p>
+          ) : comparisonUnavailable ? (
+            <p className="muted" role="status">
+              {isVi
+                ? `Chưa thể tải dữ liệu ${formatMonth(previousMonth, locale)}. Báo cáo ${formatMonth(month, locale)} vẫn dùng được.`
+                : `Data for ${formatMonth(previousMonth, locale)} is unavailable. The ${formatMonth(month, locale)} report is still available.`}
+            </p>
+          ) : (
+            <div
+              className="table-responsive"
+              role="region"
+              aria-label={isVi ? 'Bảng so sánh chi tiêu theo danh mục' : 'Spending comparison by category table'}
+              tabIndex={0}
+            >
+              <table className="modern-data-table">
+                <caption className="sr-only">
+                  {isVi
+                    ? `Chi tiêu theo danh mục: ${formatMonth(month, locale)} so với ${formatMonth(previousMonth, locale)}`
+                    : `Spending by category: ${formatMonth(month, locale)} compared with ${formatMonth(previousMonth, locale)}`}
+                </caption>
+                <thead>
+                  <tr>
+                    <th scope="col">{isVi ? 'Danh mục' : 'Category'}</th>
+                    <th scope="col" className="text-right">{formatMonth(month, locale)}</th>
+                    <th scope="col" className="text-right">{formatMonth(previousMonth, locale)}</th>
+                    <th scope="col" className="text-right">{isVi ? 'Chênh lệch' : 'Change'}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {comparisonRows.length > 0 ? comparisonRows.map(row => (
+                    <tr key={row.categoryId}>
+                      <th scope="row">{getCategoryName(row.categoryId, locale)}</th>
+                      <td className="text-right">
+                        {row.hasCurrentSpending
+                          ? formatVnd(row.currentAmountVnd, locale)
+                          : isVi ? 'Chưa ghi nhận' : 'Not recorded'}
+                      </td>
+                      <td className="text-right">
+                        {row.hasPreviousSpending
+                          ? formatVnd(row.previousAmountVnd, locale)
+                          : isVi ? 'Chưa ghi nhận' : 'Not recorded'}
+                      </td>
+                      <td className="text-right">{formatSignedVndChange(row.changeVnd, locale)}</td>
+                    </tr>
+                  )) : (
+                    <tr>
+                      <td colSpan={4} className="muted">
+                        {isVi ? 'Chưa có khoản chi theo danh mục để so sánh.' : 'There is no category spending to compare yet.'}
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
       )}
 
       {editBudgetCategory && (

@@ -2,7 +2,7 @@
 
 > JEV là tính năng tùy chọn trong MVP, dùng TypeSafe JEV qua OpenRouter nếu qua cổng kiểm chứng. Không tự host. Feature flag mặc định tắt.
 
-**Trạng thái runtime:** hiện chưa có JEV adapter hoặc API endpoint được expose. OpenAPI cố ý không khai báo route gợi ý danh mục cho tới khi typed provider contract và fallback được kiểm chứng. Thiết kế bên dưới là boundary/acceptance cho phần triển khai sau, không phải bằng chứng tính năng đang chạy. Xem [API contract](./contracts/README.md) và [Delivery Plan](./DELIVERY-PLAN.md).
+**Trạng thái runtime:** đã có adapter typed, API route có CSRF, consent, rate limit theo owner/IP và UI chọn thủ công. Flag `JEV_CATEGORY_SUGGESTION_ENABLED` mặc định tắt. Mock test không chứng minh provider, chi phí hoặc privacy policy đã được kiểm chứng. Chỉ bật sau khi người phụ trách cấu hình secret ở server và hoàn thành probe/evaluation bên dưới.
 
 ## 1. Bằng chứng cần dùng
 
@@ -16,7 +16,7 @@ Link là nguồn tham khảo; endpoint, model, quota, cost và policy chỉ đư
 
 ## 2. Cổng tương thích
 
-Developer D phải chạy probe server-only và ghi lại endpoint, transport model ID, typed Choice response, probabilities/confidence, HTTP errors, timeout, quota, `usage.cost`, latency và privacy configuration.
+Developer D phải chạy probe server-only và ghi lại endpoint, transport model ID, typed Choice response, probabilities/confidence, HTTP errors, timeout, quota, `usage.cost`, latency và privacy configuration. Adapter hiện gửi `state` dưới dạng chuỗi, cố định model `typesafe/jev-1.13`, giới hạn tần suất 8 lần/user/giờ và 16 lần/IP/giờ. Chưa có usage-cost budget, synthetic evaluation 50–100 mẫu hoặc bằng chứng live; vì vậy mặc định phải giữ flag tắt.
 
 Nếu typed contract không xác minh được, JEV giữ disabled/deferred. Không gọi chat completion rồi tự parse JSON/prose. Không tự host để thay thế.
 
@@ -34,7 +34,7 @@ JEV không được:
 
 ## 4. Hợp đồng adapter
 
-Request nội bộ server-only:
+Request nội bộ server-only; route nhận text user đã chọn và consent rõ ràng, server tự nạp candidate category active theo owner:
 
 ```json
 {
@@ -75,7 +75,7 @@ Validate schema, candidate membership, `other_or_uncertain`, probability/confide
 
 ## 6. Privacy và đánh giá
 
-Redact email, phone, address, token, cookie, credential và internal ID. Không gửi full ledger, balance, savings hoặc amount nếu không cần cho category. Kiểm tra logging/training/provider policy trước khi bật. Nếu privacy không đạt, giữ JEV off.
+Redact email, URL, phone, date-like text, VND amounts, long number sequences, token, cookie, credential và internal ID trong mô tả lẫn nhãn category gửi đi. Không gửi full ledger, balance, savings hoặc amount. Bộ lọc pattern không bảo đảm xóa mọi PII tùy ý; kiểm tra logging/training/provider policy trước khi bật. Nếu privacy không đạt, giữ JEV off.
 
 Bộ đánh giá gồm 50–100 ví dụ synthetic/anonymized cho `en`/`vi`, income/payment, mọi category, ambiguity, PII-like text, prompt injection, disabled category và correction. Đo accuracy, abstention, override, schema failure, fallback, p95 latency và cost.
 
@@ -92,8 +92,15 @@ Bộ đánh giá gồm 50–100 ví dụ synthetic/anonymized cho `en`/`vi`, inc
 
 ## 8. Phần để sau
 
-Monthly prose summary, OCR/CSV extraction, recurring automation, prediction, chat, autonomous action và mọi reasoning về amount/date/balance.
+Monthly prose summary, CSV extraction, tự động tạo income/payment định kỳ, dự đoán chưa khai báo, chat, autonomous action và mọi reasoning về amount/date/balance. OCR hóa đơn là adapter độc lập, không thuộc quyền của JEV; xem [RECEIPT-OCR.md](./RECEIPT-OCR.md).
 
 ## 9. ADR liên quan
 
 [ADR-0006](./adr/0006-optional-openrouter-jev.md).
+
+## Trạng thái triển khai hiện tại
+
+- POST `/api/v1/ai/category-suggestion` chỉ nhận `transactionType`, một chuỗi ngắn và `providerConsent: true`; category candidate được lấy ở server từ các danh mục active của chính owner.
+- Mô tả được lọc email, URL, số điện thoại, số tiền viết theo VND và dãy số dài; bộ lọc không thể đảm bảo xóa mọi địa chỉ/PII tùy ý. Checkbox consent nói rõ text và nhãn danh mục sẽ được gửi tới OpenRouter.
+- API chỉ trả `suggested`, `manual`, `disabled` hoặc `unavailable`. UI luôn giữ `CategorySelect`; người dùng phải xem lại và tự lưu giao dịch.
+- Route/mock test chưa phải probe provider. Không đặt cờ bật trên staging/production cho tới khi ghi đủ evidence ở §2, có hạn mức chi phí/quota và privacy review.

@@ -213,7 +213,7 @@ export async function login(input: Record<string, unknown>, ip = 'unknown') {
     'INSERT INTO sessions (user_id, token_hash, csrf_token_hash, expires_at) VALUES (?, ?, SHA2(?, 256), ?)',
     [user.id, hashSession(token), csrfToken, new Date(Date.now() + 86_400_000)]
   );
-  return { token, csrfToken, user: publicUser(user) };
+  return { token, csrfToken, user: publicUser({ ...user, has_local_password: true }) };
 }
 
 export async function loginWithGoogle(identity: { subject: string; email: string; displayName: string }, ip = 'unknown') {
@@ -222,6 +222,7 @@ export async function loginWithGoogle(identity: { subject: string; email: string
 
   const db = await getDb().getConnection();
   let user: UserRow | undefined;
+  let hasLocalPassword = false;
   let token = '';
   let csrfToken = '';
   try {
@@ -258,6 +259,12 @@ export async function loginWithGoogle(identity: { subject: string; email: string
     if (user.status !== 'active') throw new AppError(403, 'ACCOUNT_DISABLED', 'Tài khoản đã bị khóa');
     if (!user.email_verified) throw new AppError(403, 'UNVERIFIED_EMAIL', 'Bạn cần xác minh email trước');
 
+    const [credentialRows] = await db.execute<(RowDataPacket & { user_id: string | number })[]>(
+      'SELECT user_id FROM auth_credentials WHERE user_id = ? LIMIT 1 FOR UPDATE',
+      [user.id],
+    );
+    hasLocalPassword = credentialRows.length > 0;
+
     token = newSessionToken();
     csrfToken = csrfForSession(token);
     await db.execute(
@@ -278,7 +285,7 @@ export async function loginWithGoogle(identity: { subject: string; email: string
 
   const accountPolicy = policies[0];
   if (accountPolicy) await clearAuthRateLimit(accountPolicy);
-  return { token, csrfToken, user: publicUser(user) };
+  return { token, csrfToken, user: publicUser({ ...user, has_local_password: hasLocalPassword }) };
 }
 
 export async function linkGoogleIdentity(userId: string, identity: { subject: string }) {
@@ -317,6 +324,58 @@ export async function hasGoogleIdentity(userId: string | number) {
     [userId, 'google'],
   );
   return rows.length > 0;
+}
+
+export async function setInitialPassword(userId: string | number, input: Record<string, unknown>) {
+  const password = passwordValue(input.newPassword);
+  const db = await getDb().getConnection();
+  try {
+    await db.beginTransaction();
+    const [userRows] = await db.execute<(RowDataPacket & {
+      id: string | number;
+      email_verified: number;
+      status: 'active' | 'disabled';
+    })[]>(
+      'SELECT id, email_verified, status FROM users WHERE id = ? LIMIT 1 FOR UPDATE',
+      [userId],
+    );
+    const user = userRows[0];
+    if (!user || user.status !== 'active' || !user.email_verified) {
+      throw new AppError(403, 'PASSWORD_SETUP_NOT_ALLOWED', 'Tài khoản không thể thiết lập mật khẩu');
+    }
+
+    const [googleRows] = await db.execute<(RowDataPacket & { linked: number })[]>(
+      'SELECT 1 AS linked FROM auth_identities WHERE user_id = ? AND provider = ? LIMIT 1 FOR UPDATE',
+      [user.id, 'google'],
+    );
+    if (googleRows.length === 0) {
+      throw new AppError(403, 'PASSWORD_SETUP_NOT_ALLOWED', 'Chỉ tài khoản Google đã xác minh mới có thể thiết lập mật khẩu ban đầu');
+    }
+
+    const [credentialRows] = await db.execute<(RowDataPacket & { user_id: string | number })[]>(
+      'SELECT user_id FROM auth_credentials WHERE user_id = ? LIMIT 1 FOR UPDATE',
+      [user.id],
+    );
+    if (credentialRows.length > 0) {
+      throw new AppError(409, 'PASSWORD_ALREADY_SET', 'Tài khoản đã có mật khẩu');
+    }
+
+    const passwordData = await hashPassword(password);
+    await db.execute(
+      'INSERT INTO auth_credentials (user_id, password_hash, password_salt) VALUES (?, ?, ?)',
+      [user.id, passwordData.hash, passwordData.salt],
+    );
+    await db.commit();
+  } catch (error) {
+    await db.rollback();
+    if (error && typeof error === 'object' && 'code' in error && error.code === 'ER_DUP_ENTRY') {
+      throw new AppError(409, 'PASSWORD_ALREADY_SET', 'Tài khoản đã có mật khẩu');
+    }
+    throw error;
+  } finally {
+    db.release();
+  }
+  return { message: 'Đã thiết lập mật khẩu' };
 }
 
 export async function forgotPassword(input: Record<string, unknown>, ip = 'unknown', emailSender: OtpSender = sendOtp) {
@@ -371,8 +430,8 @@ export async function resetPassword(input: Record<string, unknown>, ip = 'unknow
 }
 
 export async function getSession(token: string) {
-  const [rows] = await getDb().execute<(UserRow & { should_update_last_seen: number })[]>(
-    'SELECT u.id, u.email, u.display_name, u.locale, u.role, u.email_verified, u.status, (s.last_seen_at IS NULL OR s.last_seen_at < DATE_SUB(UTC_TIMESTAMP(3), INTERVAL 1 MINUTE)) AS should_update_last_seen FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token_hash = ? AND s.revoked_at IS NULL AND s.expires_at > UTC_TIMESTAMP(3) AND u.email_verified = 1 AND u.status = ? LIMIT 1',
+  const [rows] = await getDb().execute<(UserRow & { should_update_last_seen: number; has_local_password: number })[]>(
+    'SELECT u.id, u.email, u.display_name, u.locale, u.role, u.email_verified, u.status, EXISTS(SELECT 1 FROM auth_credentials c WHERE c.user_id = u.id) AS has_local_password, (s.last_seen_at IS NULL OR s.last_seen_at < DATE_SUB(UTC_TIMESTAMP(3), INTERVAL 1 MINUTE)) AS should_update_last_seen FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token_hash = ? AND s.revoked_at IS NULL AND s.expires_at > UTC_TIMESTAMP(3) AND u.email_verified = 1 AND u.status = ? LIMIT 1',
     [hashSession(token), 'active']
   );
   const session = rows[0];

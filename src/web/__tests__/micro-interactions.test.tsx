@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { StrictMode } from 'react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { CategorySelect } from '../components/CategorySelect.js';
 import { Modal } from '../components/Modal.js';
 import { SavingsTransferForm } from '../components/SavingsTransferForm.js';
@@ -8,6 +9,8 @@ import { App } from '../App.js';
 import { ReportsScreen } from '../screens/ReportsScreen.js';
 import { TransactionsScreen } from '../screens/TransactionsScreen.js';
 import { copy } from '../i18n.js';
+import { todayInHcmc } from '../transaction-date.js';
+import type { Session } from '../types.js';
 
 const { apiGetMock, apiGetPagedMock, apiPostMock } = vi.hoisted(() => ({
   apiGetMock: vi.fn(),
@@ -26,6 +29,8 @@ vi.mock('../api-client.js', () => ({
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
+  vi.useRealTimers();
+  window.history.replaceState({}, document.title, '/');
   Object.defineProperty(window, 'innerWidth', { configurable: true, value: 1024 });
 });
 
@@ -36,6 +41,30 @@ beforeEach(() => {
 });
 
 describe('micro interactions', () => {
+  it('announces the selected transaction type to assistive technology', () => {
+    render(
+      <TransactionForm
+        kind="payment"
+        csrfToken="csrf-test"
+        t={copy.vi}
+        locale="vi"
+        onClose={() => {}}
+        onSuccess={() => {}}
+      />,
+    );
+
+    const group = screen.getByRole('group', { name: 'Loại giao dịch' });
+    const payment = screen.getByRole('button', { name: 'Khoản chi' });
+    const income = screen.getByRole('button', { name: 'Khoản thu' });
+    expect(group).toBeDefined();
+    expect(payment.getAttribute('aria-pressed')).toBe('true');
+    expect(income.getAttribute('aria-pressed')).toBe('false');
+
+    fireEvent.click(income);
+    expect(payment.getAttribute('aria-pressed')).toBe('false');
+    expect(income.getAttribute('aria-pressed')).toBe('true');
+  });
+
   it('focuses the requested modal control and restores page scrolling and focus', () => {
     const opener = document.createElement('button');
     document.body.append(opener);
@@ -98,8 +127,8 @@ describe('micro interactions', () => {
     );
 
     const amount = screen.getByLabelText(/Số tiền/);
-    await waitFor(() => expect((screen.getByRole('combobox') as HTMLSelectElement).disabled).toBe(false));
-    const category = screen.getByRole('combobox') as HTMLSelectElement;
+    await waitFor(() => expect((screen.getByRole('combobox', { name: /Danh mục/ }) as HTMLSelectElement).disabled).toBe(false));
+    const category = screen.getByRole('combobox', { name: /Danh mục/ }) as HTMLSelectElement;
     fireEvent.change(amount, { target: { value: '50000' } });
     fireEvent.change(category, { target: { value: category.options[1]?.value } });
     fireEvent.change(screen.getByLabelText(/Mô tả/), { target: { value: 'Ăn trưa' } });
@@ -113,6 +142,51 @@ describe('micro interactions', () => {
 
     fireEvent.click(screen.getByRole('button', { name: copy.vi.close }));
     expect(onClose).toHaveBeenCalledOnce();
+  });
+
+  it('explains in English when the current purchase interval matches the previous one', async () => {
+    const currentDate = todayInHcmc();
+    const shiftDate = (date: string, days: number) => {
+      const [year, month, day] = date.split('-').map(Number);
+      return new Date(Date.UTC(year!, month! - 1, day! + days)).toISOString().slice(0, 10);
+    };
+    const lastPurchase = shiftDate(currentDate, -8);
+    const previousPurchase = shiftDate(lastPurchase, -8);
+
+    apiGetMock.mockImplementation((path: string) => {
+      if (path === '/ledger/item-suggestions') {
+        return Promise.resolve({
+          items: [{
+            itemName: 'Coffee',
+            frequency: 3,
+            lastAmountVnd: 50000,
+            lastOccurredAt: `${lastPurchase}T00:00:00+07:00`,
+            previousOccurredAt: `${previousPurchase}T00:00:00+07:00`,
+          }],
+        });
+      }
+      return Promise.resolve([]);
+    });
+
+    render(
+      <TransactionForm
+        kind="payment"
+        csrfToken="csrf-test"
+        t={copy.en}
+        locale="en"
+        onClose={() => {}}
+        onSuccess={() => {}}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText(copy.en.transactionDate), { target: { value: currentDate } });
+    const itemInput = screen.getByLabelText(copy.en.itemName);
+    fireEvent.focus(itemInput);
+    fireEvent.change(itemInput, { target: { value: 'Coffee' } });
+
+    expect(await screen.findByText(copy.en.itemHistoryIntervalSame)).toBeDefined();
+    expect(screen.getByText(copy.en.itemHistoryCurrentInterval.replace('{days}', '8'))).toBeDefined();
+    expect(screen.getByText(copy.en.itemHistoryPreviousInterval.replace('{days}', '8'))).toBeDefined();
   });
 
   it('keeps a savings transfer receipt open until the user closes it', async () => {
@@ -171,7 +245,7 @@ describe('micro interactions', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Thử tải lại' }));
 
     expect(await screen.findByText(copy.vi.noData)).toBeDefined();
-    expect(reportRequests).toBe(2);
+    expect(reportRequests).toBe(3);
   });
 
   it('does not show a zero transaction total when refreshing failed', async () => {
@@ -183,6 +257,7 @@ describe('micro interactions', () => {
         categoryId: '1',
         occurredAt: '2026-09-27T00:00:00.000Z',
         description: null,
+        itemName: null,
         role: 'original',
         referenceId: null,
         createdAt: '2026-09-27T00:00:00.000Z',
@@ -247,5 +322,103 @@ describe('micro interactions', () => {
     expect(document.body.style.overflow).toBe('');
 
     Object.defineProperty(window, 'innerWidth', { configurable: true, value: originalWidth });
+  });
+
+  it('shows sign-out failures while Google profile completion is required', async () => {
+    vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
+    apiGetMock.mockImplementation((path: string) => {
+      if (path === '/auth/session') {
+        return Promise.resolve({
+          user: {
+            id: '7',
+            displayName: 'Demo',
+            hasLocalPassword: false,
+            requiresProfileCompletion: true,
+            email: 'demo@example.test',
+            locale: 'vi',
+            role: 'user',
+          },
+          csrfToken: 'csrf-test',
+          googleLinked: true,
+          walletInitialized: false,
+        });
+      }
+      return Promise.resolve([]);
+    });
+    apiPostMock.mockRejectedValueOnce(new Error('offline'));
+
+    render(<App />);
+    fireEvent.click(await screen.findByRole('button', { name: /Đăng xuất/ }));
+
+    expect((await screen.findByRole('alert')).textContent).toContain('Không thể đăng xuất. Vui lòng thử lại.');
+  });
+
+  it('waits for the session before showing a Google login success notice', async () => {
+    vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
+    window.history.replaceState({}, document.title, '/?auth=google_login');
+    let resolveSession!: (session: Session) => void;
+    apiGetMock.mockImplementation((path: string) => {
+      if (path === '/auth/session') {
+        return new Promise(resolve => { resolveSession = resolve; });
+      }
+      if (path === '/reports/dashboard') {
+        return Promise.resolve({ wallet: null, savings: null, currentMonth: null, recentTransactions: [] });
+      }
+      return Promise.resolve([]);
+    });
+
+    render(<App />);
+
+    expect(screen.queryByRole('status')).toBeNull();
+    await act(async () => {
+      resolveSession({
+        user: {
+          id: '7',
+          displayName: 'Demo',
+          hasLocalPassword: true,
+          requiresProfileCompletion: false,
+          email: 'demo@example.test',
+          locale: 'vi',
+          role: 'user',
+        },
+        csrfToken: 'csrf-test',
+        googleLinked: false,
+        walletInitialized: false,
+      });
+    });
+    expect((await screen.findByRole('status')).textContent).toContain('Đăng nhập Google thành công.');
+  });
+
+  it('automatically dismisses an OAuth notice when React StrictMode replays effects', async () => {
+    vi.useFakeTimers();
+    vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
+    window.history.replaceState({}, document.title, '/?auth=google_linked');
+    apiGetMock.mockImplementation((path: string) => {
+      if (path === '/auth/session') {
+        return Promise.resolve({
+          user: { id: '7', displayName: 'Demo', email: 'demo@example.test', locale: 'vi', role: 'user' },
+          csrfToken: 'csrf-test',
+          googleLinked: true,
+          walletInitialized: false,
+        });
+      }
+      if (path === '/reports/dashboard') {
+        return Promise.resolve({ wallet: null, savings: null, currentMonth: null, recentTransactions: [] });
+      }
+      return Promise.resolve([]);
+    });
+
+    render(<StrictMode><App /></StrictMode>);
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(screen.getByRole('status').textContent).toContain('Đã kết nối Google thành công.');
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3100);
+    });
+
+    expect(screen.queryByRole('status')).toBeNull();
   });
 });

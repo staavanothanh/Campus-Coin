@@ -20,7 +20,7 @@ import {
   WalletCards,
   X
 } from 'lucide-react';
-import { apiGet, apiPost, ApiRequestError, setUnauthorizedHandler } from './api-client.js';
+import { apiGet, apiPatch, apiPost, ApiRequestError, setUnauthorizedHandler } from './api-client.js';
 import { App as AuthApp, type AuthenticatedSession } from '../app/App.js';
 import { formatVnd, formatDate, getCurrentMonth, getCurrentDateFormatted } from './format.js';
 import { copy, type Copy } from './i18n.js';
@@ -34,6 +34,10 @@ import { AdminScreen } from './screens/AdminScreen.js';
 import { SettingsScreen } from './screens/SettingsScreen.js';
 import { HelpScreen } from './screens/HelpScreen.js';
 import { useCategories } from './hooks/use-categories.js';
+import { ProfileCompletionScreen } from './components/ProfileCompletionScreen.js';
+import { CashflowAtAGlance } from './components/CashflowAtAGlance.js';
+
+type OAuthCallbackResult = 'google_linked' | 'google_login' | 'error';
 
 export function App() {
   const [locale, setLocale] = useState<Locale>('vi');
@@ -165,18 +169,23 @@ export function App() {
     }
   });
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [toastDuration, setToastDuration] = useState(3000);
+  const [toastKind, setToastKind] = useState<'status' | 'error'>('status');
+  const [toastVersion, setToastVersion] = useState(0);
   const [authNotice, setAuthNotice] = useState('');
+  const [authNoticeKind, setAuthNoticeKind] = useState<'status' | 'error'>('status');
+  const [oauthCallbackResult, setOauthCallbackResult] = useState<OAuthCallbackResult | null>(null);
   const dashboardRequestRef = useRef(0);
-  const toastTimerRef = useRef<number | null>(null);
+  const localeRequestRef = useRef(0);
+  const [localeSaving, setLocaleSaving] = useState(false);
   const t = copy[locale];
 
-  function showToast(message: string, duration = 3000) {
-    if (toastTimerRef.current !== null) window.clearTimeout(toastTimerRef.current);
+  function showToast(message: string, duration = 3000, alwaysShow = false, kind: 'status' | 'error' = 'status') {
+    if (!notificationsEnabled && !alwaysShow) return;
     setToastMessage(message);
-    toastTimerRef.current = window.setTimeout(() => {
-      setToastMessage(null);
-      toastTimerRef.current = null;
-    }, duration);
+    setToastDuration(duration);
+    setToastKind(kind);
+    setToastVersion(version => version + 1);
   }
 
   function changeTheme(nextTheme: Theme) {
@@ -191,35 +200,62 @@ export function App() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const authResult = params.get('auth');
-    const authError = params.get('auth_error');
-    const notice = authResult === 'google_linked'
-      ? (locale === 'vi' ? 'Đã kết nối Google thành công.' : 'Google account connected successfully.')
+    const callbackResult: OAuthCallbackResult | null = authResult === 'google_linked'
+      ? 'google_linked'
       : authResult === 'google_login'
-        ? (locale === 'vi' ? 'Đăng nhập Google thành công.' : 'Google sign-in successful.')
-        : authError
-          ? (locale === 'vi' ? 'Không thể hoàn tất Google. Vui lòng thử lại.' : 'Google sign-in could not be completed. Please try again.')
-          : '';
-    if (notice) {
-      setAuthNotice(notice);
-      showToast(notice);
-      window.history.replaceState({}, document.title, window.location.pathname);
-    }
-  }, [locale]);
+        ? 'google_login'
+        : params.has('auth_error')
+          ? 'error'
+          : null;
 
-  useEffect(() => () => {
-    if (toastTimerRef.current !== null) window.clearTimeout(toastTimerRef.current);
+    if (params.has('auth') || params.has('auth_error')) {
+      params.delete('auth');
+      params.delete('auth_error');
+      const remainingQuery = params.toString();
+      const cleanUrl = `${window.location.pathname}${remainingQuery ? `?${remainingQuery}` : ''}${window.location.hash}`;
+      window.history.replaceState({}, document.title, cleanUrl);
+    }
+    if (callbackResult) setOauthCallbackResult(callbackResult);
   }, []);
+
+  useEffect(() => {
+    if (!oauthCallbackResult || state === 'loading') return;
+
+    const noticeLocale = session?.user.locale ?? locale;
+    const isVerifiedLogin = oauthCallbackResult === 'google_login' && session !== null;
+    const isVerifiedLink = oauthCallbackResult === 'google_linked' && session?.googleLinked === true;
+    const succeeded = isVerifiedLogin || isVerifiedLink;
+    const notice = succeeded
+      ? oauthCallbackResult === 'google_linked'
+        ? (noticeLocale === 'vi' ? 'Đã kết nối Google thành công.' : 'Google account connected successfully.')
+        : (noticeLocale === 'vi' ? 'Đăng nhập Google thành công.' : 'Google sign-in successful.')
+      : (noticeLocale === 'vi' ? 'Không thể hoàn tất Google. Vui lòng thử lại.' : 'Google sign-in could not be completed. Please try again.');
+
+    setAuthNotice(notice);
+    setAuthNoticeKind(succeeded ? 'status' : 'error');
+    if (succeeded || state !== 'unauthenticated') showToast(notice, 3000, !succeeded, succeeded ? 'status' : 'error');
+    setOauthCallbackResult(null);
+  }, [oauthCallbackResult, state, session, locale]);
+
+  useEffect(() => {
+    if (!toastMessage) return;
+
+    const timer = window.setTimeout(() => setToastMessage(null), toastDuration);
+    return () => window.clearTimeout(timer);
+  }, [toastMessage, toastDuration, toastVersion]);
 
   function toggleNotifications() {
     const next = !notificationsEnabled;
     setNotificationsEnabled(next);
     try {
       localStorage.setItem('notifications_enabled', String(next));
-    } catch { }
+    } catch {
+      // Toast preferences are optional; the current choice still applies in memory.
+    }
     const message = next
       ? (locale === 'vi' ? 'Đã bật thông báo' : 'Notifications enabled')
       : (locale === 'vi' ? 'Đã tắt thông báo' : 'Notifications muted');
-    showToast(message, 2500);
+    showToast(message, 2500, true);
   }
 
   // Configure global unauthorized handler for the API client
@@ -229,6 +265,7 @@ export function App() {
       setSession(null);
       setDashboard(null);
       setAuthNotice('');
+      setAuthNoticeKind('status');
       setState('unauthenticated');
     });
   }, []);
@@ -269,6 +306,8 @@ export function App() {
       user: {
         id: String(result.user.id),
         displayName: result.user.displayName,
+        hasLocalPassword: result.user.hasLocalPassword,
+        requiresProfileCompletion: result.user.requiresProfileCompletion,
         email: result.user.email,
         locale: result.user.locale === 'en' ? 'en' : 'vi',
         role,
@@ -313,7 +352,7 @@ export function App() {
       if (caught instanceof ApiRequestError && caught.isUnauthorized) {
         clearLocalSession = true;
       } else {
-        showToast(locale === 'vi' ? 'Không thể đăng xuất. Vui lòng thử lại.' : 'Could not sign out. Please try again.');
+        showToast(locale === 'vi' ? 'Không thể đăng xuất. Vui lòng thử lại.' : 'Could not sign out. Please try again.', 3000, true, 'error');
       }
     }
     if (!clearLocalSession) return;
@@ -321,14 +360,109 @@ export function App() {
     setSession(null);
     setDashboard(null);
     setAuthNotice('');
+    setAuthNoticeKind('status');
     setState('unauthenticated');
   }
 
-  if (state === 'loading' && !session) return <StateScreen title={t.loading} detail={t.loading} />;
-  if (state === 'unauthenticated') {
-    return <AuthApp onAuthenticated={handleAuthenticated} initialNotice={authNotice} />;
+  async function changeLocale(nextLocale: Locale) {
+    if (!session || localeSaving || session.user.locale === nextLocale) return;
+
+    const requestId = ++localeRequestRef.current;
+    const previousLocale = locale;
+    setLocale(nextLocale);
+    setLocaleSaving(true);
+
+    try {
+      const updatedUser = await apiPatch<Session['user']>(
+        '/users/me/preferences',
+        { locale: nextLocale },
+        { 'X-CSRF-Token': session.csrfToken },
+      );
+      if (requestId !== localeRequestRef.current) return;
+
+      const savedLocale = updatedUser.locale === 'en' ? 'en' : 'vi';
+      setSession(current => current && current.user.id === session.user.id
+        ? { ...current, user: updatedUser }
+        : current);
+      setLocale(savedLocale);
+    } catch (caught) {
+      if (requestId !== localeRequestRef.current) return;
+      setLocale(previousLocale);
+      if (caught instanceof ApiRequestError && caught.isUnauthorized) {
+        setAuthNoticeKind('status');
+        setAuthNotice(previousLocale === 'vi'
+          ? 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.'
+          : 'Your session expired. Please sign in again.');
+        return;
+      }
+      showToast(previousLocale === 'vi'
+        ? 'Không thể lưu ngôn ngữ. Vui lòng thử lại.'
+        : 'Could not save the language preference. Please try again.', 3000, true, 'error');
+    } finally {
+      if (requestId === localeRequestRef.current) setLocaleSaving(false);
+    }
   }
-  if (!session) return <StateScreen title={t.unavailable} detail={error} retry={() => window.location.reload()} retryLabel={t.retry} />;
+
+  function completePasswordReset() {
+    dashboardRequestRef.current += 1;
+    setSession(null);
+    setDashboard(null);
+    setFormOpen(null);
+    setInitWalletOpen(false);
+    setAuthNoticeKind('status');
+    setAuthNotice(locale === 'vi'
+      ? 'Mật khẩu đã được đổi. Vui lòng đăng nhập lại.'
+      : 'Password updated. Please sign in again.');
+    setState('unauthenticated');
+  }
+
+  const toast = toastMessage && (
+    <div style={{
+      position: 'fixed',
+      top: 20,
+      right: 20,
+      zIndex: 9999,
+      padding: '10px 16px',
+      borderRadius: 10,
+      background: theme === 'dark' ? '#1e293b' : '#0f172a',
+      color: '#ffffff',
+      fontSize: 13,
+      fontWeight: 600,
+      boxShadow: '0 10px 30px rgba(0, 0, 0, 0.35)',
+      border: '1px solid rgba(255, 255, 255, 0.2)',
+      display: 'flex',
+      alignItems: 'center',
+      gap: 9,
+    }} role={toastKind === 'error' ? 'alert' : 'status'} aria-live={toastKind === 'error' ? 'assertive' : 'polite'}>
+      {notificationsEnabled ? <Bell size={16} color="#f59e0b" /> : <BellOff size={16} color="#94a3b8" />}
+      <span>{toastMessage}</span>
+    </div>
+  );
+
+  if (state === 'loading' && !session) return <>{toast}<StateScreen title={t.loading} detail={t.loading} /></>;
+  if (state === 'unauthenticated') {
+    return <>{toast}<AuthApp onAuthenticated={handleAuthenticated} initialNotice={authNotice} initialLocale={locale} noticeKind={authNoticeKind} /></>;
+  }
+  if (!session) return <>{toast}<StateScreen title={t.unavailable} detail={error} retry={() => window.location.reload()} retryLabel={t.retry} /></>;
+
+  if (session.user.requiresProfileCompletion) {
+    return (
+      <>
+        {toast}
+        <ProfileCompletionScreen
+          session={session}
+          locale={locale}
+          onComplete={(nextSession) => {
+            setSession(nextSession);
+            setLocale(nextSession.user.locale);
+            dashboardRequestRef.current += 1;
+            setState('ready');
+          }}
+          onSignOut={() => void signOut()}
+        />
+      </>
+    );
+  }
 
   return (
       <div className={`app-shell ${theme === 'dark' ? 'theme-dark' : ''}`} lang={locale}>
@@ -406,12 +540,19 @@ export function App() {
             <button
               className="icon-button"
               onClick={toggleNotifications}
-              aria-label={notificationsEnabled ? (locale === 'vi' ? 'Tắt thông báo' : 'Mute notifications') : (locale === 'vi' ? 'Bật thông báo' : 'Enable notifications')}
-              title={notificationsEnabled ? (locale === 'vi' ? 'Thông báo: Đang bật (nhấp để tắt)' : 'Notifications: ON (click to mute)') : (locale === 'vi' ? 'Thông báo: Đang tắt (nhấp để bật)' : 'Notifications: OFF (click to enable)')}
+              aria-label={notificationsEnabled ? (locale === 'vi' ? 'Tắt thông báo thành công' : 'Mute success notifications') : (locale === 'vi' ? 'Bật thông báo thành công' : 'Enable success notifications')}
+              title={notificationsEnabled ? (locale === 'vi' ? 'Tắt thông báo thành công trong ứng dụng; lỗi vẫn hiện.' : 'Mute in-app success notices; errors still appear.') : (locale === 'vi' ? 'Bật thông báo thành công trong ứng dụng.' : 'Enable in-app success notices.')}
             >
               {notificationsEnabled ? <Bell size={19} /> : <BellOff size={19} />}
             </button>
-            <button className="locale-toggle" onClick={() => setLocale(locale === 'vi' ? 'en' : 'vi')} aria-label={t.language}>{locale.toUpperCase()}</button>
+            <button
+              type="button"
+              className="locale-toggle"
+              onClick={() => void changeLocale(locale === 'vi' ? 'en' : 'vi')}
+              aria-label={t.language}
+              aria-busy={localeSaving}
+              disabled={localeSaving}
+            >{locale.toUpperCase()}</button>
             <button className="icon-button" onClick={() => changeTheme(theme === 'light' ? 'dark' : 'light')} aria-label={t.appearance}>{theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}</button>
           </div>
         </header>
@@ -445,8 +586,10 @@ export function App() {
               {state === 'ready' && (
                 <DashboardView
                   dashboard={dashboard}
+                  csrfToken={session.csrfToken}
                   locale={locale}
                   t={t}
+                  onViewPlans={() => setScreen('reports')}
                   onIncome={() => {
                     if (!dashboard?.wallet) {
                       setInitWalletOpen(true);
@@ -486,6 +629,7 @@ export function App() {
               theme={theme}
               onThemeChange={changeTheme}
               onSessionUpdate={(newSession) => { setSession(newSession); setLocale(newSession.user.locale); }}
+              onPasswordReset={completePasswordReset}
               t={t}
               locale={locale}
             />
@@ -517,28 +661,7 @@ export function App() {
         </section>
       </main>
 
-      {toastMessage && (
-        <div style={{
-          position: 'fixed',
-          top: 20,
-          right: 20,
-          zIndex: 9999,
-          padding: '10px 16px',
-          borderRadius: 10,
-          background: theme === 'dark' ? '#1e293b' : '#0f172a',
-          color: '#ffffff',
-          fontSize: 13,
-          fontWeight: 600,
-          boxShadow: '0 10px 30px rgba(0, 0, 0, 0.35)',
-          border: '1px solid rgba(255, 255, 255, 0.2)',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 9,
-        }} role="status" aria-live="polite">
-          {notificationsEnabled ? <Bell size={16} color="#f59e0b" /> : <BellOff size={16} color="#94a3b8" />}
-          <span>{toastMessage}</span>
-        </div>
-      )}
+      {toast}
     </div>
   );
 }
@@ -560,16 +683,20 @@ function StateScreen({ title, detail, retry, retryLabel }: { title: string; deta
 
 function DashboardView({
   dashboard,
+  csrfToken,
   locale,
   t,
+  onViewPlans,
   onIncome,
   onPayment,
   onInitWallet,
   onSetBudget,
 }: {
   dashboard: Dashboard | null;
+  csrfToken: string;
   locale: Locale;
   t: Copy;
+  onViewPlans: () => void;
   onIncome: () => void;
   onPayment: () => void;
   onInitWallet: () => void;
@@ -651,6 +778,14 @@ function DashboardView({
       <button className="secondary-button" onClick={onIncome}><ArrowDownLeft size={16} />{t.addIncome}</button>
       <button className="primary-button" onClick={onPayment}><ArrowUpRight size={16} />{t.addPayment}</button>
     </div>
+    {dashboard?.wallet && (
+      <CashflowAtAGlance
+        csrfToken={csrfToken}
+        locale={locale}
+        balanceVersion={dashboard.wallet.availableBalanceVnd}
+        onViewPlans={onViewPlans}
+      />
+    )}
     <div className="dashboard-grid">
       <section className="panel activity-panel">
         <div className="panel-heading">
@@ -691,10 +826,9 @@ function TransactionRow({
       <div className={`transaction-icon ${isIncome ? 'mint' : 'coral'}`}>{isIncome ? <ArrowDownLeft size={16} /> : <ArrowUpRight size={16} />}</div>
       <div className="transaction-detail">
         <strong>{categoryName || transaction.categoryId}</strong>
-        <span>
-          {transaction.description ? `${transaction.description} • ` : ''}
-          {formatDate(transaction.occurredAt, locale)}
-        </span>
+        {transaction.itemName && <span>{transaction.itemName}</span>}
+        {transaction.description && <span>{transaction.description}</span>}
+        <span>{formatDate(transaction.occurredAt, locale)}</span>
       </div>
       <strong className={isIncome ? 'amount-positive' : ''}>{isIncome ? '+' : '-'}{formatVnd(transaction.amountVnd, locale)}</strong>
     </div>

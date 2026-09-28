@@ -8,10 +8,14 @@ import { updateUserPreferences } from '../application/user.service.ts';
 import { sendOtp, type OtpSender } from '../infrastructure/mail.js';
 import { DomainError } from '../domain/errors.js';
 import { canonicalHash } from '../lib/hash.js';
-import { AppError, forgotPassword, getCsrf, getSession, hasGoogleIdentity, linkGoogleIdentity, login, loginWithGoogle, logout, register, resendOtp, resetPassword, verifyRegistration } from '../features/auth/auth.service.js';
+import { AppError, forgotPassword, getCsrf, getSession, hasGoogleIdentity, linkGoogleIdentity, login, loginWithGoogle, logout, register, resendOtp, resetPassword, setInitialPassword, verifyRegistration } from '../features/auth/auth.service.js';
 import { handleDomainRequest } from './domain.ts';
 import { getClientIp } from './client-ip.ts';
 import { createGoogleOAuthProvider, GoogleOAuthError, type GoogleOAuthProvider } from '../infrastructure/google-oauth.ts';
+import { consumeAuthQuota } from '../features/auth/rate-limit.ts';
+import { readReceiptDraft } from '../infrastructure/receipt-ocr.ts';
+import { suggestCategoryWithJev } from '../infrastructure/jev-category.ts';
+import { listUserCategories } from '../application/category.service.ts';
 
 type GoogleAuthErrorCode =
   | 'cancelled'
@@ -81,13 +85,13 @@ function googleErrorKey(error: unknown): GoogleAuthErrorCode {
   return 'failed';
 }
 
-async function readBody(req: IncomingMessage): Promise<Record<string, unknown>> {
+async function readBody(req: IncomingMessage, maxBytes = 64_000): Promise<Record<string, unknown>> {
   const chunks: Buffer[] = [];
   let size = 0;
   for await (const chunk of req) {
     const data = Buffer.from(chunk);
     size += data.length;
-    if (size > 64_000) throw new AppError(413, 'PAYLOAD_TOO_LARGE', 'Dữ liệu gửi lên quá lớn');
+    if (size > maxBytes) throw new AppError(413, 'PAYLOAD_TOO_LARGE', 'Dữ liệu gửi lên quá lớn');
     chunks.push(data);
   }
   try {
@@ -144,6 +148,12 @@ function issuePageQuery(search: URLSearchParams) {
 
 function requireAdmin(user: { role: string }) {
   if (user.role !== 'admin') throw new AppError(403, 'FORBIDDEN', 'Không có quyền quản trị');
+}
+
+function requireCompletedProfile(user: { requiresProfileCompletion?: boolean }) {
+  if (user.requiresProfileCompletion) {
+    throw new AppError(403, 'PROFILE_COMPLETION_REQUIRED', 'Hãy hoàn thiện tên tài khoản và mật khẩu trước');
+  }
 }
 
 function idempotencyKey(req: IncomingMessage) {
@@ -218,9 +228,80 @@ export async function handleRequest(
           }
         }
       }
-      const body = method === 'DELETE' ? {} : await readBody(req);
+      if (
+        mutationUser?.requiresProfileCompletion
+        && !['/api/v1/auth/set-password', '/api/v1/users/me/preferences', '/api/v1/auth/logout'].includes(path)
+      ) {
+        throw new AppError(403, 'PROFILE_COMPLETION_REQUIRED', 'Hãy hoàn thiện tên tài khoản và mật khẩu trước');
+      }
+      const maxBodyBytes = path === '/api/v1/receipts/parse' ? 3_000_000 : 64_000;
+      const body = method === 'DELETE' ? {} : await readBody(req, maxBodyBytes);
       if (method === 'POST') {
         const ip = clientIp(req);
+        if (path === '/api/v1/receipts/parse' && mutationUser) {
+          if (body.providerConsent !== true) {
+            throw new AppError(422, 'PROVIDER_CONSENT_REQUIRED', 'Cần đồng ý gửi ảnh hóa đơn tới dịch vụ nhận dạng');
+          }
+          if (process.env.RECEIPT_OCR_ENABLED !== 'true' || !process.env.GOOGLE_CLOUD_VISION_API_KEY) {
+            throw new AppError(503, 'OCR_UNAVAILABLE', 'Nhận dạng hóa đơn chưa được cấu hình');
+          }
+          const retryAfter = await consumeAuthQuota([
+            { scope: 'receipt-ocr-user', value: mutationUser.id, maxAttempts: 5, windowMs: 3_600_000, blockMs: 3_600_000 },
+            { scope: 'receipt-ocr-ip', value: ip, maxAttempts: 10, windowMs: 3_600_000, blockMs: 3_600_000 },
+          ]);
+          if (retryAfter !== null) throw new AppError(429, 'RATE_LIMITED', 'Đã dùng hết lượt nhận dạng tạm thời', retryAfter);
+
+          try {
+            const draft = await readReceiptDraft(
+              requiredString(body.mimeType, 'mimeType', 40),
+              requiredString(body.imageBase64, 'imageBase64', 3_000_000),
+            );
+            return send(res, 200, { data: draft });
+          } catch (error) {
+            const code = error instanceof Error ? error.message : '';
+            if (code === 'RECEIPT_IMAGE_TYPE_INVALID') {
+              throw new AppError(415, 'UNSUPPORTED_MEDIA_TYPE', 'Chỉ hỗ trợ ảnh JPEG hoặc PNG');
+            }
+            if (code === 'RECEIPT_IMAGE_SIZE_INVALID') {
+              throw new AppError(413, 'PAYLOAD_TOO_LARGE', 'Ảnh hóa đơn quá lớn hoặc không hợp lệ');
+            }
+            if (code === 'RECEIPT_OCR_UNAVAILABLE') {
+              throw new AppError(503, 'OCR_UNAVAILABLE', 'Nhận dạng hóa đơn chưa được cấu hình');
+            }
+            throw new AppError(502, 'OCR_PROVIDER_FAILED', 'Chưa thể đọc hóa đơn. Bạn có thể nhập thông tin bằng tay.');
+          }
+        }
+        if (path === '/api/v1/ai/category-suggestion' && mutationUser) {
+          if (body.providerConsent !== true) {
+            throw new AppError(422, 'PROVIDER_CONSENT_REQUIRED', 'Cần đồng ý gửi mô tả giao dịch đã lọc thông tin cá nhân');
+          }
+          if (body.transactionType !== 'income' && body.transactionType !== 'payment') {
+            throw new AppError(422, 'VALIDATION_ERROR', 'transactionType không hợp lệ');
+          }
+          const description = requiredString(body.description, 'description', 500);
+          const locale = mutationUser.locale === 'en' ? 'en' : 'vi';
+          if (process.env.JEV_CATEGORY_SUGGESTION_ENABLED !== 'true' || !process.env.OPENROUTER_API_KEY) {
+            return send(res, 200, { data: { status: 'disabled', categoryId: null, confidence: null, reasonCode: 'flag_off' } });
+          }
+          const retryAfter = await consumeAuthQuota([
+            { scope: 'jev-suggest-user', value: mutationUser.id, maxAttempts: 8, windowMs: 3_600_000, blockMs: 3_600_000 },
+            { scope: 'jev-suggest-ip', value: ip, maxAttempts: 16, windowMs: 3_600_000, blockMs: 3_600_000 },
+          ]);
+          if (retryAfter !== null) throw new AppError(429, 'RATE_LIMITED', 'Đã dùng hết lượt gợi ý tạm thời', retryAfter);
+          const categories = await listUserCategories(getPool(), Number(mutationUser.id), {
+            appliesTo: body.transactionType,
+          });
+          const result = await suggestCategoryWithJev({
+            transactionType: body.transactionType,
+            description,
+            locale,
+            candidates: categories.map(category => ({
+              id: category.id,
+              label: category.name[locale],
+            })),
+          });
+          return send(res, 200, { data: result });
+        }
         if (path === '/api/v1/auth/google/link' && mutationUser) {
           if (!googleOAuth.enabled) throw new AppError(503, 'GOOGLE_UNAVAILABLE', 'Đăng nhập Google chưa được cấu hình');
           const started = await googleOAuth.start('link', mutationUser.id);
@@ -231,6 +312,9 @@ export async function handleRequest(
         if (path === '/api/v1/auth/resend-otp') return send(res, 200, { data: await resendOtp(body, ip, emailSender) });
         if (path === '/api/v1/auth/forgot-password') return send(res, 200, { data: await forgotPassword(body, ip, emailSender) });
         if (path === '/api/v1/auth/reset-password') return send(res, 200, { data: await resetPassword(body, ip) });
+        if (path === '/api/v1/auth/set-password' && mutationUser) {
+          return send(res, 200, { data: await setInitialPassword(mutationUser.id, body) });
+        }
         if (path === '/api/v1/auth/login') {
           const result = await login(body, ip);
           return send(res, 200, {
@@ -339,6 +423,7 @@ export async function handleRequest(
     if (method === 'GET' && userMatch) {
       const user = token ? await getSession(token) : null;
       if (!user) throw new AppError(401, 'UNAUTHORIZED', 'Bạn chưa đăng nhập');
+      requireCompletedProfile(user);
       const userId = userMatch[1];
       if (!userId || !/^\d+$/.test(userId)) throw new AppError(404, 'NOT_FOUND', 'Không tìm thấy tài khoản');
       if (user.id !== userId) throw new AppError(403, 'FORBIDDEN', 'Không có quyền xem tài khoản này');
@@ -348,6 +433,7 @@ export async function handleRequest(
     if (method === 'GET' && path === '/api/v1/admin/stats') {
       const user = token ? await getSession(token) : null;
       if (!user) throw new AppError(401, 'UNAUTHORIZED', 'Bạn chưa đăng nhập');
+      requireCompletedProfile(user);
       if (user.role !== 'admin') throw new AppError(403, 'FORBIDDEN', 'Không có quyền quản trị');
       const stats = await getAdminStats();
       return send(res, 200, { data: stats });
@@ -356,6 +442,7 @@ export async function handleRequest(
     if (method === 'GET' && path === '/api/v1/issues/me') {
       const user = token ? await getSession(token) : null;
       if (!user) throw new AppError(401, 'UNAUTHORIZED', 'Bạn chưa đăng nhập');
+      requireCompletedProfile(user);
       const query = issuePageQuery(new URL(req.url || '/', 'http://localhost').searchParams);
       return send(res, 200, { ...await listUserIssues(getPool(), Number(user.id), query.cursor, query.limit) });
     }
@@ -363,6 +450,7 @@ export async function handleRequest(
     if (method === 'GET' && path === '/api/v1/admin/issues') {
       const user = token ? await getSession(token) : null;
       if (!user) throw new AppError(401, 'UNAUTHORIZED', 'Bạn chưa đăng nhập');
+      requireCompletedProfile(user);
       requireAdmin(user);
       const search = new URL(req.url || '/', 'http://localhost').searchParams;
       const query = issuePageQuery(search);
@@ -378,6 +466,7 @@ export async function handleRequest(
     if (method === 'GET' && adminIssueMatch) {
       const user = token ? await getSession(token) : null;
       if (!user) throw new AppError(401, 'UNAUTHORIZED', 'Bạn chưa đăng nhập');
+      requireCompletedProfile(user);
       requireAdmin(user);
       return send(res, 200, { data: await getAdminIssue(getPool(), Number(adminIssueMatch[1])) });
     }
@@ -385,14 +474,16 @@ export async function handleRequest(
     if (method === 'GET' && path === '/api/v1/admin/audit-logs') {
       const user = token ? await getSession(token) : null;
       if (!user) throw new AppError(401, 'UNAUTHORIZED', 'Bạn chưa đăng nhập');
+      requireCompletedProfile(user);
       requireAdmin(user);
       const query = issuePageQuery(new URL(req.url || '/', 'http://localhost').searchParams);
       return send(res, 200, await listAdminAuditLogs(query.cursor, query.limit));
     }
 
-    if (method === 'GET' && /^\/api\/v1\/(wallet|ledger|savings|categories|budgets|reports)(\/|$)/.test(path)) {
+    if (method === 'GET' && /^\/api\/v1\/(wallet|ledger|savings|categories|budgets|reports|cashflow)(\/|$)/.test(path)) {
       const user = token ? await getSession(token) : null;
       if (!user) throw new AppError(401, 'UNAUTHORIZED', 'Bạn chưa đăng nhập');
+      requireCompletedProfile(user);
       const result = await handleDomainRequest(
         method,
         path.replace(/^\/api\/v1/, ''),

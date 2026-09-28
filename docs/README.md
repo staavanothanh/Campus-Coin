@@ -16,6 +16,7 @@ docs/
 ├── DOMAIN-MODEL.md           # Miền dữ liệu và bất biến
 ├── AUTHENTICATION.md         # Xác thực và phân quyền
 ├── AI-JEV.md                 # Ranh giới JEV/OpenRouter
+├── RECEIPT-OCR.md            # OCR hóa đơn, consent, giới hạn và cấu hình provider
 ├── ADMIN-OPERATIONS.md       # Quản trị và vận hành
 ├── ROADMAP.md                # Lộ trình và các phần để sau
 ├── DELIVERY-PLAN.md          # Kế hoạch giao hàng Day 0–5
@@ -51,7 +52,7 @@ Root `docs/` là canonical product docs; `adr/` là canonical history; `working/
 
 ## 3. Bản đồ tài liệu chuẩn
 
-Đề xuất sản phẩm ghi năm nguyên tắc đã chấp thuận cùng các ý tưởng đang tham khảo, trong đó có OCR hóa đơn; đây chưa phải lịch release: [gợi ý mặt hàng, khoản cố định, so sánh chi tiêu và OCR hóa đơn](./working/student-finance-feature-proposal-2026-09-27.md).
+Các đề xuất mặt hàng, khoản cố định, dự báo, so sánh chi tiêu và OCR được đối chiếu với tình trạng code cùng các giới hạn trong [đề xuất sản phẩm](./working/student-finance-feature-proposal-2026-09-27.md) và [tài liệu OCR](./RECEIPT-OCR.md). Provider JEV/OCR chưa được ghi là hoạt động live nếu chưa có probe.
 
 | Tài liệu | Vai trò |
 |---|---|
@@ -60,6 +61,7 @@ Root `docs/` là canonical product docs; `adr/` là canonical history; `working/
 | [`DOMAIN-MODEL.md`](./DOMAIN-MODEL.md) | Thực thể, công thức, invariant và transaction |
 | [`AUTHENTICATION.md`](./AUTHENTICATION.md) | Email/password/OTP, Google Sign-In, session, CSRF, owner scope và threat controls |
 | [`AI-JEV.md`](./AI-JEV.md) | Boundary OpenRouter/JEV, probe, privacy và fallback |
+| [`RECEIPT-OCR.md`](./RECEIPT-OCR.md) | Luồng chụp hóa đơn thành bản nháp `payment`, cấu hình OCR và gate privacy |
 | [`ADMIN-OPERATIONS.md`](./ADMIN-OPERATIONS.md) | Least privilege, issue workflow, audit và incident |
 | [`ROADMAP.md`](./ROADMAP.md) | Mốc MVP, deferred work, risk và gate |
 | [`DELIVERY-PLAN.md`](./DELIVERY-PLAN.md) | Kế hoạch Day 0–5, owner, checklist và rollback |

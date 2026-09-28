@@ -1,5 +1,5 @@
 // Integration MySQL — gated: chỉ chạy khi CAMPUS_COIN_TEST_DB=1 và có CAMPUS_COIN_DB_*.
-// Tạo database tạm, migrate mọi version hiện có (0001–0010), chạy services thật, drop database sau cùng.
+// Tạo database tạm, migrate mọi version hiện có, chạy services thật, drop database sau cùng.
 // Chạy: set CAMPUS_COIN_TEST_DB=1 && npm test -- test/mysql.integration.test.ts
 
 import { test, before, after, describe } from "node:test";
@@ -9,7 +9,7 @@ import { getPool } from "../src/infrastructure/db/pool.ts";
 import { createMysqlHarness } from "./helpers/mysql-harness.ts";
 import { canonicalHash } from "../src/lib/hash.ts";
 import { getWallet, initializeWallet } from "../src/application/wallet.service.ts";
-import { createCorrection, createTransaction, getTransaction, listTransactions } from "../src/application/ledger.service.ts";
+import { createCorrection, createTransaction, getTransaction, listFrequentPaymentItems, listTransactions } from "../src/application/ledger.service.ts";
 import { createTransfer, getSavings, listTransfers } from "../src/application/savings.service.ts";
 import { listMonthBudgets, monthBudgetSummary, upsertUserBudget } from "../src/application/budget.service.ts";
 import { monthlyReport } from "../src/application/report.service.ts";
@@ -20,6 +20,16 @@ import { authRateLimitRetryAfter, recordAuthFailures } from "../src/features/aut
 import { createUserIssue, listAdminIssues, listUserIssues, getAdminIssue, updateAdminIssue, addAdminIssueNote } from "../src/application/issue.service.ts";
 import { updateUserPreferences } from "../src/application/user.service.ts";
 import { listAdminAuditLogs } from "../src/application/admin.service.ts";
+import {
+  cashflowForecast,
+  cashflowMonthReflection,
+  cashflowUpcoming,
+  cashflowWhatIf,
+  createCashflowPlan,
+  listOwnerCashflowPlans,
+  updateCashflowPlanOptions,
+} from "../src/application/cashflow-plan.service.ts";
+import { addDateOnlyDays, dateOnlyFromUtcMs } from "../src/domain/cashflow-plan.ts";
 
 const ENABLED = process.env["CAMPUS_COIN_TEST_DB"] === "1";
 
@@ -63,8 +73,9 @@ if (!ENABLED) {
     amountVnd: number,
     categoryId: number,
     occurredAt = new Date().toISOString(),
+    itemName?: string,
   ) {
-    const body = { type, amountVnd, categoryId, occurredAt };
+    const body = { type, amountVnd, categoryId, occurredAt, ...(itemName === undefined ? {} : { itemName }) };
     return createTransaction(getPool(), {
       userId,
       type,
@@ -72,6 +83,7 @@ if (!ENABLED) {
       categoryId,
       occurredAt: body.occurredAt,
       description: null,
+      itemName: itemName ?? null,
       idempotencyKey: randomUUID(),
       requestHash: canonicalHash(body),
     });
@@ -891,7 +903,292 @@ if (!ENABLED) {
     });
   });
 
+  describe("cashflow plans are owner-scoped and forecast-only", () => {
+    test("create, list and option updates stay within the session owner and are idempotent", async () => {
+      const ownerId = await newUserId();
+      const otherUserId = await newUserId();
+      const dueDate = addDateOnlyDays(dateOnlyFromUtcMs(Date.now()), 5);
+      const body = {
+        kind: "obligation" as const,
+        title: "Tiền nhà",
+        amountVnd: 500_000,
+        categoryId: 5,
+        frequency: "once" as const,
+        startsOn: dueDate,
+        dueDay: null,
+        reserveInForecast: true,
+      };
+      const requestHash = canonicalHash(body);
+      const key = randomUUID();
+      const created = await createCashflowPlan(getPool(), {
+        userId: ownerId,
+        ...body,
+        idempotencyKey: key,
+        requestHash,
+      });
+      const replay = await createCashflowPlan(getPool(), {
+        userId: ownerId,
+        ...body,
+        idempotencyKey: key,
+        requestHash,
+      });
+      assert.deepEqual(replay, created);
+      assert.equal((await listOwnerCashflowPlans(getPool(), ownerId)).length, 1);
+      assert.equal((await listOwnerCashflowPlans(getPool(), otherUserId)).length, 0);
+
+      await assert.rejects(
+        updateCashflowPlanOptions(getPool(), {
+          userId: otherUserId,
+          planId: Number(created.id),
+          isActive: false,
+          idempotencyKey: randomUUID(),
+          requestHash: canonicalHash({ isActive: false }),
+        }),
+        expectCode("NOT_FOUND"),
+      );
+      const updated = await updateCashflowPlanOptions(getPool(), {
+        userId: ownerId,
+        planId: Number(created.id),
+        reserveInForecast: false,
+        idempotencyKey: randomUUID(),
+        requestHash: canonicalHash({ reserveInForecast: false }),
+      });
+      assert.equal(updated.reserveInForecast, false);
+
+      const disabled = await updateCashflowPlanOptions(getPool(), {
+        userId: ownerId,
+        planId: Number(created.id),
+        isActive: false,
+        idempotencyKey: randomUUID(),
+        requestHash: canonicalHash({ isActive: false }),
+      });
+      assert.equal(disabled.isActive, false);
+      assert.notEqual(disabled.disabledAt, null);
+
+      const reactivated = await updateCashflowPlanOptions(getPool(), {
+        userId: ownerId,
+        planId: Number(created.id),
+        isActive: true,
+        idempotencyKey: randomUUID(),
+        requestHash: canonicalHash({ isActive: true }),
+      });
+      assert.equal(reactivated.isActive, true);
+      assert.equal(reactivated.disabledAt, null);
+      const [statusEvents] = await getPool().query(
+        `SELECT is_active FROM cashflow_plan_status_events
+         WHERE user_id = ? AND plan_id = ? ORDER BY id`,
+        [ownerId, Number(created.id)],
+      ) as [{ is_active: number }[], unknown];
+      assert.deepEqual(statusEvents.map(event => event.is_active), [1, 0, 1]);
+    });
+
+    test("forecast reserves only opted-in obligations and what-if never changes wallet or ledger", async () => {
+      const userId = await newUserId();
+      await initWalletFor(userId, 1_000_000);
+      const nowMs = Date.now();
+      const today = dateOnlyFromUtcMs(nowMs);
+      const recordedToday = new Date(nowMs).toISOString();
+      await createTx(userId, "payment", 50_000, 5, recordedToday);
+      const obligationDate = addDateOnlyDays(today, 4);
+      const incomeDate = addDateOnlyDays(today, 8);
+      const futurePaymentDate = addDateOnlyDays(today, 12);
+      const plans = [
+        {
+          kind: "obligation" as const,
+          title: "Tiền đã đến hạn hôm nay",
+          amountVnd: 50_000,
+          categoryId: 5,
+          frequency: "once" as const,
+          startsOn: today,
+          dueDay: null,
+          reserveInForecast: true,
+        },
+        {
+          kind: "expected_income" as const,
+          title: "Thu nhập dự kiến hôm nay",
+          amountVnd: 80_000,
+          categoryId: null,
+          frequency: "once" as const,
+          startsOn: today,
+          dueDay: null,
+          reserveInForecast: false,
+        },
+        {
+          kind: "obligation" as const,
+          title: "Tiền nhà",
+          amountVnd: 300_000,
+          categoryId: 5,
+          frequency: "once" as const,
+          startsOn: obligationDate,
+          dueDay: null,
+          reserveInForecast: true,
+        },
+        {
+          kind: "obligation" as const,
+          title: "Sách dự kiến",
+          amountVnd: 100_000,
+          categoryId: null,
+          frequency: "once" as const,
+          startsOn: addDateOnlyDays(today, 6),
+          dueDay: null,
+          reserveInForecast: false,
+        },
+        {
+          kind: "expected_income" as const,
+          title: "Lương làm thêm dự kiến",
+          amountVnd: 200_000,
+          categoryId: null,
+          frequency: "once" as const,
+          startsOn: incomeDate,
+          dueDay: null,
+          reserveInForecast: false,
+        },
+      ];
+      for (const body of plans) {
+        await createCashflowPlan(getPool(), {
+          userId,
+          ...body,
+          idempotencyKey: randomUUID(),
+          requestHash: canonicalHash(body),
+        });
+      }
+      const before = await getWalletFor(userId);
+      const beforeLedgerCount = await ledgerCountFor(userId);
+      const forecast = await cashflowForecast(getPool(), userId, 30);
+      assert.equal(forecast.currentWalletBalanceVnd, 950_000);
+      assert.equal(forecast.plannedIncomeVnd, 200_000);
+      assert.equal(forecast.plannedObligationsVnd, 400_000);
+      assert.equal(forecast.reservedObligationsVnd, 300_000);
+      assert.equal(forecast.unreservedObligationsVnd, 100_000);
+      assert.equal(forecast.projectedWalletBalanceVnd, 850_000);
+      assert.equal(forecast.events.some(event => event.dueDate === today && event.title === "Tiền đã đến hạn hôm nay"), true);
+      assert.equal(forecast.assumptions.includes("same_day_events_visible_but_not_counted"), true);
+
+      const whatIf = await cashflowWhatIf(getPool(), userId, {
+        amountVnd: 200_000,
+        paymentDate: futurePaymentDate,
+        days: 30,
+      });
+      assert.equal(whatIf.baselineProjectedWalletBalanceVnd, 850_000);
+      assert.equal(whatIf.scenarioProjectedWalletBalanceVnd, 650_000);
+      assert.equal((await getWalletFor(userId)).availableBalanceVnd, before.availableBalanceVnd);
+      assert.equal(await ledgerCountFor(userId), beforeLedgerCount);
+
+      const upcoming = await cashflowUpcoming(getPool(), userId, 30);
+      const dueSoon = upcoming.find((event) => event.dueDate === obligationDate);
+      assert.equal(dueSoon?.isDueWithin10Days, true);
+    });
+
+    test("closed month reflection distinguishes plan, recorded activity, and missing data", async () => {
+      const userId = await newUserId();
+      await initWalletFor(userId, 1_000_000);
+      const [year, month] = currentMonthKey().split("-").map(Number);
+      const previousMonth = new Date(Date.UTC(year!, month! - 2, 1));
+      const previousMonthKey = `${previousMonth.getUTCFullYear()}-${String(previousMonth.getUTCMonth() + 1).padStart(2, "0")}`;
+      const planDate = `${previousMonthKey}-15`;
+      const created = await createCashflowPlan(getPool(), {
+        userId,
+        kind: "obligation",
+        title: "Tiền nhà đã dự kiến",
+        amountVnd: 100_000,
+        categoryId: 5,
+        frequency: "once",
+        startsOn: planDate,
+        dueDay: null,
+        reserveInForecast: false,
+        idempotencyKey: randomUUID(),
+        requestHash: canonicalHash({ planDate, amountVnd: 100_000 }),
+      });
+      const createdBeforeDue = new Date(Date.UTC(previousMonth.getUTCFullYear(), previousMonth.getUTCMonth(), 1, 0, 0, 0) - 7 * 60 * 60 * 1000);
+      await getPool().query(
+        `UPDATE \`${harness.dbName}\`.cashflow_plans SET created_at = ? WHERE user_id = ? AND id = ?`,
+        [createdBeforeDue, userId, Number(created.id)],
+      );
+      const disabledBeforeDue = new Date(Date.UTC(previousMonth.getUTCFullYear(), previousMonth.getUTCMonth(), 10, 12, 0, 0) - 7 * 60 * 60 * 1000);
+      const reactivatedAfterDue = new Date(Date.UTC(previousMonth.getUTCFullYear(), previousMonth.getUTCMonth(), 20, 12, 0, 0) - 7 * 60 * 60 * 1000);
+      await getPool().query(
+        `INSERT INTO cashflow_plan_status_events (user_id, plan_id, is_active, changed_at)
+         VALUES (?, ?, 1, ?), (?, ?, 0, ?), (?, ?, 1, ?)`,
+        [
+          userId, Number(created.id), createdBeforeDue,
+          userId, Number(created.id), disabledBeforeDue,
+          userId, Number(created.id), reactivatedAfterDue,
+        ],
+      );
+      const occurredAt = new Date(Date.UTC(previousMonth.getUTCFullYear(), previousMonth.getUTCMonth(), 15, 12, 0, 0) - 7 * 60 * 60 * 1000).toISOString();
+      await createTx(userId, "payment", 150_000, 5, occurredAt);
+      const reflection = await cashflowMonthReflection(getPool(), userId, previousMonthKey);
+      assert.equal(reflection.obligations.plannedVnd, null);
+      assert.equal(reflection.obligations.plannedOccurrenceCount, 0);
+      assert.equal(reflection.obligations.recordedVnd, 150_000);
+      assert.equal(reflection.obligations.recordedMinusPlannedVnd, null);
+      assert.equal(reflection.obligations.recordedStatus, "recorded");
+
+      const noDataUser = await newUserId();
+      const noData = await cashflowMonthReflection(getPool(), noDataUser, previousMonthKey);
+      assert.equal(noData.income.plannedVnd, null);
+      assert.equal(noData.income.recordedVnd, null);
+      assert.equal(noData.income.recordedStatus, "unrecorded");
+      await assert.rejects(
+        cashflowMonthReflection(getPool(), noDataUser, currentMonthKey()),
+        expectCode("INVALID_INPUT"),
+      );
+    });
+  });
+
   describe("owner isolation + keyset", () => {
+    test("gợi ý 10 sản phẩm theo tần suất, owner và lịch sử correction", async () => {
+      const userA = await newUserId();
+      const userB = await newUserId();
+      await initWalletFor(userA, 1_000_000);
+      await initWalletFor(userB, 1_000_000);
+
+      await createTx(userA, "payment", 30_000, 5, "2026-09-01T16:59:59.000Z", " Cà phê ");
+      const recentCoffee = await createTx(userA, "payment", 25_000, 5, "2026-09-01T17:00:00.000Z", "cà phê");
+      await createCorrection(getPool(), {
+        userId: userA,
+        targetId: Number(recentCoffee.transaction.id),
+        role: "adjustment",
+        reason: "Sửa số tiền đã nhập",
+        newAmountVnd: 20_000,
+        newCategoryId: null,
+        idempotencyKey: randomUUID(),
+        requestHash: canonicalHash({ item: "coffee-adjusted" }),
+      });
+
+      const voidedCoffee = await createTx(userA, "payment", 10_000, 5, "2026-09-02T17:00:00.000Z", "Cà phê");
+      await createCorrection(getPool(), {
+        userId: userA,
+        targetId: Number(voidedCoffee.transaction.id),
+        role: "reversal",
+        reason: "Giao dịch nhập nhầm",
+        newAmountVnd: null,
+        newCategoryId: null,
+        idempotencyKey: randomUUID(),
+        requestHash: canonicalHash({ item: "coffee-reversed" }),
+      });
+
+      for (let index = 1; index <= 10; index += 1) {
+        await createTx(userA, "payment", 1_000, 5, `2026-09-${String(index + 2).padStart(2, "0")}T03:00:00.000Z`, `Item ${index}`);
+      }
+      for (let index = 0; index < 4; index += 1) {
+        await createTx(userB, "payment", 1_000, 5, `2026-09-${String(index + 1).padStart(2, "0")}T03:00:00.000Z`, "Cà phê");
+      }
+
+      const suggestions = await listFrequentPaymentItems(getPool(), userA);
+      assert.equal(suggestions.items.length, 10);
+      const coffee = suggestions.items.find((item) => item.itemName.toLocaleLowerCase() === "cà phê");
+      assert.ok(coffee);
+      assert.equal(coffee.frequency, 2, "lượt đảo giao dịch không tính là lần mua; user B không cộng vào tần suất");
+      assert.equal(coffee.lastAmountVnd, 20_000, "số tiền điều chỉnh thay thế amount của lần mua gần nhất");
+      assert.equal(coffee.lastOccurredAt, "2026-09-01T17:00:00.000Z");
+      assert.equal(coffee.previousOccurredAt, "2026-09-01T16:59:59.000Z");
+      assert.equal(suggestions.items.some((item) => item.itemName === "Item 1"), false, "danh sách dừng ở 10 mục");
+
+      const userBSuggestions = await listFrequentPaymentItems(getPool(), userB);
+      assert.equal(userBSuggestions.items[0]?.frequency, 4);
+    });
+
     test("user B không đọc được transaction của user A", async () => {
       const userA = await newUserId();
       await initWalletFor(userA, 500_000);

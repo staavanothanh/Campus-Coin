@@ -177,16 +177,15 @@ export function SavingsScreen({ csrfToken, t, locale, onTransferSuccess }: Savin
         <div className="savings-tip-card panel">
           <div className="tip-header">
             <Sparkles size={18} className="tip-icon" />
-            <strong>{isVi ? 'Mẹo tích lũy sinh viên' : 'Smart Student Saving Tip'}</strong>
+            <strong>{isVi ? 'Tích lũy theo kế hoạch của bạn' : 'Save at your own pace'}</strong>
           </div>
           <p>
             {isVi
-              ? 'Tích lũy 10% đến 20% mỗi khi nhận thu nhập giúp bạn duy trì quỹ dự phòng an toàn cho các kỳ thi và học phí.'
-              : 'Saving 10% to 20% whenever receiving allowance or income builds a resilient emergency fund for campus life.'}
+              ? 'Bạn tự chọn số tiền chuyển từ ví vào quỹ tiết kiệm. Khi cần, bạn có thể chuyển khoản đó trở lại ví.'
+              : 'Choose how much to move from your wallet into savings. Move that amount back to your wallet when needed.'}
           </p>
           <div className="savings-meta-badges">
-            <span className="savings-pill">✓ {isVi ? 'Không phụ phí' : 'Zero fees'}</span>
-            <span className="savings-pill">✓ {isVi ? 'Rút tức thì' : 'Instant withdraw'}</span>
+            <span className="savings-pill">✓ {isVi ? 'Bạn chủ động chọn số tiền' : 'You choose the amount'}</span>
           </div>
         </div>
       </div>

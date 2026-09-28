@@ -10,7 +10,9 @@ interface JsonSchema {
   type?: string | string[];
   enum?: unknown[];
   const?: unknown;
+  additionalProperties?: boolean | JsonSchema;
   required?: string[];
+  minProperties?: number;
   properties?: Record<string, JsonSchema>;
   items?: JsonSchema;
   minimum?: number;
@@ -129,15 +131,29 @@ function validate(schema: JsonSchema, value: unknown, at: string): void {
   }
 
   if (typeof value === "object" && value !== null && !Array.isArray(value)) {
+    if (resolved.minProperties !== undefined && Object.keys(value).length < resolved.minProperties) {
+      fail(at, `minProperties ${resolved.minProperties}: got ${Object.keys(value).length}`);
+    }
+    const objectValue = value as Record<string, unknown>;
+    const properties = resolved.properties ?? {};
+    for (const key of Object.keys(objectValue)) {
+      if (Object.prototype.hasOwnProperty.call(properties, key)) continue;
+      if (resolved.additionalProperties === false) {
+        fail(at, `additional property '${key}' is not allowed`);
+      }
+      if (typeof resolved.additionalProperties === "object") {
+        validate(resolved.additionalProperties, objectValue[key], `${at}.${key}`);
+      }
+    }
     if (resolved.required !== undefined) {
       for (const key of resolved.required) {
-        if (!(key in value)) fail(at, `missing required property '${key}'`);
+        if (!Object.prototype.hasOwnProperty.call(objectValue, key)) fail(at, `missing required property '${key}'`);
       }
     }
     if (resolved.properties !== undefined) {
       for (const [key, propSchema] of Object.entries(resolved.properties)) {
-        if (key in (value as Record<string, unknown>)) {
-          validate(propSchema, (value as Record<string, unknown>)[key], `${at}.${key}`);
+        if (Object.prototype.hasOwnProperty.call(objectValue, key)) {
+          validate(propSchema, objectValue[key], `${at}.${key}`);
         }
       }
     }

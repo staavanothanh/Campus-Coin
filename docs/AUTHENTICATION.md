@@ -35,6 +35,14 @@ ADR-0009 là quyết định mới nhất khi tài liệu cũ mâu thuẫn về 
 
 Google Sign-In dùng Authorization Code phía server, PKCE S256, `state`, `nonce` và scope `openid email profile`. Server kiểm tra ID token theo client audience, nonce, `sub` và `email_verified=true`. Google account mới chỉ được tạo khi email chưa có account; email trùng cần người dùng đăng nhập phương thức hiện tại và kết nối Google rõ ràng. Kết nối chỉ được bắt đầu từ session hợp lệ và callback xác nhận cùng user.
 
+### Hoàn thiện hồ sơ Google và tạo/đổi mật khẩu
+
+- Một phiên Google có thể được tạo trước khi hồ sơ hoàn chỉnh để người dùng tiếp tục đúng bước. Nếu user thiếu mật khẩu email hoặc tên hiển thị, client chuyển sang màn hình hoàn thiện hồ sơ; server cũng chặn API domain cho tới khi đủ cả hai giá trị.
+- Tên được lưu qua `PATCH /users/me/preferences`; mật khẩu email đầu tiên được tạo qua `POST /auth/set-password`, sau đó server tải lại session và mở quyền domain. Email phải là email đã được OIDC xác minh; không có bước tự gộp với account khác cùng email.
+- Cài đặt có luồng tạo/đổi mật khẩu email. Người dùng yêu cầu OTP gửi đến email tài khoản, nhập mã và mật khẩu mới, rồi gọi luồng reset hiện có. Áp dụng expiry, max attempts, cooldown, single-use và rate limit hiện có; không hiển thị OTP trong response hoặc log.
+- Khi đổi/reset mật khẩu thành công, server thu hồi các session hiện có. Client xóa phiên hiện tại và yêu cầu đăng nhập lại. Người dùng Google có thể tiếp tục dùng Google Sign-In sau khi đã tạo mật khẩu email.
+- Thao tác tạo mật khẩu đầu tiên sau một lần Google login đã xác minh không yêu cầu OTP email thứ hai; thao tác đổi mật khẩu sau đó trong Settings vẫn yêu cầu OTP.
+
 Danh sách Test users trong Google Auth Platform không phải allowlist của Campus Coin. Ứng dụng hiện chỉ xin `openid email profile`; theo [quy định Audience của Google](https://support.google.com/cloud/answer/15549945?hl=en), với các scope định danh cơ bản này, tài khoản có thể authorize dù không nằm trong danh sách Test users. Khi ứng dụng có User type `External` và ở trạng thái In production, Google cho phép mọi tài khoản Google, trừ khi có chính sách tổ chức giới hạn thêm. Campus Coin hiện không có allowlist email riêng: danh tính Google đã xác minh có thể tạo user mới nếu email chưa có account; email đã tồn tại phải được kết nối chủ động. Nếu nhóm muốn giới hạn người được vào Campus Coin, cần thêm policy allowlist ở server.
 
 OAuth đọc `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`, `GOOGLE_OAUTH_REDIRECT_URI` và `SESSION_SECRET` từ environment. Khi chưa đủ cấu hình, provider bị tắt, nút không hiển thị, luồng email không bị ảnh hưởng. Ngày 2026-09-26, Team Leader cung cấp ảnh Campus Coin hiển thị Google đã kết nối và đăng nhập Google thành công. Đây là bằng chứng được Team Leader cung cấp; môi trường staging/production chưa được xác nhận.

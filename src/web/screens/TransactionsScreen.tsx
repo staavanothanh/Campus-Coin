@@ -41,7 +41,7 @@ export function TransactionsScreen({ t, locale }: TransactionsScreenProps) {
     const term = searchTerm.toLowerCase();
     const catName = getCategoryName(tx.categoryId, locale).toLowerCase();
     const matchesCategory = catName.includes(term) || tx.categoryId?.toLowerCase().includes(term);
-    const matchesDesc = tx.description?.toLowerCase().includes(term);
+    const matchesDesc = `${tx.itemName ?? ''} ${tx.description ?? ''}`.toLowerCase().includes(term);
     return matchesCategory || matchesDesc;
   });
 
@@ -153,7 +153,7 @@ export function TransactionsScreen({ t, locale }: TransactionsScreenProps) {
             <thead>
               <tr>
                 <th scope="col" style={{ width: '56px' }}>{isVi ? 'Loại' : 'Type'}</th>
-                <th scope="col">{isVi ? 'Mô tả / Danh mục' : 'Description / Category'}</th>
+                <th scope="col">{isVi ? 'Sản phẩm / Mô tả / Danh mục' : 'Product / Description / Category'}</th>
                 <th scope="col">{isVi ? 'Ngày giao dịch' : 'Date'}</th>
                 <th scope="col" className="text-right">{isVi ? 'Số tiền' : 'Amount'}</th>
               </tr>
@@ -174,6 +174,7 @@ export function TransactionsScreen({ t, locale }: TransactionsScreenProps) {
                     <td>
                       <div className="tx-details">
                         <strong className="tx-category-tag">{getCategoryName(tx.categoryId, locale)}</strong>
+                        {tx.itemName && <span className="tx-note">{tx.itemName}</span>}
                         {tx.description && (
                           <span className="tx-note">{tx.description}</span>
                         )}

@@ -256,6 +256,7 @@ npm run verify:docs
 npm run typecheck
 npm run build
 npm test
+npm run test:web
 git diff --check
 ```
 

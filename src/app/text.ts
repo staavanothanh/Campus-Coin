@@ -9,7 +9,7 @@ export const text = {
     passwordRequired: 'Vui lòng nhập mật khẩu.', confirmRequired: 'Vui lòng nhập lại mật khẩu.', passwordInvalid: 'Mật khẩu cần từ 8 đến 128 ký tự.',
     sendCode: 'Gửi mã xác minh', create: 'Tạo tài khoản', change: 'Đổi mật khẩu', resend: 'Gửi lại mã', back: 'Quay lại đăng nhập', signUp: 'Chưa có tài khoản? Đăng ký', forgotLink: 'Quên mật khẩu?',
     googleSignIn: 'Tiếp tục với Google', googleConnect: 'Kết nối Google', googleConnected: 'Đã kết nối Google.', registered: 'Mã xác minh đã được gửi đến email của bạn.', resent: 'Đã gửi lại mã xác minh.', created: 'Tạo tài khoản thành công. Hãy đăng nhập.', resetSent: 'Nếu email đã đăng ký, mã xác minh sẽ được gửi đến email.', changed: 'Đã đổi mật khẩu. Hãy đăng nhập lại.', mismatch: 'Mật khẩu nhập lại chưa khớp.',
-    codeHint: 'Nhập 6 chữ số', passwordHint: 'Ít nhất 8 ký tự', wait: 'Đang xử lý...', hello: 'Xin chào!', logout: 'Đăng xuất', subtitle: 'Ghi thu chi và đặt ngân sách dành cho sinh viên', rateLimited: 'Bạn đã thử quá nhiều lần. Vui lòng chờ', seconds: 'giây rồi thử lại', error: 'Không thể thực hiện yêu cầu. Vui lòng thử lại.'
+    codeHint: 'Nhập 6 chữ số', passwordHint: 'Ít nhất 8 ký tự', wait: 'Đang xử lý...', hello: 'Xin chào!', logout: 'Đăng xuất', subtitle: 'Ghi thu chi và đặt ngân sách dành cho sinh viên', rateLimited: 'Bạn đã thử quá nhiều lần. Vui lòng chờ', seconds: 'giây rồi thử lại', resendWait: (seconds: number) => `Có thể gửi lại mã sau ${seconds} giây.`, error: 'Không thể thực hiện yêu cầu. Vui lòng thử lại.'
   },
   en: {
     login: 'Sign in', register: 'Verify email', verify: 'Create account', forgot: 'Forgot password', reset: 'Set a new password',
@@ -19,7 +19,7 @@ export const text = {
     passwordRequired: 'Enter your password.', confirmRequired: 'Re-enter your password.', passwordInvalid: 'Password must be between 8 and 128 characters.',
     sendCode: 'Send verification code', create: 'Create account', change: 'Change password', resend: 'Resend code', back: 'Back to sign in', signUp: 'New here? Create an account', forgotLink: 'Forgot password?',
     googleSignIn: 'Continue with Google', googleConnect: 'Connect Google', googleConnected: 'Google is connected.', registered: 'A verification code has been sent to your email.', resent: 'A new verification code has been sent.', created: 'Account created. Please sign in.', resetSent: 'If this email is registered, a verification code will be sent.', changed: 'Password changed. Please sign in again.', mismatch: 'The passwords do not match.',
-    codeHint: 'Enter 6 digits', passwordHint: 'At least 8 characters', wait: 'Please wait...', hello: 'Hello!', logout: 'Sign out', subtitle: 'Track spending and plan a student budget', rateLimited: 'Too many attempts. Please wait', seconds: 'seconds and try again', error: 'The request could not be completed. Please try again.'
+    codeHint: 'Enter 6 digits', passwordHint: 'At least 8 characters', wait: 'Please wait...', hello: 'Hello!', logout: 'Sign out', subtitle: 'Track spending and plan a student budget', rateLimited: 'Too many attempts. Please wait', seconds: 'seconds and try again', resendWait: (seconds: number) => `You can resend the code in ${seconds} seconds.`, error: 'The request could not be completed. Please try again.'
   }
 };
 

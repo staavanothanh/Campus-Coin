@@ -13,6 +13,7 @@ export interface TransactionView {
   categoryId: string;
   occurredAt: string;
   description: string | null;
+  itemName: string | null;
   role: "original" | "reversal" | "adjustment" | "replacement";
   referenceId: string | null;
   createdAt: string;
@@ -26,6 +27,7 @@ export function toTransaction(row: LedgerRow): TransactionView {
     categoryId: String(row.categoryId),
     occurredAt: row.occurredAt,
     description: row.description,
+    itemName: row.itemName,
     role: row.role,
     referenceId: row.referenceId === null ? null : String(row.referenceId),
     createdAt: row.createdAt,

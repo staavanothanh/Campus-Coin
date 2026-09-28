@@ -2,7 +2,7 @@
 
 > Ngày ghi nhận: 2026-09-27
 > Người đề xuất: Team Leader — Hiệp
-> Trạng thái: Team Leader đã chấp thuận năm nguyên tắc ở mục 7; các ý tưởng ở mục 9 và đề xuất OCR hóa đơn ở mục 10 vẫn là hướng tham khảo, chưa thành phạm vi release
+> Trạng thái cập nhật 2026-09-28: Team Leader đã đồng ý cả ba hướng mở rộng ở mục 9. Phần kế hoạch 30/90/180/365 ngày, what-if và phản ánh tổng kế hoạch với thực tế đã có trong source; gợi ý mặt hàng, so sánh tháng và chọn ngày giao dịch theo `Asia/Ho_Chi_Minh` cũng có code. API từ chối ngày không hợp lệ hoặc timestamp thiếu múi giờ; khi nhập lùi, so sánh không dùng giao dịch xảy ra sau ngày đã chọn. Kế hoạch đã tắt có thể được bật lại theo API/service và audit. Các tính năng cần migration `0011`–`0012` chưa dùng được với DB clone hiện tại cho tới khi DevB xử lý checksum mismatch. Xem bảng trạng thái ở mục 5 để biết cần mở màn nào và điều gì còn thiếu.
 > Nguồn hình ảnh: bốn ảnh Notion do Team Leader cung cấp; mô tả bên dưới là điều rút ra từ ảnh, không sao chép giao diện/CSS.
 
 ## 1. Mục tiêu
@@ -11,7 +11,7 @@ Giúp sinh viên ghi khoản chi nhanh hơn, nhận ra một số thay đổi tr
 
 Campus Coin là sổ tài chính do người dùng tự nhập. Sản phẩm không kết nối ngân hàng, không biết giao dịch chưa được nhập, và không đảm bảo khoản chi dự kiến là chính xác. Mọi nhắc nhở, xu hướng và phép so sánh phải nói rõ chúng được tính từ dữ liệu người dùng đã nhập.
 
-Tài liệu này mở rộng ý tưởng trong [nghiên cứu dòng tiền sinh viên](./student-cashflow-research-2026-09-26.md). Năm nguyên tắc tại mục 7 đã được chấp thuận; các đề xuất khác chưa phải phạm vi release và không mở lại bất biến trong docs/DOMAIN-MODEL.md.
+Tài liệu này mở rộng ý tưởng trong [nghiên cứu dòng tiền sinh viên](./student-cashflow-research-2026-09-26.md). Các nguyên tắc nghiệp vụ bên dưới là quyết định sản phẩm đã áp dụng vào source; giới hạn triển khai, migration và provider được ghi riêng để tránh nhầm code có mặt với tính năng đã chạy live. Tài liệu không mở lại bất biến trong `docs/DOMAIN-MODEL.md`.
 
 ## 2. Ý tưởng của Team Leader
 
@@ -24,18 +24,29 @@ Tài liệu này mở rộng ý tưởng trong [nghiên cứu dòng tiền sinh 
 7. Khi xem một danh mục như ăn uống, cho xem tổng chi theo tháng và so sánh với tháng trước hoặc kỳ trước.
 8. Hình Notion minh họa thêm các dạng xem lịch sử theo tháng, danh mục, trạng thái/cảm nhận; có ghi chú cho một số mặt hàng và tổng tiền theo nhóm.
 
-## 3. Những gì app hiện hỗ trợ
+## 3. Những gì source hiện hỗ trợ
 
 - ledger_transactions đã có payment, amount_vnd, category_id, occurred_at và description tùy chọn.
 - description là mô tả tự do. Chưa có hợp đồng rõ ràng nói rằng trường này luôn là tên sản phẩm; có thể chứa nhiều mặt hàng hoặc ghi chú khác.
 - Monthly report đã trả tổng payment và tổng chi theo danh mục cho tháng HCMC.
 - Budget theo danh mục/tháng đã có; savings là aggregate riêng.
-- Chưa có lịch khoản phải trả, chu kỳ thu nhập dự kiến, tên sản phẩm có cấu trúc hoặc service gợi ý mặt hàng trong contract hiện tại.
+- `item_name` được bổ sung bằng migration mới; API gợi ý tối đa 10 mặt hàng theo owner, kèm lần mua gần nhất, số tiền gần nhất và khoảng cách giữa hai lần mua.
+- Form payment dùng ngày lịch `Asia/Ho_Chi_Minh`, gửi lên timestamp ISO-8601 có múi giờ; server kiểm tra ngày/tháng/giờ thật, từ chối ngày tương lai và không so sánh giao dịch nhập lùi với lịch sử tương lai.
+- Trong form payment, gợi ý là các nút chọn nhanh hiện khi focus ô tên sản phẩm. Nếu tài khoản chưa có lịch sử, form giải thích cần ghi một số khoản trước; không hiện dữ liệu mẫu.
+- Category/month report có phần so sánh tháng đã chọn với tháng liền trước.
+- API/UI kế hoạch hỗ trợ khoản phải trả và thu dự kiến một lần/hàng tháng, mặc định lịch 30 ngày và lựa chọn 90/180/365 ngày, nhắc trong 10 ngày, chọn tính khoản phải trả vào forecast và mô phỏng `payment` trong cùng khoảng xem.
+- Tổng quan hiện nhắc các khoản phải trả trong 30 ngày; forecast tự tải lại khi số dư wallet đổi sau một lần ghi income/payment. Người dùng có thể chọn tính trước từng khoản ngay tại đây.
+- Reflection so tổng kế hoạch với tổng giao dịch đã ghi cho tháng kết thúc; chưa ghép một kế hoạch cụ thể với một payment cụ thể, không gắn nhãn nguyên nhân chênh lệch và không chấm điểm.
+- OCR có API/UI để tạo draft gồm số tiền và mô tả. Ảnh gửi qua provider khi người dùng đồng ý; người dùng vẫn phải kiểm tra và tự xác nhận.
+- Các migration item/cashflow có trong source nhưng không được giả định đã chạy trên clone. Clone hiện có checksum mismatch `0006`–`0010`; phải đối chiếu lineage trước khi migrate.
+- JEV/OpenRouter và OCR mặc định tắt; mock/unit test chưa chứng minh provider thật, chi phí, quota hoặc policy dữ liệu.
 
-Do đó có hai nhóm việc khác nhau:
+Do đó cần phân biệt code sẵn có với môi trường/provider đã kiểm chứng:
 
-- Có thể thử sớm bằng dữ liệu hiện tại: so sánh tổng chi danh mục theo tháng, giữ owner scope và dùng date range HCMC.
-- Cần chốt model/contract trước: tên sản phẩm có cấu trúc, lịch khoản cố định, trạng thái đã thanh toán và kỳ thu nhập.
+- Có thể review UI và domain/service bằng test độc lập với database.
+- Muốn demo trên DB clone cần DevB xác nhận migration lineage và apply migration trên clone cô lập trước.
+- Muốn thử JEV/OCR thật cần người quản lý môi trường cấu hình secret provider ở server, bật feature flag, ghi nhận quota/chi phí và kiểm tra privacy.
+- Chưa có trạng thái “đã thanh toán” cho từng kế hoạch; chỉ giao dịch do người dùng tự ghi mới là dữ liệu authoritative.
 
 ## 4. Đề xuất các lát cắt
 
@@ -128,15 +139,22 @@ Không đưa kỳ income vào bản đầu nếu cách chia kỳ chưa được 
 - Trạng thái “hài lòng/còn do dự” không cần thiết để tính số dư hoặc báo cáo tiền. Chỉ thêm nếu user research cho thấy sinh viên muốn tự nhìn lại quyết định mua; phải tùy chọn, trung tính và không ảnh hưởng budget/score.
 - Không lưu ảnh Notion hay sao chép CSS/source từ sản phẩm khác vào repo.
 
-## 5. Thứ tự đề xuất
+## 5. Trạng thái triển khai và cách nhìn thấy
 
-1. Thử nghiệm so sánh chi theo danh mục giữa tháng hiện tại và tháng trước bằng monthly report API/dữ liệu tổng hợp đã có. Đây là thay đổi UI/API nhỏ nhất, không cần lịch mới.
-2. Chốt semantics cho itemName và tạo gợi ý Top 10 theo user. Chỉ thêm schema/API sau khi chốt trường này; giữ nguyên display value người dùng nhập.
-3. Thêm so sánh số tiền và khoảng cách mua sau khi có dữ liệu mặt hàng đủ rõ; hiển thị sự kiện thực tế bằng câu chữ trung tính.
-4. Thiết kế planned obligations và cảnh báo ngày đến hạn. Đây là feature mới, cần migration, API, authorization, reminder behavior và cách liên kết payment thật.
-5. Cân nhắc comparison theo kỳ income sau khi thống nhất cách chia kỳ. Không trộn số tháng với số kỳ income trong cùng nhãn.
+| Ý tưởng | Trạng thái trong source | Cách người dùng thấy | Còn thiếu / giới hạn |
+|---|---|---|---|
+| Gợi ý 10 mặt hàng cá nhân và đếm tần suất | Đã có API owner-scoped, lưu `itemName` riêng, xếp theo tần suất rồi lần mua gần nhất; form có nút chọn nhanh và trạng thái chưa có lịch sử | Mở **Giao dịch → Thêm thanh toán**, focus **Tên sản phẩm**. Tài khoản cần có payment đã ghi với `itemName` thì mới có nút mặt hàng thật | Cần migration `0011` chạy trên DB mục tiêu. DB clone đang vướng checksum `0006`–`0010`; tài khoản không có lịch sử chỉ thấy lời giải thích, không có dữ liệu mẫu |
+| So sánh số tiền/lần mua và khoảng cách ngày | Đã có tính toán trên lịch sử cùng owner; so sánh bằng integer VND và ngày lịch HCMC | Nhập lại một mặt hàng đã từng ghi ở **Giao dịch → Thêm thanh toán**; sau khi nhập số tiền sẽ hiện so sánh | Cần từ hai lần ghi cho lịch sử khoảng cách; không kết luận giá đơn vị hoặc lượng tiêu thụ. Cần `0011` áp dụng lên DB |
+| Khoản cố định, nhắc hạn và “dành trước” | Có kế hoạch một lần/hàng tháng, nhắc 10 ngày, opt-in tính trước; bật/tắt kế hoạch không tạo payment | Mở **Báo cáo → Kế hoạch dòng tiền**; thêm khoản như “Khoản nợ Hiệp”, chọn danh mục `Trả nợ` nếu có, rồi tự chọn **Tính trước** | Cần migration `0012` trên DB mục tiêu. Không theo dõi dư nợ/gốc/lãi, không tự trừ tiền và không tạo giao dịch |
+| Dòng tiền theo mốc học kỳ/năm | Đã có bộ chọn 30, 90, 180 và 365 ngày cho lịch dự kiến; mặc định vẫn 30 ngày | Cùng màn **Báo cáo → Kế hoạch dòng tiền**, chọn **Khoảng xem**; 180 ngày xấp xỉ sáu tháng, 365 ngày xấp xỉ một năm | Đây là số ngày, chưa phải lịch tuần hay lịch học kỳ của trường. Chỉ tính khoản user khai báo; chưa dự đoán các khoản chưa nhập |
+| “Nếu tôi mua khoản này thì sao?” | Đã có what-if phía server, dùng cùng khoảng xem, không ghi ledger | Trong **Báo cáo → Kế hoạch dòng tiền**, nhập số tiền/ngày rồi bấm **Xem thử** | Cần ví đã khởi tạo. Kịch bản dùng dữ liệu đã ghi/kế hoạch nhập tay nên không khẳng định khả năng chi trả |
+| So sánh kế hoạch với thực tế, không chấm điểm | Đã có tổng hợp theo tháng đã kết thúc và câu chữ phân biệt dữ liệu chưa ghi; không có score | Cuối trang **Báo cáo → Kế hoạch dòng tiền**, mở phần **Tháng trước: kế hoạch và khoản đã ghi** | Chỉ đối chiếu tổng income/payment, chưa ghép khoản dự kiến với payment cụ thể hoặc cho người dùng gắn nguyên nhân lệch |
+| So sánh danh mục giữa hai tháng | Đã có so sánh tháng đang xem với tháng liền trước | Mở **Báo cáo**, xem phần **Chi tiêu theo danh mục** | Chưa có kỳ theo từng lần nhận income; chưa quyết định semantics cho income gần nhau hoặc thu nhập dự kiến chưa nhận |
+| OCR hóa đơn | Có API/UI tạo draft và yêu cầu đồng ý; luôn cho sửa bằng tay | Mở form payment, chọn ảnh và đồng ý trước khi yêu cầu đọc hóa đơn | Feature flag tắt mặc định; chưa có provider live, kiểm thử độ chính xác, quota/chi phí và rà soát riêng tư |
+| Gợi ý danh mục bằng AI | Có adapter/API và yêu cầu đồng ý; user duyệt trước khi lưu | Trong form payment, nhập nội dung, đồng ý gửi, chọn **Gợi ý danh mục** | Feature flag tắt mặc định; chưa xác minh provider live. Không dùng AI để tính hoặc ghi tiền |
+| Trạng thái cảm nhận như trong Notion | Chưa triển khai | Chưa có | Chờ thử nghiệm với sinh viên; không suy đoán cảm xúc hoặc chấm điểm |
 
-Năm nguyên tắc nghiệp vụ ở mục 7 được Team Leader chấp thuận ngày 2026-09-27. Danh sách trên là các hướng khả thi, chưa phải lịch release hoặc phân công implementation. Cần ghi phạm vi và owner ở delivery plan trước khi bắt đầu thay schema hoặc triển khai.
+Các đường dẫn trên là vị trí trong giao diện đang chạy từ source hiện tại. Nếu màn hình vẫn hiện bản cũ, xác nhận đã khởi động từ nhánh `hiep`, reload sau khi Vite dựng lại, và nhớ rằng account hiện tại cần có dữ liệu của chính nó để xem so sánh. Code có mặt không chứng minh migration/provider đã chạy trên môi trường demo.
 
 ## 6. Bất biến và riêng tư
 
@@ -158,11 +176,11 @@ Năm nguyên tắc nghiệp vụ ở mục 7 được Team Leader chấp thuận
 4. Ưu tiên so sánh chi theo tháng trước. So sánh theo income cycle để giai đoạn sau khi đã chốt cách chia kỳ.
 5. Với từng khoản cố định sau income, người dùng có thể chọn chỉ xem nhắc nhở hoặc tính khoản đó như tiền đã dành trước trong con số còn lại tham khảo. Nếu khoản đã được trả, người dùng có thể chủ động xác nhận để ghi `payment` thật; chỉ payment này mới đổi wallet/report. Không có tự động trừ tiền hoặc tạo payment. Một kỳ đến hạn mỗi tháng chỉ được tính một lần, không lặp theo số lần ghi income.
 
-### Còn cần quyết định trước khi làm các phần tương ứng
+### Còn cần quyết định trước khi mở rộng thêm
 
-1. Top 10 mặt hàng tính trên toàn bộ lịch sử hay một khoảng gần đây? Đề xuất ban đầu: toàn bộ payment còn hiệu lực của chính user; sort theo tần suất giảm dần, lần mua gần nhất dùng để phá hòa.
-2. Với hóa đơn đến hạn ngày 29–31 trong tháng ngắn, dùng ngày cuối tháng đó có phù hợp không?
-3. Bản đầu có cần trạng thái cảm nhận “hài lòng/còn do dự” như ảnh Notion không? Đề xuất: chưa thêm cho tới khi thử với sinh viên.
+1. Top 10 hiện dùng toàn bộ payment đủ điều kiện của chính user; nếu muốn đổi sang cửa sổ gần đây, cần product review và so sánh ảnh hưởng dữ liệu.
+2. Hóa đơn đến hạn ngày 29–31 trong tháng ngắn hiện được đưa về ngày cuối tháng; cần xem phản hồi người dùng nếu muốn đổi.
+3. Chưa thêm trạng thái cảm nhận như ảnh Notion; cần thử với sinh viên trước khi lưu loại dữ liệu chủ quan này.
 
 ## 8. Tiêu chí thử nghiệm khi triển khai
 
@@ -178,15 +196,15 @@ Năm nguyên tắc nghiệp vụ ở mục 7 được Team Leader chấp thuận
 - Có kiểm tra bàn phím, focus, nhãn, trạng thái live, responsive và tiếng Việt/Anh.
 - Nếu có migration, kiểm thử upgrade từ schema đang dùng và chuẩn bị rollback/restore plan trên disposable DB trước khi yêu cầu DB owner áp lên clone.
 
-## 9. Ba ý tưởng mở rộng để tham khảo
+## 9. Ba ý tưởng mở rộng Team Leader đã đồng ý
 
-Ba ý tưởng tạo thành một vòng hỗ trợ quyết định: nhìn kế hoạch sắp tới, thử tác động của một khoản mua, rồi học từ chênh lệch giữa kế hoạch và khoản đã ghi. Chúng bổ sung cho các tính năng hiện có; không có nghĩa là phải triển khai đồng thời hoặc đưa ngay vào MVP.
+Team Leader đã đồng ý cả ba hướng. Bản hiện tại áp dụng phạm vi ban đầu ở mục 9.1–9.3; trạng thái giới hạn và cách truy cập được ghi ở mục 5. Phần chưa có code không được xem là hoàn tất chỉ vì đã có trong tài liệu.
 
 ### 9.1. Bản đồ dòng tiền theo lịch năm học
 
 **Nhu cầu:** Tổng theo tháng có thể che khuất các khoản lớn nhưng không xuất hiện hằng tháng, như học phí, tiền cọc/chuyển trọ, sách đầu kỳ hoặc chi phí đi lại. Sinh viên có thể nhìn thấy một tháng “còn dư” nhưng chưa để dành phần cần cho mốc sắp tới.
 
-**Cách làm đề xuất:** Cho người dùng tự tạo khoản dự kiến với tên, ngày hoặc hạn, số tiền ước tính và tùy chọn danh mục. Một khoản có thể là một lần hoặc lặp lại. Có thể xem danh sách theo 30 ngày mặc định đã chốt, hoặc tự chọn khoảng dài hơn như một học kỳ. Thu nhập tương lai chỉ xuất hiện nếu người dùng tự khai báo ngày và số tiền dự kiến; không tự đoán lịch học, lịch học phí hay ngày nhận lương.
+**Cách làm đang có:** Cho người dùng tự tạo khoản dự kiến với tên, ngày hoặc hạn, số tiền ước tính và tùy chọn danh mục. Một khoản có thể là một lần hoặc lặp lại. Khoảng mặc định 30 ngày; người dùng có thể chọn 90, 180 hoặc 365 ngày. Thu nhập tương lai chỉ xuất hiện nếu người dùng tự khai báo ngày và số tiền dự kiến; không tự đoán lịch học, học phí hay ngày nhận lương.
 
 **Giới hạn và rủi ro:** Khoản kế hoạch không phải số dư, không phải nghĩa vụ đã xác nhận và không tự trừ ví. Nếu người dùng chưa nhập khoản thu tương lai, hệ thống không nên trình bày số dư cuối kỳ như một con số chắc chắn; nên chỉ cho xem các khoản đã khai báo và nói rõ dữ liệu còn thiếu. Lịch học kỳ là khung xem do người dùng chọn, không thay mặc định 30 ngày đã được chấp thuận.
 
@@ -196,7 +214,7 @@ Ba ý tưởng tạo thành một vòng hỗ trợ quyết định: nhìn kế h
 
 **Nhu cầu:** Nếu chỉ phân tích sau giao dịch, ứng dụng giúp người dùng hiểu quá khứ nhưng chưa hỗ trợ cân nhắc khoản mua trước khi ghi payment. Một phép tính “nếu mua món này thì sao?” có thể lấp khoảng trống đó.
 
-**Cách làm đề xuất:** Người dùng nhập tạm số tiền, ngày dự định và thông tin tùy chọn như itemName/category. Ứng dụng cho xem kịch bản có và không có khoản mua, đồng thời đối chiếu với số dư hiện tại và các khoản kế hoạch sắp tới trong khoảng đang xem. Kết quả dùng phép tính server-side chính xác theo integer VND, hiển thị ngày kết thúc cùng giả định và dữ liệu được dùng.
+**Cách làm đang có:** Người dùng nhập tạm số tiền và ngày dự định. Ứng dụng cho xem kết quả kịch bản cùng số dư hiện tại và các khoản kế hoạch sắp tới trong khoảng đang xem. Kết quả dùng phép tính server-side theo integer VND, có ngày kết thúc và giả định. Form chưa nhận category để điều chỉnh budget/category view.
 
 **Giới hạn và rủi ro:** Đây chỉ là kịch bản, không phải quyết định “đủ khả năng chi trả”, không giữ chỗ tiền, không chặn giao dịch và không tạo ledger row. Số dư hiện tại không phản ánh giao dịch chưa nhập; các khoản tương lai có thể đổi hoặc người dùng có thể quên khai báo. Nếu dữ liệu đầu vào thiếu, giao diện phải báo thiếu thay vì bù bằng số 0 hoặc khẳng định kết luận.
 
@@ -206,19 +224,19 @@ Ba ý tưởng tạo thành một vòng hỗ trợ quyết định: nhìn kế h
 
 **Nhu cầu:** Tổng tiền đơn lẻ không giải thích được vì sao một kế hoạch bị lệch. Điểm số, streak hoặc xếp hạng có thể tạo áp lực nhưng không giúp phân biệt khoản bất thường với thay đổi thực sự trong thói quen.
 
-**Cách làm đề xuất:** Với một kỳ đã kết thúc và đủ dữ liệu, cho người dùng xem số đã dự kiến cạnh số payment họ đã ghi theo danh mục hoặc khoản kế hoạch. Có thể cho họ tự đánh dấu một chênh lệch là phát sinh một lần, thay đổi kế hoạch, hoặc khoản đã quên nhập. So sánh chỉ dùng dữ liệu của chính user, có nhãn thời gian và giải thích phép tính.
+**Cách làm đang có:** Với tháng đã kết thúc, cho người dùng xem tổng `income`/`payment` đã dự kiến cạnh tổng đã ghi. So sánh chỉ dùng dữ liệu của chính user, có nhãn tháng và giải thích rằng thiếu bản ghi không đồng nghĩa không có hoạt động. Chưa có đánh dấu nguyên nhân lệch hoặc ghép kế hoạch với payment cụ thể.
 
 **Giới hạn và rủi ro:** Ứng dụng không biết các payment chưa được nhập, nên “không có giao dịch được ghi nhận” không đồng nghĩa “không tiêu tiền”. Không gọi chênh lệch là thất bại, lãng phí hay thiếu kỷ luật; không chấm điểm tài chính và không so người này với người khác. Không dùng AI để suy đoán cảm xúc, lý do mua hoặc tình trạng tài chính từ lịch sử.
 
 **Giá trị cần kiểm chứng:** Người dùng có thấy nhận xét hữu ích và chính xác theo dữ liệu họ đã ghi không; các nhãn tự giải thích có giúp sửa kế hoạch mà không gây phán xét không.
 
-### 9.4. Thứ tự thử nghiệm và điều kiện đưa vào sản phẩm
+### 9.4. Cổng hoàn thiện
 
-1. Thử bản đồ kế hoạch với các khoản sắp tới trong 30 ngày; chỉ mở khoảng học kỳ khi người dùng chủ động chọn mốc dài hơn.
-2. Dùng cùng dữ liệu kế hoạch đó làm đầu vào cho màn hình thử tác động trước khi mua; giữ nguyên ví và ledger.
-3. Chỉ hiển thị so sánh kế hoạch với thực tế sau khi có kỳ đã kết thúc, dữ liệu nhập đủ dùng và cách báo dữ liệu thiếu được kiểm tra với sinh viên.
-
-Trước khi đổi schema hoặc code, cần ghi phạm vi, owner, acceptance và migration/test plan vào PRD/delivery plan. Ba ý tưởng ở mục này chưa được Team Leader chốt thành yêu cầu triển khai.
+1. Chạy migration mới trên DB clone sau khi DevB giải quyết checksum mismatch; sau đó xác nhận các màn item history/cashflow đọc được dữ liệu thật.
+2. Thử forecast 30/90/180/365 ngày bằng khoản giả của test account và xác nhận lựa chọn “Tính trước” chỉ đổi dự báo.
+3. Thử what-if và reflection với dữ liệu đã ghi; đối chiếu các phép tính trên DBeaver bằng test account, không dùng dữ liệu thật của thành viên khác.
+4. Kiểm tra UI, bàn phím, màn hẹp và copy VI/EN; ghi các giới hạn trong delivery evidence.
+5. Chỉ thêm đối chiếu từng khoản hoặc bộ lọc theo income cycle sau khi product semantics và migration/test plan được thống nhất.
 
 ## 10. Chụp hóa đơn để tạo bản nháp payment
 

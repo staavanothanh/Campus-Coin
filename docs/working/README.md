@@ -20,13 +20,13 @@
 - `TEAM-BOARD.md`: bảng điều phối working pass.
 - `replan/`: bằng chứng của kế hoạch triển khai 4–5 ngày và các handoff RP-A đến RP-D.
 - [`team-handoff-2026-09-26/`](team-handoff-2026-09-26/README.md): hành động còn lại của DevB (DB/benchmark), DevC (UI/accessibility) và DevD (Vercel/SMTP/release).
-- [`student-cashflow-research-2026-09-26.md`](student-cashflow-research-2026-09-26.md): nghiên cứu weekly cashflow, mô phỏng khoản chi và benchmark cá nhân; advisory, chưa phải quyết định sản phẩm.
+- [`student-cashflow-research-2026-09-26.md`](student-cashflow-research-2026-09-26.md): căn cứ nghiên cứu weekly cashflow, mô phỏng khoản chi và so sánh cá nhân; phần nào đã được chấp thuận và triển khai xem trong PRD/đề xuất tính năng và delivery plan.
 - [`repository-review-2026-09-27.md`](repository-review-2026-09-27.md): đánh giá 23 repository, nhánh mới, license/rủi ro và phần áp dụng vào sản phẩm.
 - [`INTERACTION-QUALITY-2026-09-27.md`](INTERACTION-QUALITY-2026-09-27.md): trạng thái lỗi, retry, biên nhận mutation, focus bàn phím và bảng responsive đã áp dụng vào giao diện domain.
 - [`DBEAVER-REVIEW-QUERIES.sql`](DBEAVER-REVIEW-QUERIES.sql): truy vấn chỉ đọc để trình bày user, session, wallet, savings, giao dịch, budget, audit và migration; không chọn secret columns.
 - Trạng thái clone DB mới nhất và cách chạy an toàn nằm trong [`../DB-STAGING-TESTING.md`](../DB-STAGING-TESTING.md); không chạy migration khi checksum `0006`–`0010` chưa được DevB đối chiếu.
 
-- Đề xuất tính năng: [gợi ý mặt hàng, khoản cố định, so sánh chi tiêu và OCR hóa đơn](student-finance-feature-proposal-2026-09-27.md); các ý tưởng ngoài năm nguyên tắc đã chấp thuận vẫn cần nghiên cứu trước khi lập phạm vi triển khai.
+- Trạng thái ý tưởng quản lý tài chính sinh viên: [gợi ý mặt hàng, khoản cố định, so sánh chi tiêu, ba hướng mở rộng và OCR hóa đơn](student-finance-feature-proposal-2026-09-27.md). Tài liệu ghi rõ code hiện có, cách mở màn hình, điều kiện dữ liệu, migration/provider còn chờ và các ý tưởng chưa triển khai.
 
 ## Quy tắc cập nhật
 

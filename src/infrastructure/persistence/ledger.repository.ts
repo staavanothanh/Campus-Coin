@@ -14,6 +14,7 @@ export interface LedgerRow {
   role: "original" | CorrectionRole;
   referenceId: number | null;
   description: string | null;
+  itemName: string | null;
   reason: string | null;
   createdAt: string;
 }
@@ -32,6 +33,7 @@ export interface LedgerDbRow {
   role: "original" | CorrectionRole;
   reference_id: number | string | null;
   description: string | null;
+  item_name: string | null;
   reason: string | null;
   created_at: Date;
 }
@@ -47,13 +49,14 @@ export function mapLedgerRow(row: LedgerDbRow): LedgerRow {
     role: row.role,
     referenceId: row.reference_id === null ? null : idFromDb(row.reference_id),
     description: row.description,
+    itemName: row.item_name,
     reason: row.reason,
     createdAt: isoFromDb(row.created_at),
   };
 }
 
 const LEDGER_COLUMNS =
-  "id, user_id, type, amount_vnd, category_id, occurred_at, role, reference_id, description, reason, created_at";
+  "id, user_id, type, amount_vnd, category_id, occurred_at, role, reference_id, description, item_name, reason, created_at";
 
 export interface NewLedgerRow {
   userId: number;
@@ -64,6 +67,7 @@ export interface NewLedgerRow {
   role: "original" | CorrectionRole;
   referenceId: number | null;
   description: string | null;
+  itemName: string | null;
   reason: string | null;
   idempotencyId: number | null;
 }
@@ -71,8 +75,8 @@ export interface NewLedgerRow {
 export async function insertLedgerRow(db: LedgerScalar, row: NewLedgerRow): Promise<number> {
   const [result] = (await db.query(
     `INSERT INTO ledger_transactions
-       (user_id, type, amount_vnd, category_id, occurred_at, role, reference_id, description, reason, idempotency_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       (user_id, type, amount_vnd, category_id, occurred_at, role, reference_id, description, item_name, reason, idempotency_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       row.userId,
       row.type,
@@ -82,11 +86,81 @@ export async function insertLedgerRow(db: LedgerScalar, row: NewLedgerRow): Prom
       row.role,
       row.referenceId,
       row.description,
+      row.itemName,
       row.reason,
       row.idempotencyId,
     ],
   )) as [{ insertId: number | string }, unknown];
   return Number(result.insertId);
+}
+
+export interface FrequentPaymentItemRow {
+  itemName: string;
+  frequency: number;
+  lastAmountVnd: number;
+  lastOccurredAt: string;
+  previousOccurredAt: string | null;
+}
+
+/** Owner-scoped product history; reversals are excluded and corrections update the shown amount. */
+export async function listFrequentPaymentItems(
+  db: LedgerScalar,
+  userId: number,
+  limit: number,
+): Promise<FrequentPaymentItemRow[]> {
+  const [rows] = (await db.query(
+    `WITH eligible_purchases AS (
+       SELECT
+         purchase.item_name,
+         CASE
+           WHEN correction.role IN ('adjustment', 'replacement') THEN correction.amount_vnd
+           ELSE purchase.amount_vnd
+         END AS effective_amount_vnd,
+         purchase.occurred_at,
+         purchase.id,
+         LOWER(TRIM(purchase.item_name)) AS normalized_name,
+         ROW_NUMBER() OVER (
+           PARTITION BY LOWER(TRIM(purchase.item_name))
+           ORDER BY purchase.occurred_at DESC, purchase.id DESC
+         ) AS purchase_rank,
+         COUNT(*) OVER (PARTITION BY LOWER(TRIM(purchase.item_name))) AS purchase_count
+       FROM ledger_transactions AS purchase
+       LEFT JOIN ledger_transactions AS correction
+         ON correction.user_id = purchase.user_id
+        AND correction.reference_id = purchase.id
+       WHERE purchase.user_id = ?
+         AND purchase.type = 'payment'
+         AND purchase.role = 'original'
+         AND purchase.item_name IS NOT NULL
+         AND TRIM(purchase.item_name) <> ''
+         AND (correction.id IS NULL OR correction.role <> 'reversal')
+     )
+     SELECT
+       MAX(CASE WHEN purchase_rank = 1 THEN item_name END) AS item_name,
+       MAX(purchase_count) AS frequency,
+       MAX(CASE WHEN purchase_rank = 1 THEN effective_amount_vnd END) AS last_amount_vnd,
+       MAX(CASE WHEN purchase_rank = 1 THEN occurred_at END) AS last_occurred_at,
+       MAX(CASE WHEN purchase_rank = 2 THEN occurred_at END) AS previous_occurred_at
+     FROM eligible_purchases
+     GROUP BY normalized_name
+     ORDER BY frequency DESC, last_occurred_at DESC, normalized_name ASC
+     LIMIT ?`,
+    [userId, limit],
+  )) as [{
+    item_name: string;
+    frequency: number | string;
+    last_amount_vnd: number | string;
+    last_occurred_at: Date;
+    previous_occurred_at: Date | null;
+  }[], unknown];
+
+  return rows.map((row) => ({
+    itemName: row.item_name,
+    frequency: amountFromDb(row.frequency),
+    lastAmountVnd: amountFromDb(row.last_amount_vnd),
+    lastOccurredAt: isoFromDb(row.last_occurred_at),
+    previousOccurredAt: row.previous_occurred_at === null ? null : isoFromDb(row.previous_occurred_at),
+  }));
 }
 
 export async function findTransactionById(

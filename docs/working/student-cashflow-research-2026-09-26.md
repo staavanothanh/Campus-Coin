@@ -1,7 +1,7 @@
 # Nghiên cứu hướng quản lý dòng tiền cho sinh viên
 
 - Ngày: 2026-09-26
-- Trạng thái: Đề xuất nghiên cứu, chưa phải phạm vi được chấp thuận
+- Trạng thái cập nhật 2026-09-28: một số hướng đã được Team Leader chấp thuận và có code. Bảng triển khai hiện hành ở [đề xuất tính năng quản lý chi tiêu](./student-finance-feature-proposal-2026-09-27.md); nội dung bên dưới giữ lại bối cảnh và các hướng chưa triển khai.
 - Mục đích: Cung cấp căn cứ để Team Leader và nhóm cân nhắc hướng sản phẩm sau khi hoàn thiện giao diện domain hiện có.
 
 ## 1. Bối cảnh đề tài
@@ -18,11 +18,15 @@ Trước tiên làm cho sinh viên dùng được wallet onboarding, dashboard, 
 
 ### Ưu tiên 2: Xem dòng tiền theo tuần
 
+**Trạng thái:** Cách xem theo từng tuần chưa có. Source hiện có forecast theo khoảng ngày user chọn (30/90/180/365), với tổng hợp kế hoạch và lịch sự kiện; đây không phải bảng số dư đầu/cuối từng tuần.
+
 Đề xuất trả lời câu hỏi: “Từ bây giờ đến lần nhận tiền tiếp theo, số dư tuần nào có thể thiếu?”. Mỗi tuần thể hiện số dư đầu kỳ, khoản thu, chi phí/savings và số dư cuối tuần; số dư cuối chuyển thành số dư đầu tuần sau.
 
 Khoản đã ghi và khoản dự kiến phải có nhãn riêng. Số dự kiến chỉ là kế hoạch dựa trên dữ liệu người dùng nhập, không được cộng vào wallet thực tế hoặc ledger. CFPB khuyến nghị theo dõi thu nhập, nguồn lực và chi tiêu trước khi lập cash-flow budget; mẫu của họ tính số dư tuần rồi chuyển sang tuần kế tiếp.
 
 ### Ưu tiên 3: Mô phỏng “Nếu chi khoản này?”
+
+**Trạng thái:** What-if theo ngày/số tiền và khoảng forecast hiện có trong màn Kế hoạch dòng tiền; không đổi ledger, wallet hoặc budget. Chưa mô phỏng savings goal/category cụ thể.
 
 Cho nhập amount, ngày và category để xem ước tính ảnh hưởng tới số dư các tuần sau, budget còn lại và savings goal. Đây là kịch bản tạm thời: không tạo ledger row, không thay đổi balance, không ngăn người dùng ghi giao dịch thật. Kết quả cần nêu khoảng thời gian và giả định.
 
@@ -30,7 +34,9 @@ Cho nhập amount, ngày và category để xem ước tính ảnh hưởng tớ
 
 Nếu nhóm muốn phát triển tiếp, cho người dùng tự đặt target amount và ngày cần đạt; hiển thị số còn thiếu và số tiền cần dành mỗi tuần. User có thể đổi hoặc tạm dừng mục tiêu. Không áp một công thức chung như 50/30/20 cho mọi sinh viên.
 
-### Ưu tiên 5: Benchmark cá nhân
+### Ưu tiên 5: So sánh cá nhân
+
+**Trạng thái:** Report so sánh tổng chi theo category giữa tháng đang xem với tháng liền trước của cùng user. Đây là so sánh lịch sử cá nhân, chưa có phân tích cohort hoặc chuẩn tham chiếu sinh viên.
 
 Bắt đầu bằng so sánh một category/tháng với các kỳ trước của chính user. Luôn hiển thị khoảng thời gian và số kỳ có dữ liệu; không tính phần trăm khi kỳ so sánh rỗng, bằng 0 hoặc thiếu. Ngưỡng tối thiểu số tháng là quyết định UX cần thử nghiệm, không phải ngưỡng khoa học được chứng minh.
 
@@ -53,8 +59,8 @@ Nội dung nên ngắn, đúng lúc, gắn với mục tiêu do người dùng t
 
 ## 5. Trạng thái và rủi ro
 
-- Đây là đề xuất sản phẩm, chưa được phê duyệt để thay đổi PRD hoặc roadmap.
-- Không mô tả weekly cashflow, what-if, goal deadline hay personal benchmark là chức năng đã triển khai.
+- Hướng dùng khoản kế hoạch, what-if, reflection không chấm điểm và so sánh cá nhân đã được đưa vào phạm vi product ở mức được mô tả trong PRD/đề xuất tính năng; chi tiết còn thiếu không tự suy ra là đã làm.
+- Không mô tả bảng weekly cashflow, savings goal deadline hay benchmark giữa các nhóm sinh viên là chức năng đã triển khai.
 - Các kết quả tính phải deterministic, dùng integer VND và ngày nghiệp vụ `Asia/Ho_Chi_Minh`; giữ code đơn giản để thành viên có thể giải thích.
 - Dữ liệu là nhập tay nên có thể thiếu hoặc trễ. Giao diện phải nói rõ kết quả phản ánh dữ liệu được nhập, không phải số dư ngân hàng hoặc dự đoán chắc chắn.
 - Chỉ triển khai sau khi các màn domain căn bản hoạt động và acceptance/test được thống nhất.

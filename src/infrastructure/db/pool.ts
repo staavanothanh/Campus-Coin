@@ -49,12 +49,16 @@ export function getPool(dbEnv: DbEnv = readDbEnv()): Pool {
   return pool;
 }
 
-/** Reset pool (dùng trong test). */
+/** Đóng pool hiện tại và chờ mọi kết nối được giải phóng. */
+export async function closePool(): Promise<void> {
+  const currentPool = pool;
+  pool = null;
+  if (currentPool !== null) await currentPool.end();
+}
+
+/** Reset pool đồng bộ cho các test cũ; caller mới nên dùng closePool khi cần chờ đóng xong. */
 export function resetPool(): void {
-  if (pool !== null) {
-    void pool.end();
-    pool = null;
-  }
+  void closePool();
 }
 
 /** Chạy fn trong transaction ngắn; rollback khi lỗi, commit khi thành công. */

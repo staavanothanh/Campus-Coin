@@ -14,18 +14,37 @@ const fieldsByPage: Record<Page, AuthField[]> = {
   reset: ['otp', 'password', 'confirm'],
 };
 
+function readRememberedEmail() {
+  try {
+    return window.localStorage.getItem('campus_email') || '';
+  } catch {
+    // The email reminder is optional; continue with a blank email.
+    return '';
+  }
+}
+
+function saveRememberedEmail(email: string, shouldRemember: boolean) {
+  try {
+    if (shouldRemember) window.localStorage.setItem('campus_email', email);
+    else window.localStorage.removeItem('campus_email');
+  } catch {
+    // Remembering an email is optional and must not block authentication.
+  }
+}
+
 export type AuthenticatedSession = { user: User; csrfToken: string; googleLinked?: boolean | undefined };
 export type AuthAppProps = {
   onAuthenticated(session: AuthenticatedSession | null): void;
   initialNotice?: string;
+  initialLocale?: Language;
   noticeKind?: MessageKind;
 };
 
-export function App({ onAuthenticated, initialNotice = '', noticeKind = 'status' }: AuthAppProps) {
-  const [language, setLanguage] = useState<Language>('vi');
+export function App({ onAuthenticated, initialNotice = '', initialLocale = 'vi', noticeKind = 'status' }: AuthAppProps) {
+  const [language, setLanguage] = useState<Language>(initialLocale);
   const [page, setPage] = useState<Page>('login');
-  const [email, setEmail] = useState(localStorage.getItem('campus_email') || '');
-  const [remember, setRemember] = useState(Boolean(localStorage.getItem('campus_email')));
+  const [email, setEmail] = useState(readRememberedEmail);
+  const [remember, setRemember] = useState(() => Boolean(readRememberedEmail()));
   const [name, setName] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
@@ -40,6 +59,7 @@ export function App({ onAuthenticated, initialNotice = '', noticeKind = 'status'
   const [messageKind, setMessageKind] = useState<MessageKind>(noticeKind);
   const [submitted, setSubmitted] = useState(false);
   const [googleEnabled, setGoogleEnabled] = useState(false);
+  const [resendCooldownSeconds, setResendCooldownSeconds] = useState(0);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const requestInProgress = useRef(false);
   const t = text[language];
@@ -68,9 +88,17 @@ export function App({ onAuthenticated, initialNotice = '', noticeKind = 'status'
     headingRef.current?.focus();
   }, [page]);
 
+  useEffect(() => {
+    if (resendCooldownSeconds <= 0) return;
+    const timer = window.setTimeout(() => {
+      setResendCooldownSeconds(current => Math.max(0, current - 1));
+    }, 1000);
+    return () => window.clearTimeout(timer);
+  }, [resendCooldownSeconds]);
 
   function openPage(nextPage: Page) {
     setPage(nextPage);
+    setResendCooldownSeconds(0);
     setMessage('');
     setMessageKind('status');
     setPassword('');
@@ -148,8 +176,7 @@ export function App({ onAuthenticated, initialNotice = '', noticeKind = 'status'
       if (page === 'login') {
         const result = await api<{ user: User; csrfToken: string; googleLinked?: boolean }>('/auth/login', { email, password });
         if (!result.csrfToken) throw new ApiError(500, 'INVALID_RESPONSE', t.error);
-        if (remember) localStorage.setItem('campus_email', email);
-        else localStorage.removeItem('campus_email');
+        saveRememberedEmail(email, remember);
         onAuthenticated({ user: result.user, csrfToken: result.csrfToken, googleLinked: result.googleLinked });
       }
       if (page === 'register') {
@@ -181,7 +208,7 @@ export function App({ onAuthenticated, initialNotice = '', noticeKind = 'status'
   }
 
   async function resend() {
-    if (requestInProgress.current) return;
+    if (requestInProgress.current || resendCooldownSeconds > 0) return;
     requestInProgress.current = true;
     setBusy(true);
     setMessage('');
@@ -191,7 +218,19 @@ export function App({ onAuthenticated, initialNotice = '', noticeKind = 'status'
       await api('/auth/resend-otp', { email, purpose });
       setMessage(t.resent);
     } catch (error) {
-      showError(error);
+      const retryAfter = error instanceof ApiError ? error.retryAfterSeconds : undefined;
+      if (
+        error instanceof ApiError
+        && error.code === 'RATE_LIMITED'
+        && retryAfter !== undefined
+        && Number.isSafeInteger(retryAfter)
+        && retryAfter > 0
+      ) {
+        setResendCooldownSeconds(retryAfter);
+        showError(error);
+      } else {
+        showError(error);
+      }
     } finally {
       requestInProgress.current = false;
       setBusy(false);
@@ -346,7 +385,10 @@ export function App({ onAuthenticated, initialNotice = '', noticeKind = 'status'
           <button type="submit" className="primaryButton" disabled={busy}>{busy ? t.wait : buttonText}</button>
         </form>
 
-        {(page === 'verify' || page === 'reset') && <button className="textButton" disabled={busy} onClick={resend}>{t.resend}</button>}
+        {(page === 'verify' || page === 'reset') && <>
+          <button className="textButton" type="button" disabled={busy || resendCooldownSeconds > 0} onClick={resend}>{t.resend}</button>
+          {resendCooldownSeconds > 0 && <p className="resendCountdown" aria-live="off">{t.resendWait(resendCooldownSeconds)}</p>}
+        </>}
         {page === 'login' && <>
           {googleEnabled && <a className="textButton" href="/api/v1/auth/google/start">{t.googleSignIn}</a>}
           <button className="textButton" onClick={() => openPage('forgot')}>{t.forgotLink}</button>
