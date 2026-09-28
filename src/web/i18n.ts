@@ -50,6 +50,18 @@ export interface Copy {
   manualCategory: string;
   transactionSaved: string;
   amountInvalid: string;
+  suggestCategory: string;
+  suggestionLoading: string;
+  suggestionAvailable: string;
+  suggestionManual: string;
+  suggestionDisabled: string;
+  suggestionUnavailable: string;
+  suggestionFailed: string;
+  suggestionUse: string;
+  suggestionConfirm: string;
+  categoryCreateFailed: string;
+  budgetLoadFailed: string;
+  signOutFailed: string;
 
   // Auth
   signIn: string;
@@ -137,6 +149,18 @@ export const copy: Record<Locale, Copy> = {
     manualCategory: 'Chọn danh mục thủ công',
     transactionSaved: 'Giao dịch đã lưu',
     amountInvalid: 'Số tiền phải là số nguyên dương',
+    suggestCategory: 'Gợi ý danh mục',
+    suggestionLoading: 'Đang lấy gợi ý…',
+    suggestionAvailable: 'JEV đề xuất danh mục này. Hãy kiểm tra và xác nhận trước khi lưu.',
+    suggestionManual: 'Chưa có gợi ý phù hợp. Bạn có thể chọn danh mục thủ công.',
+    suggestionDisabled: 'Tính năng gợi ý AI chưa được bật. Bạn có thể chọn danh mục thủ công.',
+    suggestionUnavailable: 'Gợi ý AI tạm thời không khả dụng. Bạn có thể chọn danh mục thủ công.',
+    suggestionFailed: 'Không thể lấy gợi ý. Bạn vẫn có thể chọn danh mục thủ công.',
+    suggestionUse: 'Dùng gợi ý',
+    suggestionConfirm: 'Tôi xác nhận danh mục được gợi ý',
+    categoryCreateFailed: 'Không tạo được danh mục. Giao dịch chưa được lưu; vui lòng thử lại.',
+    budgetLoadFailed: 'Không tải được ngân sách. Vui lòng thử lại.',
+    signOutFailed: 'Đăng xuất chưa hoàn tất. Vui lòng thử lại.',
 
     // Auth
     signIn: 'Đăng nhập Google',
@@ -222,6 +246,18 @@ export const copy: Record<Locale, Copy> = {
     manualCategory: 'Choose category manually',
     transactionSaved: 'Transaction saved',
     amountInvalid: 'Amount must be a positive integer',
+    suggestCategory: 'Suggest category',
+    suggestionLoading: 'Getting suggestion…',
+    suggestionAvailable: 'JEV suggested this category. Review and confirm it before saving.',
+    suggestionManual: 'No suitable suggestion. You can choose a category manually.',
+    suggestionDisabled: 'AI suggestion is not enabled. You can choose a category manually.',
+    suggestionUnavailable: 'AI suggestion is temporarily unavailable. You can choose a category manually.',
+    suggestionFailed: 'Could not get a suggestion. You can still choose a category manually.',
+    suggestionUse: 'Use suggestion',
+    suggestionConfirm: 'I confirm the suggested category',
+    categoryCreateFailed: 'Could not create the category. The transaction was not saved; please try again.',
+    budgetLoadFailed: 'Could not load the budget. Please retry.',
+    signOutFailed: 'Sign-out did not complete. Please try again.',
 
     // Auth
     signIn: 'Sign in with Google',

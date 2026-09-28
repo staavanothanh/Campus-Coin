@@ -2,7 +2,7 @@ import { isSecureCookieEnvironment } from '../lib/cookie-security.ts';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { handleIssueRoute } from '../api/issue-routes.ts';
 import type { IssueActor } from '../application/issue.service.ts';
-import { listAdminAuditLogs, getAdminStats } from '../application/admin.service.ts';
+import { listAdminAuditLogs, getAdminStats, listAdminUsers, setAdminUserStatus, getAdminMetrics } from '../application/admin.service.ts';
 import { getPool } from '../infrastructure/db/pool.ts';
 import { assertSchemaReady } from '../infrastructure/db/readiness.js';
 import { updateUserPreferences } from '../application/user.service.ts';
@@ -263,6 +263,31 @@ export async function handleRequest(
         }
       }
       if (mutationUser) {
+        const adminUserMatch = path.match(/^\/api\/v1\/admin\/users\/([^/]+)$/);
+        if (method === 'PATCH' && adminUserMatch) {
+          const userId = adminUserMatch[1];
+          if (!userId || !/^\d+$/.test(userId)) throw new AppError(404, 'NOT_FOUND', 'Không tìm thấy tài khoản');
+          requireAdmin(mutationUser);
+          const status = body['status'];
+          const rawReason = body['reason'];
+          if (status !== 'active' && status !== 'disabled') {
+            throw new AppError(422, 'VALIDATION_ERROR', 'status phải là active hoặc disabled');
+          }
+          if (typeof rawReason !== 'string' || rawReason.trim().length < 3 || rawReason.length > 500) {
+            throw new AppError(422, 'VALIDATION_ERROR', 'reason bắt buộc (3-500 ký tự)');
+          }
+          const updated = await setAdminUserStatus(getPool(), {
+            actor: { userId: Number(mutationUser.id), role: mutationUser.role as 'user' | 'admin' | 'security' },
+            userId: Number(userId),
+            status,
+            reason: rawReason.trim(),
+            idempotencyKey: idempotencyKey(req),
+            requestHash: canonicalHash({ userId: Number(userId), status, reason: rawReason.trim() }),
+          });
+          return send(res, 200, { data: updated });
+        }
+      }
+      if (mutationUser) {
         const result = await handleDomainRequest(
           method,
           path.replace(/^\/api\/v1/, ''),
@@ -329,6 +354,13 @@ export async function handleRequest(
       const stats = await getAdminStats(getPool());
       return send(res, 200, { data: stats });
     }
+    if (method === 'GET' && path === '/api/v1/admin/metrics') {
+      const user = token ? await getSession(token) : null;
+      if (!user) throw new AppError(401, 'UNAUTHORIZED', 'Bạn chưa đăng nhập');
+      if (user.role !== 'admin') throw new AppError(403, 'FORBIDDEN', 'Không có quyền quản trị');
+      const metrics = await getAdminMetrics(getPool());
+      return send(res, 200, { data: metrics });
+    }
     if (method === 'GET' && (path === '/api/v1/issues/me' || path === '/api/v1/admin/issues' || path.startsWith('/api/v1/admin/issues/'))) {
       const user = token ? await getSession(token) : null;
       if (!user) throw new AppError(401, 'UNAUTHORIZED', 'Bạn chưa đăng nhập');
@@ -347,6 +379,14 @@ export async function handleRequest(
       requireAdmin(user);
       const query = issuePageQuery(new URL(req.url || '/', 'http://localhost').searchParams);
       return send(res, 200, await listAdminAuditLogs(getPool(), query.cursor, query.limit));
+    }
+
+    if (method === 'GET' && path === '/api/v1/admin/users') {
+      const user = token ? await getSession(token) : null;
+      if (!user) throw new AppError(401, 'UNAUTHORIZED', 'Bạn chưa đăng nhập');
+      requireAdmin(user);
+      const query = issuePageQuery(new URL(req.url || '/', 'http://localhost').searchParams);
+      return send(res, 200, await listAdminUsers(getPool(), { userId: Number(user.id), role: user.role as 'user' | 'admin' | 'security' }, query.cursor, query.limit));
     }
 
     if (method === 'GET' && /^\/api\/v1\/(wallet|ledger|savings|categories|budgets|reports)(\/|$)/.test(path)) {

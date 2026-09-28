@@ -7,7 +7,7 @@ import type {
   TransactionWithWarning,
   TransactionType,
   Locale,
-  BudgetWarning
+  BudgetWarning,
 } from '../types.js';
 import type { Copy } from '../i18n.js';
 import { Modal } from './Modal.js';
@@ -167,14 +167,17 @@ export function TransactionForm({
             'Idempotency-Key': crypto.randomUUID(),
           }
         );
-        if (newCat && newCat.id) {
-          finalCategoryId = String(newCat.id);
-          invalidateCategoriesCache();
+        if (!newCat || !newCat.id) {
+          setError(t.categoryCreateFailed);
+          setLoading(false);
+          return;
         }
+        finalCategoryId = String(newCat.id);
+        invalidateCategoriesCache();
       } catch {
-        if (!finalCategoryId || finalCategoryId.startsWith('preset:') || finalCategoryId === 'other') {
-          finalCategoryId = currentType === 'income' ? '4' : '11';
-        }
+        setError(t.categoryCreateFailed);
+        setLoading(false);
+        return;
       }
     } else if (finalCategoryId.startsWith('preset:')) {
       const [, pEn, pVi] = finalCategoryId.split(':');
@@ -191,12 +194,17 @@ export function TransactionForm({
             'Idempotency-Key': crypto.randomUUID(),
           }
         );
-        if (newCat && newCat.id) {
-          finalCategoryId = String(newCat.id);
-          invalidateCategoriesCache();
+        if (!newCat || !newCat.id) {
+          setError(t.categoryCreateFailed);
+          setLoading(false);
+          return;
         }
+        finalCategoryId = String(newCat.id);
+        invalidateCategoriesCache();
       } catch {
-        finalCategoryId = currentType === 'income' ? '4' : '11';
+        setError(t.categoryCreateFailed);
+        setLoading(false);
+        return;
       }
     } else if (finalCategoryId === 'other') {
       finalCategoryId = currentType === 'income' ? '4' : '11';
@@ -452,6 +460,7 @@ export function TransactionForm({
               </div>
             </div>
           )}
+
 
           {/* Actions */}
           <div className="modal-actions-row">

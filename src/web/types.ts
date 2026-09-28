@@ -139,6 +139,26 @@ export interface AuditEvent {
   createdAt: string;
 }
 
+export interface AdminUser {
+  id: string;
+  emailMasked: string;
+  displayName: string;
+  role: 'user' | 'admin' | 'security';
+  status: 'active' | 'disabled';
+  locale: Locale;
+  createdAt: string;
+}
+
+export interface AdminMetrics {
+  users: { totalUsers: number; verifiedUsers: number; activeUsers: number; disabledUsers: number };
+  issues: {
+    total: number;
+    byStatus: { open: number; in_triage: number; resolved: number; closed: number };
+    byPriority: { P0: number; P1: number; P2: number };
+  };
+  audit: { success: number; failure: number };
+}
+
 export interface PageMeta {
   cursor: string | null;
   hasNext: boolean;
@@ -209,5 +229,5 @@ export interface CategorySuggestion {
   status: 'suggested' | 'manual' | 'disabled' | 'unavailable';
   categoryId: string | null;
   confidence: number | null;
-  reasonCode: string | null;
+  reasonCode: 'flag_off' | 'low_confidence' | 'timeout' | 'quota' | 'schema' | 'privacy' | null;
 }

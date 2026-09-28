@@ -89,11 +89,10 @@ describe('AI provider runtime configuration', () => {
     )
   })
 
-  it('requires the NghienAI key when the provider is explicitly enabled', () => {
-    assert.throws(
-      () => createConfig({ NGHIENAI_LLM_ENABLED: 'true' }),
-      (error) => error.code === 'provider_configuration_error',
-    )
+  it('degrades NghienAI to disabled instead of crashing when enabled without a key', () => {
+    const config = createConfig({ NGHIENAI_LLM_ENABLED: 'true' })
+    assert.equal(config.nghienAi.enabled, false)
+    assert.equal(Object.hasOwn(config.nghienAi, 'apiKey'), false)
   })
 
   it('returns server-side keys for enabled providers', () => {
@@ -108,6 +107,29 @@ describe('AI provider runtime configuration', () => {
     assert.equal(config.jev.apiKey, 'synthetic-openrouter-key')
     assert.equal(config.nghienAi.enabled, true)
     assert.equal(config.nghienAi.apiKey, 'synthetic-nghienai-key')
+  })
+
+  it('defaults NghienAI safety limits when enabled with a key', () => {
+    const config = createConfig({
+      NGHIENAI_LLM_ENABLED: 'true',
+      NGHIENAI_API_KEY: 'synthetic-nghienai-key',
+    })
+
+    assert.equal(config.nghienAi.enabled, true)
+    assert.equal(config.nghienAi.minimumConfidence, 0.8)
+    assert.equal(config.nghienAi.maxCandidates, 10)
+  })
+
+  it('exposes configured NghienAI confidence and candidate limits', () => {
+    const config = createConfig({
+      NGHIENAI_LLM_ENABLED: 'true',
+      NGHIENAI_API_KEY: 'synthetic-nghienai-key',
+      NGHIENAI_MINIMUM_CONFIDENCE: '0.6',
+      NGHIENAI_MAX_CANDIDATES: '8',
+    })
+
+    assert.equal(config.nghienAi.minimumConfidence, 0.6)
+    assert.equal(config.nghienAi.maxCandidates, 8)
   })
 
   it('rejects unrecognized feature-flag values instead of enabling a provider', () => {

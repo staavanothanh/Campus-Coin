@@ -637,6 +637,66 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/metrics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Các aggregate vận hành cần thiết (users/issues/audit) — không có tổng tiền user
+         * @description Chỉ trả aggregate từ users, issues và audit_events; không đọc nội dung row, không trả balance/ledger.
+         */
+        get: operations["getAdminMetrics"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Liệt kê user (email đã mask) để quản trị tài khoản
+         * @description Admin-only; trả email đã mask. Không trả ledger/balance của user.
+         */
+        get: operations["getAdminUsers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/users/{userId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Đổi trạng thái tài khoản active/disabled (muốn audit và idempotent)
+         * @description Không cho disable chính tài khoản admin đang thao tác; chỉ đổi status, không đổi role/balance/ledger.
+         */
+        patch: operations["patchAdminUserStatus"];
+        trace?: never;
+    };
     "/ai/category-suggestion": {
         parameters: {
             query?: never;
@@ -992,6 +1052,61 @@ export interface components {
         };
         AdminStatsResponse: {
             data: components["schemas"]["AdminStats"];
+        };
+        AdminMetrics: {
+            users: {
+                totalUsers: number;
+                verifiedUsers: number;
+                activeUsers: number;
+                disabledUsers: number;
+            };
+            issues: {
+                total: number;
+                byStatus: {
+                    open: number;
+                    in_triage: number;
+                    resolved: number;
+                    closed: number;
+                };
+                byPriority: {
+                    P0: number;
+                    P1: number;
+                    P2: number;
+                };
+            };
+            audit: {
+                success: number;
+                failure: number;
+            };
+        };
+        AdminMetricsResponse: {
+            data: components["schemas"]["AdminMetrics"];
+        };
+        AdminUser: {
+            id: string;
+            /** @description Email đã mask để giảm PII trong admin list */
+            emailMasked: string;
+            displayName: string;
+            /** @enum {string} */
+            role: "user" | "admin" | "security";
+            /** @enum {string} */
+            status: "active" | "disabled";
+            locale: components["schemas"]["Locale"];
+            /** Format: date-time */
+            createdAt: string;
+        };
+        AdminUserResponse: {
+            data: components["schemas"]["AdminUser"];
+        };
+        AdminUserPageResponse: {
+            data: components["schemas"]["AdminUser"][];
+            meta: components["schemas"]["PageMeta"];
+        };
+        AdminUserStatusUpdateRequest: {
+            /** @enum {string} */
+            status: "active" | "disabled";
+            /** @description Lý do bắt buộc cho audit append-only */
+            reason: string;
         };
         AuditEvent: {
             id: string;
@@ -2493,6 +2608,96 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
+            500: components["responses"]["InternalError"];
+            default: components["responses"]["InternalError"];
+        };
+    };
+    getAdminMetrics: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Admin metrics */
+            200: {
+                headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminMetricsResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["InternalError"];
+            default: components["responses"]["InternalError"];
+        };
+    };
+    getAdminUsers: {
+        parameters: {
+            query?: {
+                cursor?: components["parameters"]["Cursor"];
+                limit?: components["parameters"]["Limit"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description User page (masked email) */
+            200: {
+                headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminUserPageResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            422: components["responses"]["ValidationError"];
+            500: components["responses"]["InternalError"];
+            default: components["responses"]["InternalError"];
+        };
+    };
+    patchAdminUserStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                userId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminUserStatusUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Trạng thái mới của user */
+            200: {
+                headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminUserResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["CsrfInvalid"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["IdempotencyConflict"];
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["ValidationError"];
             500: components["responses"]["InternalError"];
             default: components["responses"]["InternalError"];
         };
