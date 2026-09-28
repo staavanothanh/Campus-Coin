@@ -590,6 +590,9 @@ h2 { margin-bottom: 7px; color: #0f172a; font-size: 17px; letter-spacing: -.02em
 .quick-chip { padding: 4px 9px; border-radius: 6px; border: 1px solid #e2e8f0; background: #f1f5f9; color: #475569; font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.15s ease; }
 .quick-chip:hover { background: #e2e8f0; border-color: #cbd5e1; color: #0f172a; }
 .modal-actions-row { display: flex; align-items: center; justify-content: flex-end; gap: 10px; margin-top: 10px; }
+.jev-suggestion-status { min-height: 18px; color: #36856e; font-size: 11px; line-height: 1.4; }
+.jev-suggestion-status:empty { min-height: 0; }
+.theme-dark .jev-suggestion-status { color: #86efac; }
 
 /* --- Help Screen --- */
 .help-page { display: flex; flex-direction: column; gap: 20px; max-width: 960px; }

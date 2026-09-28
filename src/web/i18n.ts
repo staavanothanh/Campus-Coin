@@ -39,6 +39,11 @@ export interface Copy {
   amount: string;
   category: string;
   description: string;
+  suggestionLoading: string;
+  suggestionSuggested: string;
+  suggestionManual: string;
+  suggestionUnavailable: string;
+  suggestionError: string;
   submit: string;
   close: string;
   selectCategory: string;
@@ -121,6 +126,11 @@ export const copy: Record<Locale, Copy> = {
     amount: 'Số tiền (VND)',
     category: 'Danh mục',
     description: 'Mô tả (không bắt buộc)',
+    suggestionLoading: 'Đang phân loại danh mục…',
+    suggestionSuggested: 'JEV đã gợi ý danh mục này. Bạn vẫn có thể đổi lại.',
+    suggestionManual: 'Bạn có thể chọn danh mục thủ công.',
+    suggestionUnavailable: 'Gợi ý AI chưa khả dụng. Vui lòng chọn danh mục thủ công.',
+    suggestionError: 'Không thể tải gợi ý. Vui lòng chọn danh mục thủ công.',
     submit: 'Lưu giao dịch',
     close: 'Đóng',
     selectCategory: 'Chọn danh mục',
@@ -201,6 +211,11 @@ export const copy: Record<Locale, Copy> = {
     amount: 'Amount (VND)',
     category: 'Category',
     description: 'Description (optional)',
+    suggestionLoading: 'Classifying the category…',
+    suggestionSuggested: 'JEV suggested this category. You can still change it.',
+    suggestionManual: 'You can choose a category manually.',
+    suggestionUnavailable: 'AI suggestions are unavailable. Choose a category manually.',
+    suggestionError: 'Could not load a suggestion. Choose a category manually.',
     submit: 'Save transaction',
     close: 'Close',
     selectCategory: 'Select a category',
