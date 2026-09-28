@@ -146,7 +146,7 @@
           "Auth"
         ],
         "security": [],
-        "summary": "Xác minh OTP và tạo tài khoản bằng email, họ tên, mật khẩu",
+        "summary": "Hoàn tất đăng ký; xác minh lại và tiêu thụ OTP trong transaction tạo tài khoản",
         "requestBody": {
           "required": true,
           "content": {
@@ -165,6 +165,67 @@
               }
             },
             "description": "Xác minh thành công",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "403": {
+            "$ref": "#/components/responses/OriginInvalid"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "default": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/auth/verify-otp": {
+      "post": {
+        "operationId": "postAuthVerifyOtp",
+        "tags": [
+          "Auth"
+        ],
+        "security": [],
+        "summary": "Xác minh OTP để chuyển sang bước nhập thông tin tiếp theo",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyOtpRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "headers": {
+              "Cache-Control": {
+                "$ref": "#/components/headers/PrivateNoStore"
+              }
+            },
+            "description": "OTP hợp lệ; mã chưa bị tiêu thụ và sẽ được kiểm tra lại ở bước hoàn tất",
             "content": {
               "application/json": {
                 "schema": {
@@ -572,7 +633,7 @@
           "Auth"
         ],
         "security": [],
-        "summary": "Đặt lại mật khẩu với OTP",
+        "summary": "Đặt lại mật khẩu; xác minh lại và tiêu thụ OTP trong transaction đổi mật khẩu",
         "requestBody": {
           "required": true,
           "content": {
@@ -827,7 +888,7 @@
         "tags": [
           "Auth"
         ],
-        "summary": "Cập nhật preference người dùng",
+        "summary": "Cập nhật preference và hồ sơ cá nhân của người dùng hiện tại",
         "x-csrf-required": true,
         "requestBody": {
           "required": true,
@@ -2965,6 +3026,15 @@
         "maximum": 9007199254740991,
         "description": "Số nguyên VND dương"
       },
+      "ProfileGender": {
+        "type": "string",
+        "enum": [
+          "female",
+          "male",
+          "non_binary",
+          "prefer_not_to_say"
+        ]
+      },
       "User": {
         "type": "object",
         "required": [
@@ -2972,7 +3042,9 @@
           "displayName",
           "email",
           "locale",
-          "role"
+          "role",
+          "birthDate",
+          "gender"
         ],
         "properties": {
           "id": {
@@ -2994,6 +3066,24 @@
               "user",
               "admin",
               "security"
+            ]
+          },
+          "birthDate": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date",
+            "description": "Ngày lịch Asia/Ho_Chi_Minh; người dùng có thể để trống"
+          },
+          "gender": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ProfileGender"
+              },
+              {
+                "type": "null"
+              }
             ]
           }
         }
@@ -3091,6 +3181,24 @@
           },
           "locale": {
             "$ref": "#/components/schemas/Locale"
+          },
+          "birthDate": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date",
+            "description": "Không lớn hơn ngày hiện tại theo Asia/Ho_Chi_Minh; null để xóa"
+          },
+          "gender": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ProfileGender"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         }
       },
@@ -3162,7 +3270,12 @@
             "$ref": "#/components/schemas/TransactionType"
           },
           "amountVnd": {
-            "$ref": "#/components/schemas/PositiveMoneyVnd"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PositiveMoneyVnd"
+              }
+            ],
+            "description": "Thu tối đa 100000000 VND; chi tối đa 100000000000 VND"
           },
           "categoryId": {
             "type": "string"
@@ -3214,7 +3327,12 @@
             "maxLength": 1000
           },
           "newAmountVnd": {
-            "$ref": "#/components/schemas/PositiveMoneyVnd"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PositiveMoneyVnd"
+              }
+            ],
+            "description": "Giới hạn theo type của giao dịch gốc; income tối đa 100000000 VND, payment tối đa 100000000000 VND"
           },
           "newCategoryId": {
             "type": "string"
@@ -4431,6 +4549,33 @@
           },
           "locale": {
             "$ref": "#/components/schemas/Locale"
+          }
+        }
+      },
+      "VerifyOtpRequest": {
+        "type": "object",
+        "required": [
+          "email",
+          "purpose",
+          "otp"
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "purpose": {
+            "type": "string",
+            "enum": [
+              "registration",
+              "password_reset"
+            ]
+          },
+          "otp": {
+            "type": "string",
+            "minLength": 6,
+            "maxLength": 6,
+            "pattern": "^\\d{6}$"
           }
         }
       },

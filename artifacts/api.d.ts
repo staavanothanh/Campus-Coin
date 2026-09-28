@@ -30,8 +30,25 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Xác minh OTP và tạo tài khoản bằng email, họ tên, mật khẩu */
+        /** Hoàn tất đăng ký; xác minh lại và tiêu thụ OTP trong transaction tạo tài khoản */
         post: operations["postAuthVerifyRegistration"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/verify-otp": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Xác minh OTP để chuyển sang bước nhập thông tin tiếp theo */
+        post: operations["postAuthVerifyOtp"];
         delete?: never;
         options?: never;
         head?: never;
@@ -166,7 +183,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Đặt lại mật khẩu với OTP */
+        /** Đặt lại mật khẩu; xác minh lại và tiêu thụ OTP trong transaction đổi mật khẩu */
         post: operations["postAuthResetPassword"];
         delete?: never;
         options?: never;
@@ -272,7 +289,7 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        /** Cập nhật preference người dùng */
+        /** Cập nhật preference và hồ sơ cá nhân của người dùng hiện tại */
         patch: operations["patchUsersMePreferences"];
         trace?: never;
     };
@@ -779,6 +796,8 @@ export interface components {
         };
         /** @description Số nguyên VND dương */
         PositiveMoneyVnd: number;
+        /** @enum {string} */
+        ProfileGender: "female" | "male" | "non_binary" | "prefer_not_to_say";
         User: {
             id: string;
             displayName: string;
@@ -787,6 +806,12 @@ export interface components {
             locale: components["schemas"]["Locale"];
             /** @enum {string} */
             role: "user" | "admin" | "security";
+            /**
+             * Format: date
+             * @description Ngày lịch Asia/Ho_Chi_Minh; người dùng có thể để trống
+             */
+            birthDate: string | null;
+            gender: components["schemas"]["ProfileGender"] | null;
         };
         UserResponse: {
             data: components["schemas"]["User"];
@@ -815,6 +840,12 @@ export interface components {
         UpdatePreferencesRequest: {
             displayName?: string;
             locale?: components["schemas"]["Locale"];
+            /**
+             * Format: date
+             * @description Không lớn hơn ngày hiện tại theo Asia/Ho_Chi_Minh; null để xóa
+             */
+            birthDate?: string | null;
+            gender?: components["schemas"]["ProfileGender"] | null;
         };
         Wallet: {
             walletId: string;
@@ -834,6 +865,7 @@ export interface components {
         };
         CreateTransactionRequest: {
             type: components["schemas"]["TransactionType"];
+            /** @description Thu tối đa 100000000 VND; chi tối đa 100000000000 VND */
             amountVnd: components["schemas"]["PositiveMoneyVnd"];
             categoryId: string;
             /** Format: date-time */
@@ -849,6 +881,7 @@ export interface components {
         CreateCorrectionRequest: {
             correctionRole: components["schemas"]["CorrectionRole"];
             reason: string;
+            /** @description Giới hạn theo type của giao dịch gốc; income tối đa 100000000 VND, payment tối đa 100000000000 VND */
             newAmountVnd?: components["schemas"]["PositiveMoneyVnd"];
             newCategoryId?: string;
         };
@@ -1163,6 +1196,13 @@ export interface components {
             password: string;
             locale?: components["schemas"]["Locale"];
         };
+        VerifyOtpRequest: {
+            /** Format: email */
+            email: string;
+            /** @enum {string} */
+            purpose: "registration" | "password_reset";
+            otp: string;
+        };
         ResendOtpRequest: {
             /** Format: email */
             email: string;
@@ -1434,6 +1474,39 @@ export interface operations {
         };
         responses: {
             /** @description Xác minh thành công */
+            200: {
+                headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            403: components["responses"]["OriginInvalid"];
+            409: components["responses"]["Conflict"];
+            413: components["responses"]["PayloadTooLarge"];
+            422: components["responses"]["ValidationError"];
+            429: components["responses"]["RateLimited"];
+            500: components["responses"]["InternalError"];
+            default: components["responses"]["InternalError"];
+        };
+    };
+    postAuthVerifyOtp: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VerifyOtpRequest"];
+            };
+        };
+        responses: {
+            /** @description OTP hợp lệ; mã chưa bị tiêu thụ và sẽ được kiểm tra lại ở bước hoàn tất */
             200: {
                 headers: {
                     "Cache-Control": components["headers"]["PrivateNoStore"];
