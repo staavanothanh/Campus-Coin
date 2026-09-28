@@ -1,0 +1,53 @@
+import type { Copy, Locale } from './types.js';
+export type Language = Locale;
+export const text = {} as Record<Language, Record<string, string>>;
+export const errorText = {} as Record<Language, Record<string, string>>;
+
+export const copy: Record<Locale, Copy> = {
+  vi: {
+    greeting: 'Xin chào', overview: 'Tổng quan ví và giao dịch của bạn.', thisMonth: 'Tháng này', balance: 'Số dư ví', income: 'Thu nhập', spending: 'Đã chi',
+    savings: 'Tiết kiệm', recent: 'Giao dịch gần đây', dashboard: 'Tổng quan', signInDescription: 'Theo dõi ví và giao dịch theo cách rõ ràng, riêng tư.',
+    loading: 'Đang tải…', unavailable: 'Dữ liệu chưa khả dụng', retry: 'Thử lại', noData: 'Chưa có dữ liệu', signOut: 'Đăng xuất', signOutFailed: 'Không thể đăng xuất. Hãy thử lại.',
+    addIncome: 'Thêm thu nhập', addPayment: 'Thêm thanh toán', addTransaction: 'Thêm giao dịch', amount: 'Số tiền (VND)', category: 'Danh mục', description: 'Mô tả (không bắt buộc)',
+    validationError: 'Kiểm tra lại các trường bắt buộc.', requestFailed: 'Không thể hoàn tất yêu cầu. Hãy thử lại.', sessionExpired: 'Phiên đã hết hạn. Vui lòng đăng nhập lại.',
+    forbidden: 'Bạn không có quyền thực hiện thao tác này.', submit: 'Lưu giao dịch', submitPending: 'Đang lưu giao dịch…', submitSuccess: 'Đã lưu giao dịch và cập nhật số dư.',
+    primaryNavigation: 'Điều hướng chính', personal: 'Cá nhân', language: 'Ngôn ngữ', appearance: 'Giao diện', close: 'Đóng', menu: 'Mở menu',
+    initializeWallet: 'Khởi tạo ví', openingBalance: 'Số dư ban đầu (VND)', initializePending: 'Đang khởi tạo ví…', initializeSuccess: 'Ví đã được khởi tạo.',
+    categoryLoadFailed: 'Không thể tải danh mục. Vui lòng thử lại.', noCategories: 'Chưa có danh mục phù hợp cho loại giao dịch này.', selectCategory: 'Chọn danh mục',
+    recentDescription: 'Giao dịch của bạn được tải từ máy chủ.', refreshFailed: 'Đã lưu giao dịch nhưng không tải được dữ liệu mới. Làm mới trang; đừng gửi lại.',
+    suggestCategory: 'Gợi ý danh mục', suggestingCategory: 'Đang yêu cầu gợi ý…', suggestionFailed: 'Không thể lấy gợi ý. Bạn vẫn có thể chọn danh mục.',
+    suggestionUnavailable: 'Gợi ý chưa khả dụng; hãy chọn thủ công.', suggestionReady: 'Gợi ý từ hệ thống. Hãy kiểm tra trước khi chọn.', suggestionUse: 'Dùng gợi ý',
+    suggestionConfirm: 'Bạn đã xác nhận danh mục được gợi ý.', retryTransaction: 'Gửi lại giao dịch đang chờ để xác nhận kết quả', workspace: 'Không gian', more: 'Thêm',
+    transactions: 'Giao dịch', goals: 'Tiết kiệm', reports: 'Báo cáo', admin: 'Quản trị', settings: 'Cài đặt', help: 'Trợ giúp', personalAccount: 'Tài khoản cá nhân',
+    seeAll: 'Xem tất cả', searchTransactions: 'Tìm trong giao dịch đã tải', filteredNet: 'Tổng hiển thị', all: 'Tất cả', loadMoreTransactions: 'Xem thêm giao dịch', loadMore: 'Xem thêm',
+    deposit: 'Gửi tiết kiệm', withdraw: 'Rút về ví', transferNote: 'Ghi chú', savingsHistory: 'Lịch sử tiết kiệm', month: 'Tháng', netSavings: 'Thặng dư tháng',
+    categoryBreakdown: 'Cơ cấu chi tiêu', budget: 'Ngân sách', budgetLimit: 'Hạn mức', spent: 'Đã chi', progress: 'Tiến độ', status: 'Trạng thái', action: 'Thao tác',
+    noWalletForSavings: 'Khởi tạo ví trước khi sử dụng quỹ tiết kiệm.', budgetSaved: 'Đã cập nhật ngân sách.', settingsSaved: 'Đã lưu cài đặt.', displayName: 'Tên hiển thị',
+    role: 'Vai trò', userId: 'Mã tài khoản', accountEmail: 'Email tài khoản', googleLinked: 'Đã liên kết Google', googleNotLinked: 'Chưa liên kết Google',
+    themeLight: 'Sáng', themeDark: 'Tối', faqTitle: 'Câu hỏi thường gặp', feedbackNotAvailable: 'Kênh gửi góp ý chưa được kết nối.',
+    setUpBudget: 'Thiết lập ngân sách', viewReport: 'Xem báo cáo', budgetUnavailable: 'Không thể tải ngân sách.',
+    previousMonth: 'Tháng trước', nextMonth: 'Tháng sau', jumpToCurrentMonth: 'Về tháng hiện tại', selectReportMonth: 'Chọn tháng báo cáo',
+    previousYear: 'Năm trước', nextYear: 'Năm sau', thisMonthAction: 'Về tháng này',
+  },
+  en: {
+    greeting: 'Hello', overview: 'A clear view of your wallet and transactions.', thisMonth: 'This month', balance: 'Wallet balance', income: 'Income', spending: 'Spent',
+    savings: 'Savings', recent: 'Recent activity', dashboard: 'Overview', signInDescription: 'A clear, private view of your wallet and activity.', loading: 'Loading…', unavailable: 'Data is unavailable',
+    retry: 'Retry', noData: 'No data yet', signOut: 'Sign out', signOutFailed: 'Sign out could not be completed. Try again.', addIncome: 'Add income', addPayment: 'Add payment', addTransaction: 'Add transaction',
+    amount: 'Amount (VND)', category: 'Category', description: 'Description (optional)', validationError: 'Check the required fields.', requestFailed: 'The request could not be completed. Try again.',
+    sessionExpired: 'Your session has expired. Please sign in again.', forbidden: 'You do not have permission to perform this action.', submit: 'Save transaction', submitPending: 'Saving transaction…',
+    submitSuccess: 'Transaction saved and balance refreshed.', primaryNavigation: 'Primary navigation', personal: 'Personal', language: 'Language', appearance: 'Appearance', close: 'Close', menu: 'Open menu',
+    initializeWallet: 'Initialize wallet', openingBalance: 'Opening balance (VND)', initializePending: 'Initializing wallet…', initializeSuccess: 'Wallet initialized.', categoryLoadFailed: 'Categories could not be loaded. Please retry.',
+    noCategories: 'There are no categories for this transaction type yet.', selectCategory: 'Select a category', recentDescription: 'Transactions are loaded from the server.', refreshFailed: 'The transaction was saved, but refreshed data could not be loaded. Reload; do not submit it again.',
+    suggestCategory: 'Suggest category', suggestingCategory: 'Requesting suggestion…', suggestionFailed: 'Suggestion failed. You can still choose a category.', suggestionUnavailable: 'Suggestion is unavailable; choose manually.',
+    suggestionReady: 'System suggestion. Review before selecting.', suggestionUse: 'Use suggestion', suggestionConfirm: 'You confirmed the suggested category.', retryTransaction: 'Retry the pending transaction to resolve its result',
+    workspace: 'Workspace', more: 'More', transactions: 'Transactions', goals: 'Savings', reports: 'Reports', admin: 'Admin', settings: 'Settings', help: 'Help', personalAccount: 'Personal account',
+    seeAll: 'See all', searchTransactions: 'Search loaded transactions', filteredNet: 'Displayed net', all: 'All', loadMoreTransactions: 'Load more transactions', loadMore: 'Load more',
+    deposit: 'Deposit', withdraw: 'Withdraw', transferNote: 'Note', savingsHistory: 'Savings history', month: 'Month', netSavings: 'Net savings', categoryBreakdown: 'Spending breakdown',
+    budget: 'Budgets', budgetLimit: 'Budget limit', spent: 'Spent', progress: 'Progress', status: 'Status', action: 'Action', noWalletForSavings: 'Initialize your wallet before using savings.',
+    budgetSaved: 'Budget updated.', settingsSaved: 'Settings saved.', displayName: 'Display name', role: 'Role', userId: 'Account ID', accountEmail: 'Account email', googleLinked: 'Google linked',
+    googleNotLinked: 'Google not linked', themeLight: 'Light', themeDark: 'Dark', faqTitle: 'Frequently asked questions', feedbackNotAvailable: 'Feedback submission is not connected.',
+    setUpBudget: 'Set up budget', viewReport: 'View report', budgetUnavailable: 'Budget data is unavailable.',
+    previousMonth: 'Previous month', nextMonth: 'Next month', jumpToCurrentMonth: 'Jump to current month', selectReportMonth: 'Select report month',
+    previousYear: 'Previous year', nextYear: 'Next year', thisMonthAction: 'This month',
+  },
+};

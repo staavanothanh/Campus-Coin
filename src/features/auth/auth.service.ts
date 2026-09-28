@@ -259,7 +259,10 @@ export async function loginWithGoogle(identity: { subject: string; email: string
 
     if (!user) throw new Error('Google account could not be loaded');
     if (user.status !== 'active') throw new AppError(403, 'ACCOUNT_DISABLED', 'Tài khoản đã bị khóa');
-    if (!user.email_verified) throw new AppError(403, 'UNVERIFIED_EMAIL', 'Bạn cần xác minh email trước');
+    if (!user.email_verified) {
+      await db.execute('UPDATE users SET email_verified = 1 WHERE id = ?', [user.id]);
+      user.email_verified = 1;
+    }
 
     token = newSessionToken();
     csrfToken = csrfForSession(token);

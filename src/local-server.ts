@@ -7,10 +7,10 @@ import { existsSync } from 'node:fs';
 
 if (existsSync('.env')) process.loadEnvFile('.env');
 
-type StartupStage = 'auth' | 'client-origin' | 'smtp' | 'ai' | 'mysql';
+type StartupStage = 'auth' | 'client-origin' | 'smtp' | 'mysql';
 
 function describeStartupFailure(error: unknown, stage: StartupStage): string {
-  if (stage === 'auth' || stage === 'smtp' || stage === 'ai') {
+  if (stage === 'auth' || stage === 'smtp') {
     return error instanceof Error ? error.message : 'Cấu hình không hợp lệ';
   }
   if (stage === 'client-origin') return 'Thiếu CLIENT_ORIGIN';
@@ -33,12 +33,10 @@ async function main() {
     if (!process.env.CLIENT_ORIGIN) throw new Error('Thiếu CLIENT_ORIGIN');
     stage = 'smtp';
     assertSmtpConfigured();
-    stage = 'ai';
-    const apiServer = createApiServer();
     stage = 'mysql';
     await assertSchemaReady();
     const port = Number(process.env.PORT || 3000);
-    apiServer.listen(port, () => console.log(`Campus Coin API đang chạy ở cổng ${port}`));
+    createApiServer().listen(port, () => console.log(`Campus Coin API đang chạy ở cổng ${port}`));
   } catch (error) {
     console.error(`Không thể khởi động API: ${describeStartupFailure(error, stage)}`);
     process.exitCode = 1;

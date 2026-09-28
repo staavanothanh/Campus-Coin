@@ -50,13 +50,25 @@ export async function sendOtp(email: string, code: string, purpose: 'registratio
     text: `Mã xác minh của bạn là ${code}. Mã có hiệu lực trong 5 phút.\nYour verification code is ${code}. It expires in 5 minutes.`,
   };
 
+  console.log('\n======================================================');
+  console.log(`🔑 [MÃ OTP] Mã xác minh cho ${email} (${purpose}): ${code}`);
+  console.log('======================================================\n');
+
   try {
     for (let attempt = 0; attempt < MAX_SEND_ATTEMPTS; attempt += 1) {
       try {
         await mailer.sendMail(message);
+        console.log(`[SMTP] Đã gửi email thành công tới ${email}`);
         return;
-      } catch {
-        if (attempt === MAX_SEND_ATTEMPTS - 1) throw new Error('SMTP delivery failed');
+      } catch (err) {
+        console.error(`[SMTP Error] Lần thử ${attempt + 1}/${MAX_SEND_ATTEMPTS} gửi email tới ${email} thất bại:`, err instanceof Error ? err.message : err);
+        if (attempt === MAX_SEND_ATTEMPTS - 1) {
+          if (process.env.NODE_ENV !== 'production') {
+            console.warn(`[DEV MODE] Bỏ qua lỗi SMTP. Hãy sử dụng mã OTP hiển thị ở trên: ${code}`);
+            return;
+          }
+          throw new Error('SMTP delivery failed');
+        }
       }
     }
   } finally {

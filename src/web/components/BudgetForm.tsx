@@ -1,67 +1,123 @@
-import { type FormEvent, useRef, useState } from 'react';
-import { X } from 'lucide-react';
-import { apiRequest, errorMessage } from '../api.js';
-import type { Budget, Copy, Locale } from '../types.js';
+import { useState, type FormEvent } from 'react';
+import { apiPut, ApiRequestError } from '../api-client.js';
+import { parseAmountVnd } from '../format.js';
+import type { Budget, UpsertBudgetRequest, Locale } from '../types.js';
+import type { Copy } from '../i18n.js';
 import { Modal } from './Modal.js';
+import { ErrorBanner } from './ErrorBanner.js';
 
-type BudgetPayload = { month: string; limitVnd: number };
+interface BudgetFormProps {
+  categoryId: string;
+  categoryName?: string | undefined;
+  month: string; // YYYY-MM
+  initialLimitVnd: number | null;
+  csrfToken: string;
+  t: Copy;
+  locale: Locale;
+  onClose: () => void;
+  onSuccess: () => void;
+}
 
-export function BudgetForm({ categoryId, categoryName, month, initialLimitVnd, csrfToken, t, locale, restoreFocusRef, onClose, onSuccess }: {
-  categoryId: string; categoryName?: string; month: string; initialLimitVnd: number | null; csrfToken: string; t: Copy; locale: Locale; restoreFocusRef: React.RefObject<HTMLElement | null> | null; onClose(): void; onSuccess(): void;
-}) {
-  const [limit, setLimit] = useState(initialLimitVnd === null ? '' : String(initialLimitVnd));
-  const [pending, setPending] = useState(false);
-  const [retryPending, setRetryPending] = useState(false);
-  const [error, setError] = useState('');
-  const limitInputRef = useRef<HTMLInputElement>(null);
-  const pendingRef = useRef(false);
-  const retryPendingRef = useRef(false);
-  const canClose = () => !pendingRef.current && !retryPendingRef.current;
-  const key = useRef(crypto.randomUUID());
-  const payload = useRef<BudgetPayload | null>(null);
-  const title = locale === 'vi' ? 'Thiết lập ngân sách' : 'Set budget';
+export function BudgetForm({
+  categoryId,
+  categoryName,
+  month,
+  initialLimitVnd,
+  csrfToken,
+  t,
+  locale,
+  onClose,
+  onSuccess,
+}: BudgetFormProps) {
+  const [limit, setLimit] = useState(initialLimitVnd ? initialLimitVnd.toString() : '');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<ApiRequestError | string | null>(null);
+
+  const title = locale === 'vi' ? 'Thiết lập ngân sách' : 'Set Budget';
 
   async function submit(event: FormEvent) {
     event.preventDefault();
-    if (pendingRef.current) return;
-    const request = payload.current ?? (!/^\d+$/.test(limit) || !Number.isSafeInteger(Number(limit)) ? null : { month, limitVnd: Number(limit) });
-    if (!request) {
-      setError(t.validationError);
+    if (loading) return;
+
+    setError(null);
+
+    const limitVnd = parseAmountVnd(limit);
+    if (limitVnd === null) {
+      setError(t.amountInvalid);
       return;
     }
-    payload.current = request;
-    pendingRef.current = true;
-    retryPendingRef.current = true;
-    setPending(true);
-    setError('');
+
+    setLoading(true);
+
+    const requestBody: UpsertBudgetRequest = {
+      month,
+      limitVnd,
+    };
+
     try {
-      await apiRequest<Budget>(`/budgets/${encodeURIComponent(categoryId)}`, {
-        method: 'PUT', headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken, 'Idempotency-Key': key.current },
-        body: JSON.stringify(request),
-      });
-      setRetryPending(false);
-      retryPendingRef.current = false;
+      await apiPut<Budget>(
+        `/budgets/${categoryId}`,
+        requestBody,
+        {
+          'X-CSRF-Token': csrfToken,
+          'Idempotency-Key': crypto.randomUUID(),
+        }
+      );
+
       onSuccess();
-    } catch (caught) {
-      const requestError = caught as Error & { status?: number };
-      const isAmbiguous = requestError.status === undefined || requestError.status === 408 || requestError.status >= 500;
-      retryPendingRef.current = isAmbiguous;
-      setRetryPending(isAmbiguous);
-      if (!isAmbiguous) {
-        payload.current = null;
-        key.current = crypto.randomUUID();
+      onClose();
+    } catch (err) {
+      if (err instanceof ApiRequestError) {
+        setError(err);
+      } else {
+        setError(t.serverError);
       }
-      setError(errorMessage(caught, t));
     } finally {
-      pendingRef.current = false;
-      setPending(false);
+      setLoading(false);
     }
   }
 
-  return <Modal isOpen onClose={() => { if (canClose()) onClose(); }} ariaLabel={title} initialFocusRef={limitInputRef} {...(restoreFocusRef ? { restoreFocusRef } : {})} canClose={canClose}><form className="modal-form" onSubmit={submit}>
-    <div className="panel-heading"><h2>{title}</h2><button type="button" className="icon-button" onClick={() => { if (canClose()) onClose(); }} disabled={!canClose()} aria-label={t.close}><X size={18} aria-hidden="true" /></button></div>
-    <p><strong>{t.category}:</strong> {categoryName ?? categoryId}</p><label htmlFor="budget-limit">{t.budgetLimit} (VND)<input ref={limitInputRef} id="budget-limit" required inputMode="numeric" value={limit} onChange={event => setLimit(event.target.value)} disabled={pending || retryPending} aria-invalid={Boolean(error || retryPending)} aria-describedby={error || retryPending ? 'budget-error-msg' : undefined} /></label>
-    {(retryPending || error) && <p id="budget-error-msg" role="alert" className="form-message">{retryPending ? t.retryTransaction : error}</p>}
-    <button type="submit" className="primary-button" disabled={pending}>{pending ? t.submitPending : retryPending ? t.retryTransaction : t.submit}</button>
-  </form></Modal>;
+  return (
+    <Modal isOpen={true} onClose={onClose} ariaLabel={title}>
+      <form onSubmit={submit}>
+        <div className="panel-heading">
+          <h2>{title}</h2>
+          <button
+            type="button"
+            className="icon-button"
+            onClick={onClose}
+            aria-label={t.close}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+          </button>
+        </div>
+
+        <ErrorBanner error={error instanceof ApiRequestError ? error.apiError : error} locale={locale} />
+
+        <p style={{ marginBottom: 'var(--space-4)' }}>
+          <strong>{locale === 'vi' ? 'Danh mục' : 'Category'}:</strong> {categoryName || categoryId}
+        </p>
+
+        <label>
+          {locale === 'vi' ? 'Giới hạn ngân sách (VND)' : 'Budget limit (VND)'}
+          <input
+            required
+            inputMode="numeric"
+            value={limit}
+            onChange={(e) => setLimit(e.target.value)}
+            disabled={loading}
+            placeholder="0"
+          />
+        </label>
+
+        <button
+          className="primary-button"
+          type="submit"
+          disabled={loading || !limit}
+        >
+          {loading ? t.loading : (locale === 'vi' ? 'Lưu ngân sách' : 'Save budget')}
+        </button>
+      </form>
+    </Modal>
+  );
 }
