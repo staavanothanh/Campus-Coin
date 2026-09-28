@@ -97,7 +97,11 @@ async function main(): Promise<number> {
     });
     const migrations = await scanMigrationDir(path.resolve(import.meta.dirname, "..", "db", "migrations"));
     const oldMigrations = migrations.filter((file) => file.version <= "0005");
-    const safeIntegerMigrations = migrations.filter((file) => file.version >= "0006");
+    // This data test targets only the safe-integer upgrade sequence.
+    // Later feature migrations are covered by the MySQL integration suite.
+    const safeIntegerMigrations = migrations.filter(
+      (file) => file.version >= "0006" && file.version <= "0010",
+    );
     const files = await collectFiles(SQL_DIR);
     const fixture = files.find((file) => file.name === "000_fixtures.sql");
     if (oldMigrations.length !== 5 || safeIntegerMigrations.length !== 5 || fixture === undefined) {
