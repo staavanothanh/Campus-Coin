@@ -1,14 +1,13 @@
+import { loadRuntimeEnvironment } from './runtime-env.ts';
+
+loadRuntimeEnvironment();
+
 import { DbEnvError } from './infrastructure/db/env.js';
 import { assertAuthSecrets } from './features/auth/config.js';
 import { createApiServer } from './routes/api.js';
 import { SchemaNotReadyError, assertSchemaReady } from './infrastructure/db/readiness.js';
 import { assertSmtpConfigured } from './infrastructure/mail.js';
-import { existsSync } from 'node:fs';
-
-if (existsSync('.env')) process.loadEnvFile('.env');
-
 type StartupStage = 'auth' | 'client-origin' | 'smtp' | 'ai' | 'mysql';
-
 function describeStartupFailure(error: unknown, stage: StartupStage): string {
   if (stage === 'auth' || stage === 'smtp' || stage === 'ai') {
     return error instanceof Error ? error.message : 'Cấu hình không hợp lệ';

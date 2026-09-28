@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { loadAiProviderConfig } from '../../src/config/ai-provider-config.js'
-
+import { loadAiProviderConfig, mergeMissingEnvironment } from '../../src/config/ai-provider-config.js'
 const defaultEnv = Object.freeze({})
 
 function createConfig(env = defaultEnv, loadEnvFile = () => {}) {
@@ -9,6 +8,16 @@ function createConfig(env = defaultEnv, loadEnvFile = () => {}) {
 }
 
 describe('AI provider runtime configuration', () => {
+  it('fills empty inherited environment values without overriding non-empty values', () => {
+    const env = { OPENROUTER_API_KEY: '', NGHIENAI_API_KEY: 'existing-key' }
+    mergeMissingEnvironment(env, {
+      OPENROUTER_API_KEY: 'file-openrouter-key',
+      NGHIENAI_API_KEY: 'file-nghienai-key',
+    })
+
+    assert.equal(env.OPENROUTER_API_KEY, 'file-openrouter-key')
+    assert.equal(env.NGHIENAI_API_KEY, 'existing-key')
+  })
 
   it('keeps JEV disabled when no explicit feature flag is set, even with a server API key', () => {
     const config = createConfig({ OPENROUTER_API_KEY: 'synthetic-openrouter-key' })

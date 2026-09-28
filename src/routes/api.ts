@@ -390,6 +390,6 @@ export function createApiServer(options: {
 } = {}) {
   const emailSender = options.emailSender ?? sendOtp;
   const googleOAuth = options.googleOAuth ?? createGoogleOAuthProvider();
-  const runtimeJevService = options.jevService ?? createCategorySuggestionServiceFromEnvironment();
+  const runtimeJevService = options.jevService ?? createCategorySuggestionServiceFromEnvironment({ env: process.env, loadEnvFile: () => {} });
   return createServer((req, res) => handleRequest(req, res, emailSender, googleOAuth, runtimeJevService));
 }

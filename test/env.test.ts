@@ -4,8 +4,21 @@ import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { loadRuntimeEnvironment } from "../src/runtime-env.ts";
 import { DbEnvError, migrationCreds, readDbEnv } from "../src/infrastructure/db/env.ts";
-
+test("loadRuntimeEnvironment: replaces empty inherited values but preserves non-empty values", () => {
+  const directory = mkdtempSync(path.join(os.tmpdir(), "campus-coin-env-"));
+  const envPath = path.join(directory, ".env");
+  writeFileSync(envPath, "OPENROUTER_API_KEY=file-key\nNGHIENAI_API_KEY=file-nghienai-key\n");
+  try {
+    const env: NodeJS.ProcessEnv = { OPENROUTER_API_KEY: "", NGHIENAI_API_KEY: "existing-key" };
+    loadRuntimeEnvironment(env, envPath);
+    assert.equal(env.OPENROUTER_API_KEY, "file-key");
+    assert.equal(env.NGHIENAI_API_KEY, "existing-key");
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
 function baseEnv(): NodeJS.ProcessEnv {
   return {
     CAMPUS_COIN_DB_HOST: "db.example.com",

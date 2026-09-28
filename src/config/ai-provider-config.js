@@ -4,8 +4,15 @@ const DEFAULT_NGHIENAI_BASE_URL = 'https://api.aixingialaire.shop/v1'
 const NGHIENAI_MODEL = 'gpt-6-luna'
 
 function defaultLoader() {
-  const result = dotenv.config({ quiet: true })
+  const result = dotenv.config({ quiet: true, override: false })
   if (result.error && result.error.code !== 'ENOENT') throw result.error
+  if (result.parsed !== undefined) mergeMissingEnvironment(process.env, result.parsed)
+}
+
+export function mergeMissingEnvironment(env, fileEnv) {
+  for (const [name, value] of Object.entries(fileEnv)) {
+    if (env[name] === undefined || env[name] === '') env[name] = value
+  }
 }
 
 function createConfigurationError() {
