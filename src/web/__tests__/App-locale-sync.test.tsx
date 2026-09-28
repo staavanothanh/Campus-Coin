@@ -51,6 +51,23 @@ beforeEach(() => {
 });
 
 describe('language preference stays in sync', () => {
+  it('announces dashboard errors and keeps a single main landmark', async () => {
+    apiGetMock.mockImplementation((path: string) => {
+      if (path === '/auth/session') {
+        return Promise.resolve({ user, csrfToken: 'csrf-test', googleLinked: false, walletInitialized: false });
+      }
+      if (path === '/reports/dashboard') return Promise.reject(new Error('HTTP_502'));
+      return Promise.resolve([]);
+    });
+
+    render(<App />);
+
+    const error = await screen.findByRole('alert');
+    expect(error.textContent).toContain('Dữ liệu chưa khả dụng');
+    expect(error.textContent).toContain('HTTP_502');
+    expect(screen.getAllByRole('main')).toHaveLength(1);
+  });
+
   it('shows the Google success notice in the saved session language', async () => {
     window.history.replaceState({}, document.title, '/?auth=google_login');
     apiGetMock.mockImplementation((path: string) => {

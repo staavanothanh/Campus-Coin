@@ -45,10 +45,11 @@
 }
 
 .auth-screen h1 { font-size: 38px; margin: 0 0 20px; }
-.auth-screen #auth-title:focus-visible { outline: none; }
+.auth-screen #auth-title:focus-visible { outline: 2px solid #c56a06; outline-offset: 6px; border-radius: 3px; }
 .auth-screen .emailHint { margin-top: -8px; color: #60736a; }
 .auth-screen form { display: grid; gap: 18px; }
 .auth-screen form label { display: grid; gap: 8px; font-weight: bold; }
+.auth-screen .authField { display: grid; gap: 8px; }
 .auth-screen .authFields {
   display: grid;
   gap: 18px;
@@ -96,7 +97,7 @@
 .auth-screen #auth-otp::placeholder { color: #718278; font-family: inherit; font-size: 14px; font-weight: 400; letter-spacing: normal; }
 .auth-screen form input:focus { outline: 2px solid #316e51; }
 .auth-screen :where(button, a, input, select, textarea):focus-visible { outline: 3px solid #c56a06; outline-offset: 3px; }
-.auth-screen .passwordField { position: relative; }
+.auth-screen .passwordField { position: relative; display: block; }
 .auth-screen .passwordField input { padding-right: 70px; }
 .auth-screen .passwordField button {
   position: absolute;

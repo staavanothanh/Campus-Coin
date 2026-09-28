@@ -51,7 +51,7 @@ Backend adapter OpenRouter typed System One/Decisions, model/endpoint probe, def
 
 ## 4. Phần để sau
 
-Tự động merge account theo email, Gmail inbox/Gmail credential cá nhân, SMS/passkey/MFA bắt buộc, notification ngoài auth, auto-transfer chưa có safety proof, CSV/PDF, recurring, prediction, complex AI summary/chat, banking, payment thật, lending, BNPL, interest, multi-currency, enterprise admin và custom email domain.
+Tự động merge account theo email, Gmail inbox/Gmail credential cá nhân, SMS/passkey/MFA bắt buộc, notification ngoài auth, auto-transfer chưa có safety proof, CSV/PDF, tự động tạo giao dịch `income`/`payment` theo lịch, prediction, complex AI summary/chat, banking, payment thật, lending, BNPL, interest, multi-currency, enterprise admin và custom email domain. Kế hoạch dòng tiền và nhắc lịch do người dùng tự khai báo vẫn thuộc phạm vi MVP; chúng không tự ghi giao dịch.
 
 ## 5. Rủi ro và xử lý
 

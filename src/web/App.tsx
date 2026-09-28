@@ -443,7 +443,7 @@ export function App() {
   if (state === 'unauthenticated') {
     return <>{toast}<AuthApp onAuthenticated={handleAuthenticated} initialNotice={authNotice} initialLocale={locale} noticeKind={authNoticeKind} /></>;
   }
-  if (!session) return <>{toast}<StateScreen title={t.unavailable} detail={error} retry={() => window.location.reload()} retryLabel={t.retry} /></>;
+  if (!session) return <>{toast}<StateScreen title={t.unavailable} detail={error} retry={() => window.location.reload()} retryLabel={t.retry} isError={state === 'error'} /></>;
 
   if (session.user.requiresProfileCompletion) {
     return (
@@ -581,7 +581,7 @@ export function App() {
                 </button>
               </div>
 
-              {state === 'error' && <StateScreen title={t.unavailable} detail={error} retry={() => void loadDashboard()} retryLabel={t.retry} />}
+              {state === 'error' && <StateScreen title={t.unavailable} detail={error} retry={() => void loadDashboard()} retryLabel={t.retry} isError embedded />}
               {state === 'loading' && <div className="status-panel" role="status">{t.loading}</div>}
               {state === 'ready' && (
                 <DashboardView
@@ -677,8 +677,18 @@ function NavItem({ icon, label, active = false, onClick }: { icon: React.ReactNo
   >{icon}<span>{label}</span>{active && <span className="active-pip" />}</button>;
 }
 
-function StateScreen({ title, detail, retry, retryLabel }: { title: string; detail: string; retry?: () => void; retryLabel?: string }) {
-  return <main className="state-screen"><Coins size={30} /><h1>{title}</h1><p>{detail}</p>{retry && <button className="primary-button" onClick={retry}><RefreshCw size={16} />{retryLabel}</button>}</main>;
+function StateScreen({ title, detail, retry, retryLabel, isError = false, embedded = false }: { title: string; detail: string; retry?: () => void; retryLabel?: string; isError?: boolean; embedded?: boolean }) {
+  const content = <>
+    <Coins size={30} />
+    <div role={isError ? 'alert' : undefined} aria-live={isError ? 'assertive' : undefined} aria-atomic={isError ? true : undefined}>
+      <h1>{title}</h1>
+      <p>{detail}</p>
+    </div>
+    {retry && <button className="primary-button" onClick={retry}><RefreshCw size={16} />{retryLabel}</button>}
+  </>;
+
+  if (embedded) return <section className="state-screen" aria-label={title}>{content}</section>;
+  return <main className="state-screen">{content}</main>;
 }
 
 function DashboardView({

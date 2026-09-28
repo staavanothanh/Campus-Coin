@@ -72,6 +72,28 @@ describe('authentication form reliability', () => {
     });
   });
 
+  it('keeps the show-password control outside the label and toggles it accessibly', async () => {
+    render(<AuthApp onAuthenticated={() => {}} />);
+
+    const passwordInput = screen.getByLabelText('Mật khẩu') as HTMLInputElement;
+    const passwordLabel = screen.getByText('Mật khẩu', { selector: 'label' });
+    const showButton = screen.getByRole('button', { name: 'Hiện mật khẩu' });
+
+    expect(passwordLabel.contains(showButton)).toBe(false);
+    expect(passwordInput.type).toBe('password');
+    fireEvent.click(showButton);
+    expect(passwordInput.type).toBe('text');
+    expect(screen.getByRole('button', { name: 'Ẩn mật khẩu' })).toBeDefined();
+  });
+
+  it('moves keyboard focus to the new screen heading after changing auth page', async () => {
+    render(<AuthApp onAuthenticated={() => {}} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Quên mật khẩu?' }));
+    const heading = await screen.findByRole('heading', { name: 'Quên mật khẩu' });
+    await waitFor(() => expect(document.activeElement).toBe(heading));
+  });
+
   it('uses the server Retry-After value to disable OTP resend and show a countdown', async () => {
     vi.useFakeTimers();
     authApiMock.mockImplementation((path: string) => {

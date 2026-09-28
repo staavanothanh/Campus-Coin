@@ -34,6 +34,12 @@ function send(res: ServerResponse, status: number, body: unknown, cookie?: strin
   res.end(JSON.stringify(body));
 }
 
+const SCHEMA_INDEPENDENT_GET_PATHS = new Set([
+  '/api/v1/health',
+  '/api/v1/health/ready',
+  '/api/v1/auth/providers',
+]);
+
 function readCookie(req: IncomingMessage) {
   return readNamedCookie(req, 'cc_session');
 }
@@ -169,6 +175,7 @@ export async function handleRequest(
   res: ServerResponse,
   emailSender: OtpSender = sendOtp,
   googleOAuth: GoogleOAuthProvider = createGoogleOAuthProvider(),
+  checkSchema: () => Promise<void> = assertSchemaReady,
 ) {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
@@ -183,7 +190,7 @@ export async function handleRequest(
     }
     if (method === 'GET' && path === '/api/v1/health/ready') {
       try {
-        await assertSchemaReady();
+        await checkSchema();
       } catch {
         throw new AppError(503, 'SERVICE_UNAVAILABLE', 'Database schema chưa sẵn sàng');
       }
@@ -515,8 +522,46 @@ export async function handleRequest(
   }
 }
 
-export function createApiServer(options: { emailSender?: OtpSender; googleOAuth?: GoogleOAuthProvider } = {}) {
+type ApiRouteHandler = (request: IncomingMessage, response: ServerResponse) => Promise<unknown>;
+
+export function createSchemaReadyHandler(
+  checkSchema: () => Promise<void>,
+  route: ApiRouteHandler,
+): ApiRouteHandler {
+  return async (request, response) => {
+    const path = new URL(request.url || '/', 'http://localhost').pathname;
+    const canRunWithoutSchema = request.method === 'GET' && SCHEMA_INDEPENDENT_GET_PATHS.has(path);
+
+    if (!canRunWithoutSchema) {
+      try {
+        await checkSchema();
+      } catch {
+        send(response, 503, {
+          error: { code: 'SERVICE_UNAVAILABLE', message: 'Hệ thống đang bận, vui lòng thử lại' },
+        }, undefined, {
+          'Cache-Control': 'no-store, private',
+          'Referrer-Policy': 'no-referrer',
+          'X-Content-Type-Options': 'nosniff',
+          'X-Frame-Options': 'DENY',
+        });
+        return;
+      }
+    }
+
+    await route(request, response);
+  };
+}
+
+export function createApiServer(options: {
+  emailSender?: OtpSender;
+  googleOAuth?: GoogleOAuthProvider;
+  checkSchema?: () => Promise<void>;
+} = {}) {
   const emailSender = options.emailSender ?? sendOtp;
   const googleOAuth = options.googleOAuth ?? createGoogleOAuthProvider();
-  return createServer((req, res) => handleRequest(req, res, emailSender, googleOAuth));
+  const checkSchema = options.checkSchema ?? assertSchemaReady;
+  const route = (request: IncomingMessage, response: ServerResponse) =>
+    handleRequest(request, response, emailSender, googleOAuth, checkSchema);
+  const handler = createSchemaReadyHandler(checkSchema, route);
+  return createServer((req, res) => { void handler(req, res); });
 }

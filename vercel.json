@@ -5,7 +5,8 @@
   "outputDirectory": "dist",
   "functions": {
     "api/v1/[...path].ts": {
-      "maxDuration": 60
+      "maxDuration": 60,
+      "includeFiles": "db/migrations/**"
     }
   },
   "rewrites": [

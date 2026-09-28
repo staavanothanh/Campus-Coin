@@ -1,5 +1,4 @@
 import { createApiServer } from './routes/api.js';
-import { assertSchemaReady, SchemaNotReadyError } from './infrastructure/db/readiness.js';
 import { assertSmtpConfigured } from './infrastructure/mail.js';
 import { existsSync } from 'node:fs';
 
@@ -25,9 +24,7 @@ async function main() {
   startupStep = 'cấu hình SMTP';
   assertSmtpConfigured();
 
-  startupStep = 'kết nối MySQL và kiểm tra schema';
-  await assertSchemaReady();
-
+  startupStep = 'khởi chạy API';
   const port = Number(process.env.PORT || 3000);
   const server = createApiServer();
   server.once('error', error => {
@@ -35,18 +32,16 @@ async function main() {
     console.error(`API không mở được cổng ${port}${code ? ` (${code})` : ''}.`);
     process.exit(1);
   });
-  server.listen(port, () => console.log(`Campus Coin API đang chạy ở cổng ${port}`));
+  server.listen(port, () => console.log(`Campus Coin API đang lắng nghe ở cổng ${port}; readiness DB/schema được kiểm tra theo request.`));
 }
 
 main().catch(error => {
-  if (error instanceof SchemaNotReadyError) {
-    console.error('Database chưa đủ schema. Chạy npm run db:status để xem migration còn thiếu; API không tự chạy migration.');
-  } else if (startupStep === 'cấu hình xác thực' || startupStep === 'cấu hình SMTP') {
+  if (startupStep === 'cấu hình xác thực' || startupStep === 'cấu hình SMTP') {
     const message = error instanceof Error ? error.message : 'Cấu hình không hợp lệ';
     console.error(`API không khởi động được ở bước ${startupStep}: ${message}`);
   } else {
     const code = getSafeErrorCode(error);
-    console.error(`API không khởi động được ở bước ${startupStep}${code ? ` (${code})` : ''}. Kiểm tra cấu hình kết nối DB.`);
+    console.error(`API không khởi động được ở bước ${startupStep}${code ? ` (${code})` : ''}.`);
   }
   process.exitCode = 1;
 });

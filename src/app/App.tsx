@@ -312,8 +312,8 @@ export function App({ onAuthenticated, initialNotice = '', initialLocale = 'vi',
               {fieldError('otp') && <span id="auth-otp-error" className="fieldError" aria-live="polite">{fieldError('otp')}</span>}
             </label>}
 
-            {(page === 'login' || page === 'verify' || page === 'reset') && <label>
-              {page === 'reset' ? t.newPassword : t.password}
+            {(page === 'login' || page === 'verify' || page === 'reset') && <div className="authField">
+              <label htmlFor="auth-password">{page === 'reset' ? t.newPassword : t.password}</label>
               <span
                 className="passwordField"
                 onBlur={event => {
@@ -343,10 +343,10 @@ export function App({ onAuthenticated, initialNotice = '', initialLocale = 'vi',
                 >{showPassword ? t.hideShort : t.showShort}</button>
               </span>
               {fieldError('password') && <span id="auth-password-error" className="fieldError" aria-live="polite">{fieldError('password')}</span>}
-            </label>}
+            </div>}
 
-            {(page === 'verify' || page === 'reset') && <label>
-              {t.confirm}
+            {(page === 'verify' || page === 'reset') && <div className="authField">
+              <label htmlFor="auth-confirm">{t.confirm}</label>
               <span
                 className="passwordField"
                 onBlur={event => {
@@ -375,7 +375,7 @@ export function App({ onAuthenticated, initialNotice = '', initialLocale = 'vi',
                 >{showConfirmPassword ? t.hideShort : t.showShort}</button>
               </span>
               {fieldError('confirm') && <span id="auth-confirm-error" className="fieldError" aria-live="polite">{fieldError('confirm')}</span>}
-            </label>}
+            </div>}
 
             {page === 'login' && <label className="checkLabel">
               <input type="checkbox" checked={remember} onChange={event => setRemember(event.target.checked)} />
