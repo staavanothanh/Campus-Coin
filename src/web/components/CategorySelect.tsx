@@ -8,6 +8,7 @@ interface CategorySelectProps {
   value: string;
   onChange: (categoryId: string) => void;
   onOtherChange?: (isOther: boolean, defaultOtherId?: string) => void;
+  onAvailableCategoryIdsChange?: (categoryIds: string[]) => void;
   locale: Locale;
   label: string;
   placeholder: string;
@@ -44,6 +45,7 @@ export function CategorySelect({
   value,
   onChange,
   onOtherChange,
+  onAvailableCategoryIdsChange,
   locale,
   label,
   placeholder,
@@ -125,6 +127,9 @@ export function CategorySelect({
     isOther: true,
   });
 
+  useEffect(() => {
+    if (!loading) onAvailableCategoryIdsChange?.(displayItems.map(item => item.id));
+  }, [appliesTo, categories, loading, onAvailableCategoryIdsChange]);
   const placeholderText = loading
     ? (locale === 'vi' ? 'Đang tải danh mục...' : 'Loading categories...')
     : hasError

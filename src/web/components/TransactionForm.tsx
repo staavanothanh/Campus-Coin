@@ -1,7 +1,8 @@
-import { useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { apiPost, ApiRequestError } from '../api-client.js';
 import { parseAmountVnd, formatVnd } from '../format.js';
 import type {
+  CategorySuggestion,
   CreateTransactionRequest,
   TransactionWithWarning,
   TransactionType,
@@ -16,15 +17,13 @@ import { BudgetWarningBanner } from './BudgetWarningBanner.js';
 import {
   ArrowDownLeft,
   ArrowUpRight,
-  Plus,
   X,
   Save,
   Tag,
-  FileText,
   Coins
 } from 'lucide-react';
 import { invalidateCategoriesCache } from '../hooks/use-categories.js';
-
+import { isApplicableCategorySuggestion } from '../jev-suggestion.js';
 interface TransactionFormProps {
   kind: TransactionType;
   csrfToken: string;
@@ -53,12 +52,74 @@ export function TransactionForm({
   const [isOtherSelected, setIsOtherSelected] = useState(false);
   const [customCategoryName, setCustomCategoryName] = useState('');
   const [description, setDescription] = useState('');
-
+  const [suggestion, setSuggestion] = useState<CategorySuggestion | null>(null);
+  const [suggestionLoading, setSuggestionLoading] = useState(false);
+  const [suggestionError, setSuggestionError] = useState(false);
+  const categoryManuallySelectedRef = useRef(false);
+  const [availableCategoryIds, setAvailableCategoryIds] = useState<string[]>([]);
+  const [acceptedSuggestionCategoryId, setAcceptedSuggestionCategoryId] = useState<string | null>(null);
+  const suggestionRequestRef = useRef(0);
+  const descriptionRequestRef = useRef<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<ApiRequestError | string | null>(null);
   const [budgetWarning, setBudgetWarning] = useState<BudgetWarning | null>(null);
   const [isSuccess, setIsSuccess] = useState(false);
+  const availableCategoryIdsKey = availableCategoryIds.join('|');
 
+  const handleAvailableCategoryIdsChange = useCallback((categoryIds: string[]) => {
+    setAvailableCategoryIds(categoryIds);
+  }, []);
+  function invalidateSuggestionRequest() {
+    suggestionRequestRef.current += 1;
+    if (descriptionRequestRef.current !== null) {
+      window.clearTimeout(descriptionRequestRef.current);
+      descriptionRequestRef.current = null;
+    }
+  }
+
+  useEffect(() => {
+    const trimmedDescription = description.trim();
+    const requestId = suggestionRequestRef.current + 1;
+    suggestionRequestRef.current = requestId;
+    if (descriptionRequestRef.current !== null) window.clearTimeout(descriptionRequestRef.current);
+
+    setSuggestion(null);
+    setSuggestionError(false);
+    setSuggestionLoading(trimmedDescription.length > 0);
+    if (!trimmedDescription) {
+      setSuggestionLoading(false);
+      return;
+    }
+
+    descriptionRequestRef.current = window.setTimeout(() => {
+      void apiPost<CategorySuggestion>('/ai/category-suggestion', {
+        transactionType: currentType,
+        description: trimmedDescription,
+        locale,
+      }, { 'X-CSRF-Token': csrfToken })
+        .then(result => {
+          if (suggestionRequestRef.current !== requestId) return;
+          setSuggestion(result);
+          setSuggestionLoading(false);
+          if (!categoryManuallySelectedRef.current && isApplicableCategorySuggestion(result, false, availableCategoryIds)) {
+            setCategoryId(result.categoryId);
+            setAcceptedSuggestionCategoryId(result.categoryId);
+            setIsOtherSelected(false);
+            setCustomCategoryName('');
+          }
+        })
+        .catch(() => {
+          if (suggestionRequestRef.current !== requestId) return;
+          setSuggestion(null);
+          setSuggestionError(true);
+          setSuggestionLoading(false);
+        });
+    }, 450);
+
+    return () => {
+      if (descriptionRequestRef.current !== null) window.clearTimeout(descriptionRequestRef.current);
+    };
+  }, [availableCategoryIdsKey, csrfToken, currentType, description, locale]);
   function handleAddQuickAmount(addVal: number) {
     const currentNum = parseInt(amount.replace(/\D/g, ''), 10) || 0;
     const nextVal = currentNum + addVal;
@@ -154,6 +215,7 @@ export function TransactionForm({
       categoryId: finalCategoryId,
       occurredAt: new Date().toISOString(),
       ...(finalDescription ? { description: finalDescription } : {}),
+      ...(acceptedSuggestionCategoryId === finalCategoryId ? { confirmedCategorySuggestion: true } : {}),
     };
 
     try {
@@ -223,10 +285,14 @@ export function TransactionForm({
               type="button"
               className={`toggle-option ${currentType === 'payment' ? 'active-payment' : ''}`}
               onClick={() => {
+                invalidateSuggestionRequest();
+                categoryManuallySelectedRef.current = false;
                 setCurrentType('payment');
                 setCategoryId('');
                 setIsOtherSelected(false);
                 setCustomCategoryName('');
+                setAcceptedSuggestionCategoryId(null);
+                setSuggestion(null);
               }}
             >
               <ArrowUpRight size={16} />
@@ -236,10 +302,14 @@ export function TransactionForm({
               type="button"
               className={`toggle-option ${currentType === 'income' ? 'active-income' : ''}`}
               onClick={() => {
+                invalidateSuggestionRequest();
+                categoryManuallySelectedRef.current = false;
                 setCurrentType('income');
                 setCategoryId('');
                 setIsOtherSelected(false);
                 setCustomCategoryName('');
+                setAcceptedSuggestionCategoryId(null);
+                setSuggestion(null);
               }}
             >
               <ArrowDownLeft size={16} />
@@ -309,16 +379,50 @@ export function TransactionForm({
             </div>
           </div>
 
+          {/* Description drives the optional automatic JEV classification. */}
+          <div className="form-field-wrapper">
+            <label htmlFor="tx-desc">
+              {t.description}
+            </label>
+            <input
+              id="tx-desc"
+              type="text"
+              value={description}
+              onChange={e => {
+                invalidateSuggestionRequest();
+                categoryManuallySelectedRef.current = false;
+                setDescription(e.target.value);
+              }}
+              disabled={loading}
+              maxLength={255}
+              placeholder={isVi ? 'Ví dụ: Cơm trưa căng tin, giáo trình...' : 'e.g. Lunch, books...'}
+              aria-describedby="jev-suggestion-status"
+            />
+            <div id="jev-suggestion-status" className="jev-suggestion-status" role="status" aria-live="polite" aria-atomic="true">
+              {suggestionLoading && t.suggestionLoading}
+              {!suggestionLoading && suggestion?.status === 'suggested' && t.suggestionSuggested}
+              {!suggestionLoading && suggestion?.status === 'manual' && t.suggestionManual}
+              {!suggestionLoading && (suggestion?.status === 'disabled' || suggestion?.status === 'unavailable') && t.suggestionUnavailable}
+              {!suggestionLoading && suggestionError && t.suggestionError}
+            </div>
+          </div>
+
           {/* Category Select */}
           <div className="form-field-wrapper">
             <CategorySelect
               appliesTo={currentType}
               value={categoryId}
-              onChange={setCategoryId}
+              onChange={(nextCategoryId) => {
+                invalidateSuggestionRequest();
+                categoryManuallySelectedRef.current = true;
+                setCategoryId(nextCategoryId);
+                setAcceptedSuggestionCategoryId(null);
+              }}
               onOtherChange={(isOther) => {
                 setIsOtherSelected(isOther);
                 if (!isOther) setCustomCategoryName('');
               }}
+              onAvailableCategoryIdsChange={handleAvailableCategoryIdsChange}
               locale={locale}
               label={t.category}
               placeholder={t.selectCategory}
@@ -348,22 +452,6 @@ export function TransactionForm({
               </div>
             </div>
           )}
-
-          {/* Description */}
-          <div className="form-field-wrapper">
-            <label htmlFor="tx-desc">
-              {t.description}
-            </label>
-            <input
-              id="tx-desc"
-              type="text"
-              value={description}
-              onChange={e => setDescription(e.target.value)}
-              disabled={loading}
-              maxLength={255}
-              placeholder={isVi ? 'Ví dụ: Cơm trưa căng tin, giáo trình...' : 'e.g. Lunch, books...'}
-            />
-          </div>
 
           {/* Actions */}
           <div className="modal-actions-row">
