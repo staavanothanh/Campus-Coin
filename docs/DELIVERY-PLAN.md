@@ -10,8 +10,8 @@ Hướng dẫn chi tiết cho MySQL test cô lập, auth/email staging và kiể
 ## 1. Luồng sản phẩm đã chốt
 
 ```text
-register → verify OTP → login → session
-forgot password → reset password
+register → OTP-only screen/API verify → account details/final OTP consume → login → session
+forgot password → OTP-only screen/API verify → new password/final OTP consume
 Google Sign-In (tùy chọn) → xác minh OIDC → session
 đang đăng nhập → chủ động kết nối Google
 ```
@@ -23,7 +23,7 @@ Google không cấu hình thì email flow vẫn hoạt động và provider disc
 | Hạng mục | Trạng thái | Bằng chứng / gate còn lại |
 |---|---|---|
 | Quyết định auth và canonical docs | Đã chốt; ADR-0008 giữ email auth, ADR-0009 thêm Google tùy chọn | Team Leader báo kết nối Google OAuth thành công; môi trường và việc login/link cả hai flow chưa được nêu |
-| Auth implementation | Email/OTP flow, Google OIDC start/callback, explicit link, provider discovery, opaque session, CSRF/Origin và login rate-limit đã có code | Auth MySQL integration pass trên DB CI disposable; Team Leader xác nhận staging Phần 2 (register/reset email, OTP sai/hết hạn/resend, logout/session) hoàn tất; SMTP failure và kiểm tra CSRF/Origin staging còn chờ |
+| Auth implementation | Email/OTP flow, Google OIDC start/callback, explicit link, provider discovery, opaque session, CSRF/Origin và login rate-limit đã có code; endpoint `verify-otp` kiểm tra riêng nhưng giữ mã để endpoint hoàn tất xác minh lại/tiêu thụ atomic | Build và OpenAPI validation pass cho endpoint mới; auth MySQL integration pass trước thay đổi này trên DB CI disposable nhưng chưa chạy lại cho luồng mới; SMTP failure và kiểm tra CSRF/Origin staging còn chờ |
 | Google Sign-In | SDK server-side, PKCE S256, state, nonce, verified email, Google `sub`; không lưu Google token hoặc gọi Gmail API | Team Leader báo connect thành công; chưa có evidence tách riêng Google login và connect account, hoặc CI run mới cho thay đổi này |
 | Shared migration sequence | `0031_create_oauth_challenges.sql` khớp row đã apply trên shared DB; email auth và rate-limit state là local `0032`/`0033` | `npm run db:preflight` phải pass với `0032`/`0033` pending; không chạy `db:migrate` trên DB shared cho đến khi owner/grants/backup được xác nhận |
 | Migration `0004_email_auth.sql` (chain khác trên Aiven) | `npm run db:status` ngày 2026-09-25 báo đã apply trên schema `campus_coin` đang cấu hình | Chưa có evidence cho `campus_coin_done`; credential/config hiện tại trả `Unknown database` khi kiểm tra target clone; DevB cần xác nhận service/schema/grants và migration history |
@@ -49,7 +49,7 @@ Không suy ra trạng thái DB, SMTP, cloud hoặc production từ sự tồn t�
 - Cookie `HttpOnly`, `Secure` production, `SameSite`, expiry, revoke, logout và reset-password revoke session cũ đã có code; CI auth integration bao phủ.
 - CSRF/Origin có test integration riêng và đã được thêm vào CI; contract hiện chốt chỉ dùng Origin, Referer không thay thế. Response API/redirect dùng `Cache-Control: no-store, private`. Logout của session sống từ chối CSRF sai; logout session đã hết hạn/thu hồi vẫn clear cookie idempotently. Kiểm tra CSRF/Origin staging, SMTP outage thật và các production gates vẫn cần evidence; API error envelope được kiểm tra trong integration/contract tests.
 - Email: adapter SMTP provider thật, timeout, retry giới hạn, cùng một mã trong retry, lỗi rõ; không fallback OTP vào log/dev.
-- UI: register/verify/resend/login/forgot/reset, loading/error/success/expired/locked, VI/EN, keyboard/focus/ARIA, chống double-submit.
+- UI: register/OTP-only verify/resend/account details/login/forgot/OTP-only verify/new password, API verify bước riêng nhưng final action re-check/single-use, loading/error/success/expired/locked, VI/EN, keyboard/focus/ARIA, chống double-submit. Build pass; browser/E2E cho các màn OTP mới chưa được chạy trong task này.
 
 ## 4. DB handoff và migration
 

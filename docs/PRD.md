@@ -16,9 +16,9 @@ Mục tiêu là giúp người dùng nhìn thấy dòng tiền của mình bằn
 
 ### 3.1 Xác thực và phiên
 
-- Đăng ký bằng email → OTP; chỉ tạo user/credential sau khi mã hợp lệ.
+- Đăng ký bằng email → màn OTP riêng → tên/mật khẩu; chỉ tạo user/credential sau khi endpoint hoàn tất xác minh lại và tiêu thụ OTP.
 - Đăng nhập bằng email/password; thành công tạo opaque server-side session với cookie bảo mật.
-- Quên mật khẩu bằng email OTP; reset thu hồi các session cũ.
+- Quên mật khẩu bằng email OTP → màn OTP riêng → mật khẩu mới; reset xác minh lại/tiêu thụ OTP và thu hồi các session cũ atomic.
 - Login rate-limit theo account/IP; OTP expiry, maximum attempts, resend cooldown và single-use.
 - Google Sign-In dùng OIDC server-side; user đăng nhập email có thể chủ động kết nối Google trong session.
 - Không tự động merge account theo email; không dùng Gmail credential cá nhân, Gmail inbox hoặc Gmail API.
@@ -54,7 +54,7 @@ Mục tiêu là giúp người dùng nhìn thấy dòng tiền của mình bằn
 
 ## 4. Tiêu chí chấp nhận
 
-1. Register/verify/login/session và forgot/reset đạt auth security gates; user A không truy cập được user B.
+1. Register/email → OTP-only verify → account details → login/session và forgot/email → OTP-only verify → new password đạt auth security gates; endpoint hoàn tất re-check/single-use OTP; user A không truy cập được user B.
 2. Ledger chỉ nhận `income`/`payment`, VND nguyên dương, category đúng loại.
 3. Payment thiếu wallet bị reject atomic, không tạo row, wallet không âm; retry idempotency không duplicate.
 4. Savings atomic và không vào income/payment/budget totals.

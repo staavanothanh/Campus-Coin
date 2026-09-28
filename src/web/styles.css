@@ -1348,6 +1348,203 @@ h2 { margin-bottom: 7px; color: #0f172a; font-size: 17px; letter-spacing: -.02em
   color: #94a3b8;
 }
 
+.auth-input-wrapper.auth-otp-input-wrapper {
+  width: min(100%, 380px);
+  min-height: 44px;
+  overflow: visible;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.auth-input-wrapper.auth-otp-input-wrapper:hover,
+.auth-input-wrapper.auth-otp-input-wrapper:focus-within {
+  border: 0;
+  box-shadow: none;
+}
+
+.auth-input-wrapper.auth-otp-input-wrapper.has-error {
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+.auth-otp {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: min(100%, 380px);
+  min-height: 44px;
+  font-family: inherit;
+}
+
+.auth-otp-row {
+  position: relative;
+  flex: 0 0 auto;
+  overflow: visible;
+}
+
+.auth-otp-goo,
+.auth-otp-cell,
+.auth-otp-slot,
+.auth-otp-capsule,
+.auth-otp-result {
+  position: absolute;
+  inset: 0;
+}
+
+.auth-otp-goo {
+  pointer-events: none;
+}
+
+.auth-otp-cell {
+  left: 0;
+  top: 0;
+  box-sizing: border-box;
+  background: #e9edf2;
+  box-shadow: inset 0 0 0 1px #d8dee8;
+  transition: transform 560ms cubic-bezier(.22, 1, .36, 1), border-radius 300ms ease;
+}
+
+.auth-otp[data-focused='true'][data-phase='typing'] .auth-otp-slot[data-active='true'] {
+  border-radius: 11px;
+  box-shadow: 0 0 0 3px rgba(14, 74, 78, .15);
+}
+
+.auth-otp[data-invalid='true'] .auth-otp-cell {
+  background: #fce8e8;
+  box-shadow: inset 0 0 0 1px #ef4444;
+}
+
+.auth-otp-slot {
+  left: 0;
+  top: 0;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  border: 1px solid transparent;
+  box-sizing: border-box;
+  transition: transform 560ms cubic-bezier(.22, 1, .36, 1), opacity 180ms ease;
+}
+
+.auth-otp-digit {
+  color: #0f172a;
+  font: 500 19px/1 ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-variant-numeric: tabular-nums;
+  animation: auth-otp-digit-in 260ms cubic-bezier(.22, 1, .36, 1) both;
+}
+
+.auth-otp[data-phase='rejected'] .auth-otp-digit {
+  animation: auth-otp-digit-drain 220ms cubic-bezier(.4, 0, 1, 1) both;
+  animation-delay: calc((5 - var(--otp-index, 0)) * 45ms + 260ms);
+}
+
+.auth-otp-capsule {
+  inset: 0 auto 0 50%;
+  width: 128px;
+  border-radius: 999px;
+  background: #e9edf2;
+  opacity: 0;
+  transform: translateX(-50%) scaleX(.1);
+  transform-origin: center;
+  transition: opacity 180ms ease, transform 560ms cubic-bezier(.22, 1, .36, 1);
+}
+
+.auth-otp[data-phase='accepted'] .auth-otp-capsule {
+  opacity: 1;
+  transform: translateX(-50%) scaleX(1);
+}
+
+.auth-otp-result {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: #0f172a;
+  font-size: 13px;
+  font-weight: 600;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 200ms ease 250ms;
+}
+
+.auth-otp[data-phase='accepted'] .auth-otp-result {
+  opacity: 1;
+}
+
+.auth-otp[data-phase='rejected'] .auth-otp-row {
+  animation: auth-otp-shiver 620ms ease-out both;
+}
+
+.auth-otp-field {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  opacity: 0;
+  background: transparent;
+  color: transparent;
+  font-size: 16px;
+  caret-color: transparent;
+  cursor: text;
+}
+
+.auth-input-wrapper .auth-otp-field {
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  color: transparent;
+  font-size: 16px;
+}
+
+.auth-otp-field:focus-visible {
+  outline: none;
+}
+
+.auth-otp-field:disabled { cursor: default; }
+.auth-otp-defs { position: absolute; width: 0; height: 0; overflow: hidden; }
+.auth-otp[data-phase='checking'] .auth-otp-cell { animation: auth-otp-check-pulse 800ms ease-in-out infinite alternate; }
+.auth-otp[data-phase='rejected'] .auth-otp-cell { background: #fce8e8; box-shadow: inset 0 0 0 1px #ef4444; }
+
+@keyframes auth-otp-digit-in {
+  from { transform: translateY(45%) scale(.86); opacity: 0; filter: blur(3px); }
+  to { transform: none; opacity: 1; filter: none; }
+}
+
+@keyframes auth-otp-digit-drain {
+  to { transform: translateY(45%) scale(.86); opacity: 0; filter: blur(3px); }
+}
+
+@keyframes auth-otp-shiver {
+  0%, 100% { translate: 0 0; }
+  16% { translate: -5px 0; }
+  32% { translate: 5px 0; }
+  48% { translate: -4px 0; }
+  64% { translate: 3px 0; }
+  80% { translate: -1px 0; }
+}
+
+@keyframes auth-otp-check-pulse {
+  from { opacity: .72; }
+  to { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-otp-cell,
+  .auth-otp-slot,
+  .auth-otp-capsule,
+  .auth-otp-result { transition-duration: 1ms; }
+  .auth-otp-digit,
+  .auth-otp[data-phase='rejected'] .auth-otp-row,
+  .auth-otp[data-phase='checking'] .auth-otp-cell { animation: none; }
+}
+
 .input-eye-button {
   background: transparent;
   border: none;
