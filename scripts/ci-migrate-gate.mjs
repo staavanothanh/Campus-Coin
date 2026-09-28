@@ -33,7 +33,15 @@ try {
 
 function runCli(arg) {
   const result = spawnSync(process.execPath, ["src/infrastructure/db/migrate.ts", arg], {
-    env: { ...process.env, CAMPUS_COIN_DB_NAME: dbName, CAMPUS_COIN_DB_USER: dbUser, CAMPUS_COIN_DB_PASSWORD: dbPassword },
+    // Disposable MySQL service trong CI dùng root với password rỗng; readDbEnv chỉ
+    // chấp nhận empty password khi CAMPUS_COIN_TEST_DB=1 trên loopback host.
+    env: {
+      ...process.env,
+      CAMPUS_COIN_DB_NAME: dbName,
+      CAMPUS_COIN_DB_USER: dbUser,
+      CAMPUS_COIN_DB_PASSWORD: dbPassword,
+      CAMPUS_COIN_TEST_DB: "1",
+    },
     encoding: "utf8",
   });
   console.log(`--- migrate.ts ${arg} (exit ${result.status}) ---`);

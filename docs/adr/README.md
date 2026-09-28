@@ -12,8 +12,11 @@
 | [0006](0006-optional-openrouter-jev.md) | JEV tùy chọn qua OpenRouter | Đã chấp nhận có điều kiện | 2026-09-24 |
 | [0007](0007-five-day-thin-slice.md) | Phạm vi thin-slice năm ngày và quyền sở hữu | Đã chấp nhận | 2026-09-24 |
 | [0008](0008-email-password-otp-auth.md) | Email, mật khẩu và OTP | Đã chấp nhận; luồng email tiếp tục có hiệu lực | 2026-09-24 |
-| [0009](0009-optional-google-sign-in.md) | Google Sign-In là phương thức bổ sung | Đã chấp nhận bởi Team Leader; bổ sung Google vào ADR-0008 | 2026-09-24 |
 | [0008](0008-runtime-row-authorization-boundary.md) | Ranh giới owner authorization và runtime DB role | Đã chấp nhận | 2026-09-25 |
-| [0009](0009-shared-database-migration-baselines.md) | Baseline hội tụ migration trên database shared | Đã chấp nhận | 2026-09-25 |
-**Xung đột auth chưa giải quyết:** ADR-0001 ghi Google OAuth-only, ADR-0008 (A) chấp nhận email/password/OTP và ADR-0009 (A) thêm Google; B giữ ADR-0001 Google-only. Không coi các quyết định auth trên hai nhánh là đã được hợp nhất hay có precedence thống nhất.
-**Lưu ý:** ADR-0008 và ADR-0009 có cùng số hiệu trên hai nhánh nhưng nội dung khác. Các dòng auth của A và các dòng DB/authorization của B được giữ để không làm mất quyết định; số hiệu và precedence cần được hợp nhất trước khi bất kỳ ADR nào được coi là canonical. Mục lục hiện hành vẫn mô tả auth theo A; phần Google Sign-In tại ADR-0009 (A) đối lập với ADR-0009 migration baselines (B), và cần được đánh số/định tuyến lại trong lần xử lý ADR tiếp theo.
+| [0009](0009-shared-database-migration-baselines.md) | Baseline hội tụ migration trên database shared | Đã chấp nhận; numbering được bổ sung bởi ADR-0010 | 2026-09-25 |
+| [0010](0010-auth-migration-numbering.md) | Đánh số migration auth sau DB chain | Đã chấp nhận | 2026-09-28 |
+| [0009](0009-optional-google-sign-in.md) | Google Sign-In là phương thức bổ sung | Đã chấp nhận; bổ sung Google vào ADR-0008 | 2026-09-24 |
+
+Số hiệu ADR-0008 và ADR-0009 xuất hiện ở nhiều file do hai nhánh độc lập; tiêu đề và đường dẫn xác định nội dung. Không đổi nội dung hoặc lịch sử đã chấp nhận. ADR-0010 chỉ supersede phần thứ tự/versioning migration auth của ADR-0008; các quyết định auth khác giữ nguyên.
+
+Mọi thay đổi đối với phương thức xác thực, bất biến tiền, quyền của JEV, nền tảng triển khai hoặc phạm vi MVP phải tạo ADR mới hoặc đánh dấu ADR cũ bị thay thế. Không sửa lịch sử để che giấu quyết định trước đó.
