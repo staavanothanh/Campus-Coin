@@ -65,7 +65,7 @@ beforeEach(() => {
 });
 
 describe('language preference stays in sync', () => {
-  it('announces dashboard errors and keeps a single main landmark', async () => {
+  it('shows a clear dashboard error and keeps a single main landmark', async () => {
     apiGetMock.mockImplementation((path: string) => {
       if (path === '/auth/session') {
         return Promise.resolve({ user, csrfToken: 'csrf-test', googleLinked: false, walletInitialized: false });
@@ -78,9 +78,36 @@ describe('language preference stays in sync', () => {
 
     const error = await screen.findByRole('alert');
     expect(error.textContent).toContain('Dữ liệu chưa khả dụng');
-    expect(error.textContent).toContain('HTTP_502');
+    expect(error.textContent).toContain('Dữ liệu tạm thời chưa sẵn sàng. Vui lòng thử lại sau.');
+    expect(error.textContent).not.toContain('HTTP_502');
     expect(error.closest('section.state-screen--embedded')).not.toBeNull();
     expect(screen.getAllByRole('main')).toHaveLength(1);
+  });
+
+  it('does not show the server busy response verbatim on the dashboard', async () => {
+    apiGetMock.mockImplementation((path: string) => {
+      if (path === '/auth/session') {
+        return Promise.resolve({
+          user: { ...user, locale: 'en' },
+          csrfToken: 'csrf-test',
+          googleLinked: false,
+          walletInitialized: false,
+        });
+      }
+      if (path === '/reports/dashboard') {
+        return Promise.reject(new ApiRequestError(500, {
+          code: 'INTERNAL_ERROR',
+          message: 'Hệ thống đang bận, vui lòng thử lại',
+        }));
+      }
+      return Promise.resolve([]);
+    });
+
+    render(<App />);
+
+    const error = await screen.findByRole('alert');
+    expect(error.textContent).toContain('Your data is temporarily unavailable. Please try again shortly.');
+    expect(error.textContent).not.toContain('Hệ thống đang bận');
   });
 
   it('shows a localized database-unavailable message without exposing API detail', async () => {

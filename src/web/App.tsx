@@ -289,9 +289,10 @@ export function App() {
       if (requestId !== dashboardRequestRef.current) return;
       if (caught instanceof ApiRequestError && caught.isUnauthorized) return;
       if (!silent) setState('error');
-      const message = caught instanceof ApiRequestError && caught.apiError?.code === 'SERVICE_UNAVAILABLE'
+      const isUnavailable = !(caught instanceof ApiRequestError) || caught.status >= 500;
+      const message = isUnavailable
         ? t.unavailableDetail
-        : caught instanceof Error ? caught.message : 'REQUEST_FAILED';
+        : caught instanceof Error ? caught.message : t.unavailableDetail;
       setError(message);
     }
   }
@@ -614,7 +615,7 @@ export function App() {
             </>
           )}
 
-          {screen === 'transactions' && <TransactionsScreen t={t} locale={locale} />}
+          {screen === 'transactions' && <TransactionsScreen t={t} locale={locale} csrfToken={session.csrfToken} />}
           {screen === 'savings' && (
             <SavingsScreen
               csrfToken={session.csrfToken}

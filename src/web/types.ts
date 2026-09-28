@@ -11,6 +11,7 @@ export type Theme = 'light' | 'dark';
 export type TransactionType = 'income' | 'payment';
 export type UserRole = 'user' | 'admin' | 'security';
 export type CorrectionRole = 'reversal' | 'adjustment' | 'replacement';
+export type TransactionRole = 'original' | CorrectionRole;
 export type CategoryStatus = 'active' | 'disabled' | 'retired';
 export type TransferDirection = 'deposit' | 'withdraw';
 export type IssueStatus = 'open' | 'in_triage' | 'resolved' | 'closed';
@@ -53,7 +54,7 @@ export interface Transaction {
   occurredAt: string;
   description: string | null;
   itemName: string | null;
-  role: CorrectionRole;
+  role: TransactionRole;
   referenceId: string | null;
   createdAt: string;
 }

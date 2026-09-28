@@ -248,7 +248,7 @@ describe('micro interactions', () => {
     expect(reportRequests).toBe(3);
   });
 
-  it('does not show a zero transaction total when refreshing failed', async () => {
+  it('keeps transaction summary unavailable when refreshing failed', async () => {
     const page = {
       data: [{
         id: 'tx-1',
@@ -269,8 +269,8 @@ describe('micro interactions', () => {
       return Promise.resolve(page);
     });
 
-    const { container } = render(<TransactionsScreen t={copy.vi} locale="vi" />);
-    await waitFor(() => expect(container.querySelector('.transactions-summary-chip strong')?.textContent).toBe('+20.000 VND'));
+    const { container } = render(<TransactionsScreen t={copy.vi} locale="vi" csrfToken="csrf-test" />);
+    await waitFor(() => expect(container.querySelector('.transactions-summary-chip strong')?.textContent).toBe('1'));
 
     fireEvent.click(screen.getByRole('button', { name: copy.vi.spending }));
 
