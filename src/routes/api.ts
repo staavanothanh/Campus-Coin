@@ -94,7 +94,7 @@ async function readBody(req: IncomingMessage): Promise<Record<string, unknown>> 
 }
 
 function cookie(token: string, clear = false) {
-  const secure = process.env.NODE_ENV === 'production' ? '; Secure' : '';
+  const secure = process.env.SESSION_SECURE === 'true' || process.env.NODE_ENV === 'production' ? '; Secure' : '';
   return `cc_session=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${clear ? 0 : 86400}${secure}`;
 }
 

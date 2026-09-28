@@ -62,7 +62,9 @@ if (!ENABLED) {
     process.env.CLIENT_ORIGIN = 'http://127.0.0.1:5173';
     process.env.TRUST_PROXY = 'true';
     process.env.TRUSTED_PROXY_IPS = '127.0.0.1';
-    process.env.NODE_ENV = 'production';
+    // Cookie Secure trong production; dùng SESSION_SECURE thay vì NODE_ENV=production
+    // để không chạm guard DB cấm CAMPUS_COIN_DB_SSL=disabled khi NODE_ENV=production.
+    process.env.SESSION_SECURE = 'true';
     await harness.start();
     await new Promise<void>(resolve => server.listen(0, resolve));
     const address = server.address();

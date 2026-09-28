@@ -514,7 +514,9 @@ if (!ENABLED) {
           idempotencyKey: randomUUID(),
           requestHash: canonicalHash({ categoryId: category!.id, month, limitVnd: 1 }),
         }),
-        expectCode("CATEGORY_NOT_FOUND"),
+        // Cross-owner category phải trả 404 NOT_FOUND (không lộ tồn tại, chống IDOR —
+        // DELIVERY-PLAN chốt; không dùng CATEGORY_NOT_FOUND 422 vì lộ category).
+        expectCode("NOT_FOUND"),
       );
 
       assert.equal((await listMonthBudgets(getPool(), categoryOwnerId, month))[0]!.limitVnd, 250_000);

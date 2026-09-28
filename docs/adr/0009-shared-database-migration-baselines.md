@@ -1,7 +1,7 @@
 # ADR-0009: Baseline hội tụ migration trên database shared
 
 - **Ngày:** 2026-09-25
-- **Trạng thái:** Đã chấp nhận
+- **Trạng thái:** Đã chấp nhận; phần numbering auth được ADR-0010 supersede
 - **Người quyết định:** Team Leader
 
 ## Bối cảnh
@@ -31,8 +31,10 @@ Database `campus_coin` trên Aiven là shared: một migration chain khác đã 
 
 ## Hệ quả
 
-`db/baselines.json` là code review được; CI fresh (không có slot external) vẫn chạy strict. Áp dụng lên Aiven cần provision `cc_migrate`/`cc_runtime`, apply `0006`–`0032` bằng migration role, review grants/trigger `DEFINER`, reconcile và restore rehearsal — các bước này vẫn operator-gated theo `docs/DB-RESTORE-RUNBOOK.md`.
+`db/baselines.json` là code review được; CI fresh (không có slot external) vẫn chạy strict. Áp dụng lên Aiven cần provision `cc_migrate`/`cc_runtime`, apply `0006`–`0030` bằng migration role, review grants/trigger `DEFINER`, reconcile và restore rehearsal — các bước này vẫn operator-gated theo `docs/DB-RESTORE-RUNBOOK.md`.
 
 ## Rủi ro và kiểm chứng
 
 Sai pin checksum hoặc khai external nhầm version sẽ hợp thức hóa drift lạ. Giảm thiểu: pin checksum lấy trực tiếp từ `schema_migrations` (read-only probe), đối chiếu DDL trước khi pin `historical`, unit test cho mọi nhánh accept/reject, và full gate MySQL phải xanh sau thay đổi.
+
+ADR-0010 supersede riêng phương án numbering migration auth; các quyết định baseline/external checksum, fail-closed drift và cấm sửa migration đã apply trong ADR này tiếp tục có hiệu lực.

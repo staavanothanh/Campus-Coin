@@ -57,6 +57,10 @@ GRANT SELECT ON campus_coin.savings_transfers TO 'cc_runtime'@'%';
 GRANT SELECT ON campus_coin.issues TO 'cc_runtime'@'%';
 GRANT SELECT ON campus_coin.issue_events TO 'cc_runtime'@'%';
 GRANT SELECT ON campus_coin.audit_events TO 'cc_runtime'@'%';
+-- Auth runtime (0031/0032): đọc credential/OTP/rate-limit cho xác thực.
+GRANT SELECT ON campus_coin.auth_credentials TO 'cc_runtime'@'%';
+GRANT SELECT ON campus_coin.email_otps TO 'cc_runtime'@'%';
+GRANT SELECT ON campus_coin.auth_rate_limits TO 'cc_runtime'@'%';
 
 GRANT INSERT ON campus_coin.users TO 'cc_runtime'@'%';
 GRANT INSERT ON campus_coin.auth_identities TO 'cc_runtime'@'%';
@@ -70,6 +74,9 @@ GRANT INSERT ON campus_coin.savings_transfers TO 'cc_runtime'@'%';
 GRANT INSERT ON campus_coin.issues TO 'cc_runtime'@'%';
 GRANT INSERT ON campus_coin.issue_events TO 'cc_runtime'@'%';
 GRANT INSERT ON campus_coin.audit_events TO 'cc_runtime'@'%';
+GRANT INSERT ON campus_coin.auth_credentials TO 'cc_runtime'@'%';
+GRANT INSERT ON campus_coin.email_otps TO 'cc_runtime'@'%';
+GRANT INSERT ON campus_coin.auth_rate_limits TO 'cc_runtime'@'%';
 
 GRANT UPDATE (display_name, locale, timezone) ON campus_coin.users TO 'cc_runtime'@'%';
 GRANT UPDATE (last_seen_at, revoked_at) ON campus_coin.sessions TO 'cc_runtime'@'%';
@@ -77,6 +84,12 @@ GRANT UPDATE (response_json) ON campus_coin.mutation_idempotency TO 'cc_runtime'
 GRANT UPDATE (name_en, name_vi, status) ON campus_coin.categories TO 'cc_runtime'@'%';
 GRANT UPDATE (limit_vnd, idempotency_id, updated_at) ON campus_coin.budgets TO 'cc_runtime'@'%';
 GRANT UPDATE (title, description, category, status, priority) ON campus_coin.issues TO 'cc_runtime'@'%';
+-- Auth runtime UPDATE theo cột: attempts OTP, credential password, rate-limit counters,
+-- và auth_identities cho SELECT ... FOR UPDATE của Google login/link (locking read).
+GRANT UPDATE (attempts) ON campus_coin.email_otps TO 'cc_runtime'@'%';
+GRANT UPDATE (password_hash, password_salt) ON campus_coin.auth_credentials TO 'cc_runtime'@'%';
+GRANT UPDATE (attempt_count, window_started_at, blocked_until) ON campus_coin.auth_rate_limits TO 'cc_runtime'@'%';
+GRANT UPDATE (user_id, provider, subject) ON campus_coin.auth_identities TO 'cc_runtime'@'%';
 -- MySQL 8 yêu cầu quyền UPDATE cho SELECT ... FOR UPDATE (locking read, đã kiểm
 -- chứng trên 8.0.41). Ba grant dưới chỉ để services lock row đúng lock order;
 -- services không UPDATE trực tiếp các bảng này:
@@ -86,6 +99,10 @@ GRANT UPDATE (title, description, category, status, priority) ON campus_coin.iss
 GRANT UPDATE (updated_at) ON campus_coin.wallet_accounts TO 'cc_runtime'@'%';
 GRANT UPDATE (updated_at) ON campus_coin.savings_accounts TO 'cc_runtime'@'%';
 GRANT UPDATE (description) ON campus_coin.ledger_transactions TO 'cc_runtime'@'%';
+-- DELETE chỉ cho auth state tạm (OTP đã dùng/hết hạn, bucket rate-limit hết cửa sổ);
+-- wallet/ledger/savings/audit không có DELETE (append-only).
+GRANT DELETE ON campus_coin.email_otps TO 'cc_runtime'@'%';
+GRANT DELETE ON campus_coin.auth_rate_limits TO 'cc_runtime'@'%';
 
 -- CLI-only operations register writer; not granted to the application runtime.
 -- Run this section only after migrations create db_operation_logs.
@@ -94,8 +111,11 @@ GRANT INSERT ON campus_coin.db_operation_logs TO 'cc_ops'@'%';
 FLUSH PRIVILEGES;
 
 -- Lưu ý bảo mật:
--- - Runtime has no schema_migrations, DELETE, DDL, TRIGGER, REFERENCES, PROCESS,
+-- - Runtime has no schema_migrations, DDL, TRIGGER, REFERENCES, PROCESS,
 --   SUPER, FILE, CREATE ROUTINE, or GRANT OPTION privileges.
+-- - DELETE chỉ giới hạn ở `email_otps` và `auth_rate_limits` (auth state tạm,
+--   single-use OTP và bucket hết cửa sổ); wallet/ledger/savings/audit không có
+--   DELETE và vẫn append-only bởi trigger.
 -- - Wallet/savings projection UPDATE and savings_accounts INSERT are trigger-definer
 --   privileges only; runtime cannot write projections directly. Runtime UPDATE grants
 --   trên wallet/savings/ledger chỉ gồm updated_at/description để SELECT ... FOR UPDATE

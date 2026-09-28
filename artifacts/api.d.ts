@@ -784,6 +784,8 @@ export interface components {
         };
         /** @enum {string} */
         CorrectionRole: "reversal" | "adjustment" | "replacement";
+        /** @enum {string} */
+        LedgerRole: "original" | "reversal" | "adjustment" | "replacement";
         CreateCorrectionRequest: {
             correctionRole: components["schemas"]["CorrectionRole"];
             reason: string;
@@ -798,7 +800,7 @@ export interface components {
             /** Format: date-time */
             occurredAt: string;
             description?: string | null;
-            role: components["schemas"]["CorrectionRole"];
+            role: components["schemas"]["LedgerRole"];
             referenceId?: string | null;
             /** Format: date-time */
             createdAt: string;

@@ -10,8 +10,11 @@ db/
 │   ├── 0001_initial_schema.sql
 │   └── 0002_seed_default_categories.sql
 │   ├── 0003_ledger_owner_reference_index.sql
-│   ├── 0004_email_auth.sql
-│   └── 0005_auth_rate_limits.sql
+│   ├── 0004_idempotency_owner_key.sql
+│   ├── 0005_wallet_baseline_boundary.sql
+│   ├── ... (0006–0030: domain chain)
+│   ├── 0031_email_auth.sql          # auth DDL (slot 0004/0005 thuộc chain khác trên Aiven)
+│   └── 0032_auth_rate_limits.sql
 ├── grants.example.sql     # Least-privilege template (chạy tay bởi DBA/provider)
 └── README.md
 src/
@@ -102,7 +105,7 @@ Chạy: `npm run db:preflight` → `db:migrate` → `npm test` với `CAMPUS_COI
 
 ## Đưa lên cloud (Aiven MySQL free tier + Vercel)
 
-Nguồn: Aiven docs — free tier (1 node, 1 CPU, 1 GB RAM, 1 GB disk, `max_connections=76`, có backup, không static IP/VPC/integration, không SLA), TLS certificates (project CA riêng), MySQL backups (full daily + binlog → PITR). Đây là **kế hoạch**, chưa có evidence nào được đo trên Aiven — mọi mục ở §Day-1 verification phải chạy thật rồi mới ghi nhận.
+Nguồn: Aiven docs — free tier (1 node, 1 CPU, 1 GB RAM, 1 GB disk, `max_connections=76`, có backup, không static IP/VPC/integration, không SLA), TLS certificates (project CA riêng), MySQL backups (full daily + binlog → PITR). Đây là **thiết lập chuẩn/tham chiếu**. Trạng thái evidence thực tế trên Aiven (preflight, migrate `0001`–`0030`, roles, clone, các mục còn mở) theo dõi tại [`docs/DELIVERY-PLAN.md`](../docs/DELIVERY-PLAN.md) §12 — không lặp lại ở đây để tránh hai nguồn sự thật. Mọi mục chưa đóng ở §Day-1 verification vẫn là gate phải chạy thật rồi mới ghi nhận.
 
 ### Bước 1 — Provision (thủ công, cần tài khoản Aiven của Team Leader)
 

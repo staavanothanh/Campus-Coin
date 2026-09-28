@@ -8,9 +8,9 @@ Ghi hướng dẫn truy cập/query an toàn để xác minh kết nối. File n
 
 - Người dùng có endpoint MySQL Aiven và thông tin database mặc định `defaultdb`; username/password do người dùng tự nhập trong client.
 - Chưa xác minh kết nối, owner/service, nội dung database hoặc việc database đó là Campus Coin. `defaultdb` không đồng nghĩa với database/schema ứng dụng `campus_coin`.
-- DB handoff B ghi migrations `0001`–`0030` applied trên `campus_coin`, roles `cc_migrate`/`cc_runtime` provision, clone `campus_coin_clone` và app dùng provider admin; các ghi nhận này là báo cáo nhánh B và chưa được xác minh trong lần merge này.
+- `docs/DELIVERY-PLAN.md` lưu evidence vận hành Aiven từ 2026-09-25 của nhánh database; đó là báo cáo theo thời điểm kiểm tra, không xác minh endpoint/defaultdb đang được cung cấp hiện nay.
 - Riêng current endpoint/defaultdb không có xác minh target, auth migrations `0004`/`0005` apply state, backup/restore hoặc grants. Không chạy migration, seed, test harness hoặc statement ghi trên endpoint này.
-- B chain có migrations `0001`–`0030`, trong đó `0004`/`0005` paths khác nội dung và history của A email/auth migration chain; baseline ADR ghi DDL relocation to `0031`/`0032`, nhưng files `0031`/`0032` are absent from B tree. Fresh schema compatibility remains unresolved; do not call either chain ready.
+- Chain hợp nhất giữ domain migrations `0001`–`0030` và baseline external `0004`/`0005` theo ADR-0009; auth migrations local nằm ở `0031`/`0032` theo ADR-0010. Trước khi dùng với DB đã có auth objects, DBA phải xác nhận schema và lịch sử migration trên đúng target.
 
 ## Kết nối bằng DBeaver
 
@@ -48,3 +48,7 @@ Kiểm tra service đang running, username/password, host/port, TLS mode, driver
 - [Aiven: MySQL service users and grants](https://aiven.io/docs/products/mysql/howto/manage-service-users)
 - [DBeaver: MySQL connection settings](https://dbeaver.com/docs/dbeaver/Database-driver-MySQL/) and [SSL configuration](https://dbeaver.com/docs/dbeaver/SSL-Configuration/)
 - [MySQL Connector/J: SSL modes](https://dev.mysql.com/doc/connectors/en/connector-j-connp-props-security.html)
+- Provider admin user chỉ dùng cho provisioning/audit theo chính sách DBA; không dùng làm runtime hoặc migration credential lâu dài.
+- `cc_runtime` và `cc_migrate` phải được provision theo `db/grants.example.sql` sau khi blocker least-privilege được chốt.
+- Xem thêm `db/README.md` cho connection pool config, TLS và migration workflow.
+- Xem thêm `docs/adr/0001-google-oauth-only.md` cho luồng đăng nhập Google OAuth, session và CSRF/origin.

@@ -16,6 +16,9 @@ dist/
 !.env.example
 .vercel-env-sync/
 
+# DB TLS CA bundle (provider cert; không commit — xem docs/DB-RESTORE-RUNBOOK.md)
+ca.pem
+
 # temp
 .tmp/
 /ca.pem

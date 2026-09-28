@@ -30,7 +30,7 @@ forgot password → reset password
 
 - Người dùng cần địa chỉ email truy cập được để xác minh và khôi phục tài khoản.
 - SMTP/provider trở thành dependency của đăng ký và reset mật khẩu; thiếu cấu hình hoặc provider lỗi phải fail closed, không gửi OTP vào log/dev fallback.
-- Migration `0004_email_auth.sql` thuộc schema auth; sự tồn tại của file không chứng minh migration đã chạy trên bất kỳ DB nào.
+- Migration `0031_email_auth.sql` thuộc schema auth (ban đầu đánh số `0004`, đổi sang `0031` để không trùng slot `0004` do chain khác chiếm trên database shared — xem ADR-0009); sự tồn tại của file không chứng minh migration đã chạy trên bất kỳ DB nào.
 - Bảng `auth_identities` từ migration `0001` được giữ lại như schema lịch sử và không được auth runtime hiện tại đọc/ghi; việc còn bảng này không bật lại Google OAuth. Không sửa migration đã commit; mọi cleanup schema cần migration mới và xác minh DB/data trước.
 - Tài khoản hiện có từ một phương thức khác không được tự động merge. Di chuyển hoặc liên kết danh tính cần quyết định riêng.
 - Chấp nhận quyết định không đồng nghĩa production readiness. Rate limit, E2E DB/email, provider contract, API/domain integration, CI và vận hành DB vẫn là các gate phải có evidence.
