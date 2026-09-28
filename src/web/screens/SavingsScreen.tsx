@@ -1,62 +1,288 @@
-import { useCallback, useEffect, useState } from 'react';
-import { ArrowDownLeft, ArrowUpRight, Calendar, ChevronRight, Minus, PiggyBank, Plus, RefreshCw, Sparkles } from 'lucide-react';
-import { apiRequest, errorMessage } from '../api.js';
-import { formatDate, formatVnd } from '../format.js';
-import type { Copy, Locale, Savings, SavingsTransfer, Session } from '../types.js';
+import { useEffect, useState, useCallback } from 'react';
 import { usePagination } from '../hooks/use-pagination.js';
+import { apiGet } from '../api-client.js';
+import type { Savings, SavingsTransfer, Wallet, Locale } from '../types.js';
+import type { Copy } from '../i18n.js';
+import { formatVnd, formatDate } from '../format.js';
+import {
+  ArrowDownLeft,
+  ArrowUpRight,
+  PiggyBank,
+  Plus,
+  Minus,
+  Wallet as WalletIcon,
+  Sparkles,
+  Calendar,
+  ChevronRight,
+  RefreshCw
+} from 'lucide-react';
+import { ErrorBanner } from '../components/ErrorBanner.js';
 import { SavingsTransferForm } from '../components/SavingsTransferForm.js';
 
-export function SavingsScreen({ session, t, locale }: { session: Session; t: Copy; locale: Locale }) {
+interface SavingsScreenProps {
+  csrfToken: string;
+  t: Copy;
+  locale: Locale;
+  onTransferSuccess?: () => void;
+}
+
+export function SavingsScreen({ csrfToken, t, locale, onTransferSuccess }: SavingsScreenProps) {
   const isVi = locale === 'vi';
   const [balance, setBalance] = useState<Savings | null>(null);
-  const [balanceState, setBalanceState] = useState<'loading' | 'ready' | 'error'>('loading');
-  const [balanceError, setBalanceError] = useState('');
+  const [balanceLoading, setBalanceLoading] = useState(true);
+  const [balanceError, setBalanceError] = useState<Error | null>(null);
+
+  const [wallet, setWallet] = useState<Wallet | null>(null);
+  const [walletLoading, setWalletLoading] = useState(true);
+  const [walletError, setWalletError] = useState<Error | null>(null);
+
   const [formOpen, setFormOpen] = useState<'deposit' | 'withdraw' | null>(null);
-  const { data: transfers, loading, error, hasMore, loadMore, reload } = usePagination<SavingsTransfer>('/savings/transfers?limit=20');
+
+  const {
+    data: transfers,
+    loading: transfersLoading,
+    error: transfersError,
+    hasMore,
+    loadMore,
+    reload
+  } = usePagination<SavingsTransfer>('/savings/transfers?limit=20');
 
   const loadBalance = useCallback(async () => {
-    setBalanceState('loading');
-    setBalanceError('');
+    setBalanceLoading(true);
+    setBalanceError(null);
     try {
-      const nextBalance = await apiRequest<Savings | null>('/savings');
-      setBalance(nextBalance);
-      setBalanceState('ready');
-    } catch (caught) {
-      setBalanceError(errorMessage(caught, t));
-      setBalanceState('error');
+      const data = await apiGet<Savings>('/savings');
+      setBalance(data);
+    } catch (err) {
+      setBalanceError(err instanceof Error ? err : new Error('Failed to load balance'));
+    } finally {
+      setBalanceLoading(false);
     }
-  }, [t]);
-  useEffect(() => { void loadBalance(); }, [loadBalance]);
+  }, []);
 
-  function handleSuccess() {
+  const loadWallet = useCallback(async () => {
+    setWalletLoading(true);
+    setWalletError(null);
+    try {
+      const data = await apiGet<Wallet>('/wallet');
+      setWallet(data);
+    } catch (err) {
+      setWalletError(err instanceof Error ? err : new Error('Failed to load wallet'));
+    } finally {
+      setWalletLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
     void loadBalance();
+    void loadWallet();
     void reload();
-  }
+  }, [loadBalance, loadWallet, reload]);
 
-  return <div className="savings-page">
-    <div className="savings-hero-grid">
-      <section className="savings-balance-card panel">
-        <div className="savings-balance-header"><span className="savings-icon-wrapper"><PiggyBank size={24} /></span><div><span className="savings-label">{isVi ? 'Quỹ tiết kiệm' : 'Savings balance'}</span><p className="savings-sublabel">{isVi ? 'Số dư được tải từ máy chủ' : 'Balance loaded from your account'}</p></div></div>
-        <div className="savings-amount-display"><strong>{balanceState === 'loading' ? t.loading : balanceState === 'error' ? balanceError : formatVnd(balance?.balanceVnd, locale)}</strong></div>
-        {(balanceState === 'error' || balanceState === 'loading') && <div className="form-message"><span role="status">{balanceState === 'error' ? balanceError : t.loading}</span><button type="button" className="secondary-button" aria-label={`${t.retry}: ${t.savingsHistory}`} disabled={balanceState === 'loading'} onClick={() => void loadBalance()}>{balanceState === 'error' ? t.retry : t.loading}</button></div>}
-        {balanceState === 'ready' && balance === null && <p className="form-message">{t.noWalletForSavings}</p>}
-        <div className="savings-actions-row">
-          <button type="button" className="primary-button deposit-btn" disabled={!balance} onClick={() => setFormOpen('deposit')}><Plus size={16} />{t.deposit}</button>
-          <button type="button" className="secondary-button withdraw-btn" disabled={!balance} onClick={() => setFormOpen('withdraw')}><Minus size={16} />{t.withdraw}</button>
+  const handleSuccess = () => {
+    void loadBalance();
+    void loadWallet();
+    void reload();
+    onTransferSuccess?.();
+  };
+
+  return (
+    <div className="savings-page">
+      {/* Top Banner: Wallet Balance, Savings Balance & Quick Actions */}
+      <div className="savings-hero-grid">
+        {/* Main Wallet Balance Card */}
+        <div className="savings-wallet-card panel">
+          <div className="savings-balance-header">
+            <div className="savings-wallet-icon-wrapper">
+              <WalletIcon size={24} />
+            </div>
+            <div>
+              <span className="savings-wallet-label">{isVi ? 'Tiền trong ví tổng' : 'Total Wallet Balance'}</span>
+              <p className="savings-sublabel">
+                {isVi ? 'Số dư khả dụng sẵn sàng chi tiêu' : 'Available for spending & transfers'}
+              </p>
+            </div>
+          </div>
+
+          <div className="savings-amount-display">
+            <strong>
+              {walletLoading
+                ? '...'
+                : walletError
+                ? t.unavailable
+                : formatVnd(wallet?.availableBalanceVnd, locale)}
+            </strong>
+          </div>
+
+          <div className="savings-wallet-meta">
+            <span className="savings-pill amber">✓ {isVi ? 'Ví chính (Khả dụng)' : 'Main Wallet (Available)'}</span>
+          </div>
         </div>
-      </section>
-      <section className="savings-tip-card panel"><div className="tip-header"><Sparkles size={18} /><strong>{isVi ? 'Tích lũy rõ ràng' : 'Savings made clear'}</strong></div><p>{isVi ? 'Theo dõi các khoản chuyển giữa ví và tiết kiệm dựa trên lịch sử do máy chủ lưu.' : 'Track transfers between your wallet and savings using server-backed history.'}</p><span className="savings-pill"><Calendar size={13} />{isVi ? 'Cập nhật trực tiếp' : 'Live account data'}</span></section>
+
+        {/* Savings Balance Card & Quick Actions */}
+        <div className="savings-balance-card panel">
+          <div className="savings-balance-header">
+            <div className="savings-icon-wrapper">
+              <PiggyBank size={24} />
+            </div>
+            <div>
+              <span className="savings-label">{isVi ? 'Tổng quỹ tiết kiệm' : 'Total Savings Vault'}</span>
+              <p className="savings-sublabel">
+                {isVi ? 'Dành riêng cho mục tiêu học tập & dự phòng' : 'Reserved for study goals & emergency'}
+              </p>
+            </div>
+          </div>
+
+          <div className="savings-amount-display">
+            <strong>
+              {balanceLoading
+                ? '...'
+                : balanceError
+                ? t.unavailable
+                : formatVnd(balance?.balanceVnd, locale)}
+            </strong>
+          </div>
+
+          <div className="savings-actions-row">
+            <button
+              type="button"
+              className="primary-button deposit-btn"
+              onClick={() => setFormOpen('deposit')}
+            >
+              <Plus size={16} />
+              <span>{isVi ? 'Gửi tiết kiệm' : 'Deposit'}</span>
+            </button>
+            <button
+              type="button"
+              className="secondary-button withdraw-btn"
+              onClick={() => setFormOpen('withdraw')}
+            >
+              <Minus size={16} />
+              <span>{isVi ? 'Rút về ví' : 'Withdraw'}</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Tip / Feature Card */}
+        <div className="savings-tip-card panel">
+          <div className="tip-header">
+            <Sparkles size={18} className="tip-icon" />
+            <strong>{isVi ? 'Mẹo tích lũy sinh viên' : 'Smart Student Saving Tip'}</strong>
+          </div>
+          <p>
+            {isVi
+              ? 'Tích lũy 10% đến 20% mỗi khi nhận thu nhập giúp bạn duy trì quỹ dự phòng an toàn cho các kỳ thi và học phí.'
+              : 'Saving 10% to 20% whenever receiving allowance or income builds a resilient emergency fund for campus life.'}
+          </p>
+          <div className="savings-meta-badges">
+            <span className="savings-pill">✓ {isVi ? 'Không phụ phí' : 'Zero fees'}</span>
+            <span className="savings-pill">✓ {isVi ? 'Rút tức thì' : 'Instant withdraw'}</span>
+          </div>
+        </div>
+      </div>
+
+      <ErrorBanner error={transfersError?.message ?? null} locale={locale} />
+
+      {/* Transfer History Table */}
+      <div className="savings-history-card panel">
+        <div className="panel-heading">
+          <div>
+            <h3>{isVi ? 'Lịch sử giao dịch quỹ tiết kiệm' : 'Savings Vault History'}</h3>
+            <p className="muted">{isVi ? 'Nhật ký các lần gửi vào và rút ra từ quỹ' : 'Record of deposits and withdrawals'}</p>
+          </div>
+        </div>
+
+        <div className="table-responsive">
+          <table className="modern-data-table">
+            <thead>
+              <tr>
+                <th scope="col" style={{ width: '56px' }}>{isVi ? 'Loại' : 'Type'}</th>
+                <th scope="col">{isVi ? 'Ghi chú giao dịch' : 'Note'}</th>
+                <th scope="col">{isVi ? 'Thời gian' : 'Date & Time'}</th>
+                <th scope="col" className="text-right">{isVi ? 'Số tiền' : 'Amount'}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {transfers.map(tx => {
+                const isDeposit = tx.direction === 'deposit';
+                return (
+                  <tr key={tx.id} className="transaction-table-row">
+                    <td>
+                      <div
+                        className={`tx-type-badge ${isDeposit ? 'mint' : 'amber'}`}
+                        title={isDeposit ? (isVi ? 'Gửi vào quỹ' : 'Deposit') : (isVi ? 'Rút ra' : 'Withdraw')}
+                      >
+                        {isDeposit ? <ArrowDownLeft size={16} /> : <ArrowUpRight size={16} />}
+                      </div>
+                    </td>
+                    <td>
+                      <div className="tx-details">
+                        <strong className="tx-category-tag">
+                          {isDeposit ? (isVi ? 'Nạp tiết kiệm' : 'Deposit') : (isVi ? 'Rút tiết kiệm' : 'Withdrawal')}
+                        </strong>
+                        {tx.note && <span className="tx-note">{tx.note}</span>}
+                      </div>
+                    </td>
+                    <td>
+                      <div className="tx-date-cell">
+                        <Calendar size={13} className="cell-icon" />
+                        <span>{formatDate(tx.createdAt, locale)}</span>
+                      </div>
+                    </td>
+                    <td className="text-right">
+                      <strong className={`tx-amount ${isDeposit ? 'positive' : 'negative'}`}>
+                        {isDeposit ? '+' : '-'}{formatVnd(tx.amountVnd, locale)}
+                      </strong>
+                    </td>
+                  </tr>
+                );
+              })}
+
+              {!transfersLoading && transfers.length === 0 && (
+                <tr>
+                  <td colSpan={4} className="empty-state">
+                    <PiggyBank size={28} style={{ margin: '0 auto 8px', opacity: 0.5 }} />
+                    <p>{t.noData}</p>
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {transfersLoading && (
+          <div className="table-loading-bar" role="status">
+            <RefreshCw size={16} className="spin-icon" />
+            <span>{t.loading}</span>
+          </div>
+        )}
+
+        {hasMore && !transfersLoading && (
+          <div className="table-footer-actions">
+            <button
+              type="button"
+              className="secondary-button load-more-btn"
+              onClick={() => void loadMore()}
+            >
+              <span>{isVi ? 'Xem thêm lịch sử' : 'Load more history'}</span>
+              <ChevronRight size={16} />
+            </button>
+          </div>
+        )}
+      </div>
+
+      {formOpen && (
+        <SavingsTransferForm
+          direction={formOpen}
+          csrfToken={csrfToken}
+          t={t}
+          locale={locale}
+          currentWalletVnd={wallet?.availableBalanceVnd}
+          currentSavingsVnd={balance?.balanceVnd}
+          onClose={() => setFormOpen(null)}
+          onSuccess={handleSuccess}
+        />
+      )}
     </div>
-    <section className="savings-history-card panel">
-      <div className="panel-heading"><div><h2>{t.savingsHistory}</h2><p className="muted">{isVi ? 'Các khoản nạp và rút đã ghi nhận' : 'Recorded deposits and withdrawals'}</p></div></div>
-      {(error || loading) && <div className="form-message" aria-busy={loading}>{error && <span role="alert">{error.message}</span>}{!error && loading && <span role="status">{t.loading}</span>} <button type="button" className="text-button" aria-label={`${t.retry}: ${t.savingsHistory}`} disabled={loading} onClick={() => void reload()}>{t.retry}</button></div>}
-      <div className="table-responsive"><table className="modern-data-table"><thead><tr><th scope="col">{isVi ? 'Loại' : 'Type'}</th><th scope="col">{t.transferNote}</th><th scope="col">{isVi ? 'Thời gian' : 'Date'}</th><th scope="col" className="text-right">{t.amount}</th></tr></thead><tbody>
-        {transfers.map(transfer => { const deposit = transfer.direction === 'deposit'; return <tr key={transfer.id} className="transaction-table-row"><td><span className={`tx-type-badge ${deposit ? 'mint' : 'amber'}`}><span className="visually-hidden">{deposit ? t.deposit : t.withdraw}</span>{deposit ? <ArrowDownLeft size={16} aria-hidden="true" /> : <ArrowUpRight size={16} aria-hidden="true" />}</span></td><td>{transfer.note || (deposit ? t.deposit : t.withdraw)}</td><td>{formatDate(transfer.createdAt, locale)}</td><td className="text-right"><strong className={`tx-amount ${deposit ? 'positive' : 'negative'}`}>{deposit ? '+' : '-'}{formatVnd(transfer.amountVnd, locale)}</strong></td></tr>; })}
-        {!loading && transfers.length === 0 && <tr><td colSpan={4} className="empty-state">{t.noData}</td></tr>}
-      </tbody></table></div>
-      {loading && <div className="table-loading-bar" role="status"><RefreshCw size={16} className="spin-icon" />{t.loading}</div>}
-      <div className="table-footer-actions" aria-busy={loading}>{hasMore && <button type="button" className="secondary-button load-more-btn" aria-label={t.loadMore} disabled={loading} onClick={() => void loadMore()}>{t.loadMore}<ChevronRight size={16} aria-hidden="true" /></button>}</div>
-    </section>
-    {formOpen && <SavingsTransferForm direction={formOpen} csrfToken={session.csrfToken} t={t} locale={locale} onClose={() => setFormOpen(null)} onSuccess={handleSuccess} />}
-  </div>;
+  );
 }

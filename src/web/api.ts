@@ -67,11 +67,12 @@ export async function apiRequestPaged<T>(path: string): Promise<PageEnvelope<T>>
 }
 
 export function errorMessage(error: unknown, t: Copy): string {
-  if (!(error instanceof RequestError)) return t.requestFailed;
-  if (error.status === 401) return t.sessionExpired;
-  if (error.status === 403) return t.forbidden;
-  if (error.code === 'VALIDATION_ERROR' || error.code === 'DOMAIN_VALIDATION_ERROR') return t.validationError;
+  const requestFailed = t.requestFailed ?? 'Request failed';
+  if (!(error instanceof RequestError)) return requestFailed;
+  if (error.status === 401) return t.sessionExpired ?? 'Session expired';
+  if (error.status === 403) return t.forbidden ?? 'Forbidden';
+  if (error.code === 'VALIDATION_ERROR' || error.code === 'DOMAIN_VALIDATION_ERROR') return t.validationError ?? 'Invalid request';
   if (error.status !== undefined && error.status < 500) return error.message;
-  return t.requestFailed;
+  return requestFailed;
 }
 
