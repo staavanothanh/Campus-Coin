@@ -65,6 +65,7 @@ describe('language preference stays in sync', () => {
     const error = await screen.findByRole('alert');
     expect(error.textContent).toContain('Dữ liệu chưa khả dụng');
     expect(error.textContent).toContain('HTTP_502');
+    expect(error.closest('section.state-screen--embedded')).not.toBeNull();
     expect(screen.getAllByRole('main')).toHaveLength(1);
   });
 

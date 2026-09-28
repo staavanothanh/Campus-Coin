@@ -157,6 +157,15 @@ Snapshot remote `2026-09-27`: giữ `hiep` làm nhánh sản phẩm theo quyết
 
 Checklist theo từng trọng số và thứ tự thực hiện nằm trong [QUALITY-AND-SCORING.md](./QUALITY-AND-SCORING.md). Các câu hỏi nguyên lý đã có câu trả lời và trạng thái áp dụng trong [ENGINEERING-PRINCIPLES-APPLICATION.md](./ENGINEERING-PRINCIPLES-APPLICATION.md); phần ghi trong tài liệu không đồng nghĩa mọi hạng mục đã được kiểm thử.
 
+### Sửa readiness, auth test và trạng thái giao diện — 2026-09-28
+
+- Ba commit đã push trên `hiep`: `7ebbd50` giữ API mở cổng và trả lỗi `503` rõ ràng khi schema chưa sẵn sàng; `5f942fe` cô lập auth unit tests khỏi database bằng checker stub trong test; `0a970d1` cập nhật auth MySQL regression theo semantics readiness `503`. [GitHub Actions run #51](https://github.com/staavanothanh/Campus-Coin/actions/runs/36388169695) trên `0a970d1` hoàn tất thành công toàn workflow.
+- Auth MySQL integration đã chạy trên schema thử nghiệm tạm do harness tạo/xóa: `10/10` pass. Không ghi/xóa dữ liệu của `campus_coin_clone` hoặc `campus_coin_test_devb`.
+- Ảnh dashboard có `HTTP_502` được tái hiện về bản chất: API data route không thể phục vụ vì readiness của schema chưa đạt. Sau thay đổi, API giữ cổng hoạt động và trả `503 SERVICE_UNAVAILABLE`; lỗi 502 do proxy không kết nối được đã được xử lý, nhưng dữ liệu chưa khả dụng cho tới khi schema clone được DevB đối chiếu. Kiểm tra local mới nhất `/api/v1/health/ready` vẫn trả `503`.
+- Bản làm việc chưa commit thu gọn trạng thái lỗi khi nhúng trong dashboard và cho phép tiêu đề/nội dung trạng thái hẹp xuống trong màn hình nhỏ. `npm run test:web` đạt `89/89`; `npm test` đạt `85 pass`, `3 MySQL-gated skip` (88 tổng); `npm run build` và `npm run verify:docs` exit `0`. Lint OpenAPI còn 5 warning 4xx đã biết. Những thay đổi giao diện này chưa được CI chạy trước khi commit/push.
+- Chưa có bằng chứng viewport mới cho bản sửa, trang dashboard có phiên đăng nhập, Reports/Settings, Vercel Preview, SMTP outage, live JEV/OCR hoặc benchmark database trong lượt này. Không ghi các mục này là đã kiểm thử.
+- Bencho được áp dụng có chọn lọc: trạng thái hover/press và selected, xác nhận tại chỗ cho thao tác có thể hoàn tác, focus/keyboard, `aria` và `prefers-reduced-motion`; không sao chép eye-tracker/magnetic cursor hay biến thao tác ledger không thể đảo ngược thành animation xác nhận. Danh sách chi tiết và lý do nằm trong [interaction review](./working/INTERACTION-QUALITY-2026-09-27.md); một số hiệu ứng phụ thuộc dữ liệu sẽ chỉ xuất hiện sau khi DB sẵn sàng.
+
 ## Owner
 
 - Developer A: auth, OTP/email adapter, session, CSRF/Origin và auth UI.

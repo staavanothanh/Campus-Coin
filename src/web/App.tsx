@@ -687,7 +687,7 @@ function StateScreen({ title, detail, retry, retryLabel, isError = false, embedd
     {retry && <button className="primary-button" onClick={retry}><RefreshCw size={16} />{retryLabel}</button>}
   </>;
 
-  if (embedded) return <section className="state-screen" aria-label={title}>{content}</section>;
+  if (embedded) return <section className="state-screen state-screen--embedded" aria-label={title}>{content}</section>;
   return <main className="state-screen">{content}</main>;
 }
 
