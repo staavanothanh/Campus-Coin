@@ -142,7 +142,11 @@ function IssueQueue({ path, csrfToken, locale, t }: { path: string; csrfToken: s
   return <>
     {!error && <section className="panel">
       <div className="admin-metrics" aria-busy={loading}>
-        {[{ label: c.loaded, count: data.length }, { label: c.urgent, count: data.filter(issue => issue.priority === 'P0').length }, { label: c.triage, count: data.filter(issue => issue.status === 'in_triage').length }].map(metric => <div key={metric.label}><span>{metric.label}</span><strong>{loading && data.length === 0 ? t.loading : metric.count}</strong></div>)}
+        {[
+          { label: c.loaded, count: data.length, tone: 'neutral' },
+          { label: c.urgent, count: data.filter(issue => issue.priority === 'P0').length, tone: 'danger' },
+          { label: c.triage, count: data.filter(issue => issue.status === 'in_triage').length, tone: 'warning' },
+        ].map(metric => <div key={metric.label} className={`admin-metric admin-metric-${metric.tone}`}><span>{metric.label}</span><strong>{loading && data.length === 0 ? t.loading : metric.count}</strong></div>)}
       </div><p className="muted">{c.partial}</p>
     </section>}
     <section className="panel">
@@ -152,7 +156,7 @@ function IssueQueue({ path, csrfToken, locale, t }: { path: string; csrfToken: s
         <caption className="muted">{c.issues}</caption>
         <thead><tr><th scope="col">ID</th><th scope="col">{c.titleColumn}</th><th scope="col">{c.status}</th><th scope="col">{c.priority}</th><th scope="col">{c.created}</th><th scope="col">{c.detail}</th></tr></thead>
         <tbody>{data.map(issue => <tr key={issue.id}>
-          <td>#{String(issue.id)}</td><td className="admin-report-title">{issue.title}</td><td>{c[issue.status]}</td><td><span className={`admin-priority admin-priority-${issue.priority}`}>{issue.priority}</span></td><td>{formatDate(issue.createdAt, locale)}</td>
+          <td className="admin-id">#{String(issue.id)}</td><td className="admin-report-title">{issue.title}</td><td><span className={`admin-issue-status admin-issue-status-${issue.status}`}>{c[issue.status]}</span></td><td><span className={`admin-priority admin-priority-${issue.priority}`}>{issue.priority}</span></td><td style={{ whiteSpace: 'nowrap' }}>{formatDate(issue.createdAt, locale)}</td>
           <td><button type="button" className="secondary-button" aria-label={`${c.detail} #${issue.id}`} onClick={() => setSelected(issue.id)}>{c.detail}</button></td>
         </tr>)}</tbody>
       </table></div>
