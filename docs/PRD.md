@@ -11,14 +11,15 @@ Mục tiêu là giúp người dùng nhìn thấy dòng tiền của mình bằn
 - Sinh viên có thể đăng ký/xác minh qua email OTP và đăng nhập bằng email/mật khẩu hoặc Google Sign-In tùy chọn; chỉ xem/sửa dữ liệu của chính mình.
 - Admin giới hạn chỉ xử lý report/issue, nội dung được cấp quyền và audit; không sửa ledger hay số dư.
 - Locale `en`/`vi` chỉ thay đổi copy/formatting. Currency là VND. Kỳ báo cáo dùng `Asia/Ho_Chi_Minh`.
+- Ngày sinh và giới tính trong hồ sơ là tùy chọn; chỉ user đang đăng nhập xem/sửa được, và admin list không hiển thị chúng.
 
 ## 3. Phạm vi MVP 4–5 ngày
 
 ### 3.1 Xác thực và phiên
 
-- Đăng ký bằng email → OTP; chỉ tạo user/credential sau khi mã hợp lệ.
+- Đăng ký bằng email → màn OTP riêng → tên/mật khẩu; chỉ tạo user/credential sau khi endpoint hoàn tất xác minh lại và tiêu thụ OTP.
 - Đăng nhập bằng email/password; thành công tạo opaque server-side session với cookie bảo mật.
-- Quên mật khẩu bằng email OTP; reset thu hồi các session cũ.
+- Quên mật khẩu bằng email OTP → màn OTP riêng → mật khẩu mới; reset xác minh lại/tiêu thụ OTP và thu hồi các session cũ atomic.
 - Login rate-limit theo account/IP; OTP expiry, maximum attempts, resend cooldown và single-use.
 - Google Sign-In dùng OIDC server-side; user đăng nhập email có thể chủ động kết nối Google trong session.
 - Không tự động merge account theo email; không dùng Gmail credential cá nhân, Gmail inbox hoặc Gmail API.
@@ -28,6 +29,7 @@ Mục tiêu là giúp người dùng nhìn thấy dòng tiền của mình bằn
 
 - User nhập opening wallet balance; baseline không phải income.
 - Ledger chỉ có `income` và `payment`, amount là số nguyên VND dương.
+- Mỗi `income` tối đa 100.000.000 VND; mỗi `payment` tối đa 100.000.000.000 VND. Server/domain là nơi thực thi giới hạn.
 - Ledger đã commit immutable; correction là row append-only có reason/reference/audit.
 - Payment chỉ commit khi wallet đủ tiền tại transaction commit; payment thiếu tiền bị từ chối atomic.
 - Savings deposit/withdraw là internal transfer atomic, tách khỏi income/payment/budget.
@@ -54,8 +56,9 @@ Mục tiêu là giúp người dùng nhìn thấy dòng tiền của mình bằn
 
 ## 4. Tiêu chí chấp nhận
 
-1. Register/verify/login/session và forgot/reset đạt auth security gates; user A không truy cập được user B.
+1. Register/email → OTP-only verify → account details → login/session và forgot/email → OTP-only verify → new password đạt auth security gates; endpoint hoàn tất re-check/single-use OTP; user A không truy cập được user B.
 2. Ledger chỉ nhận `income`/`payment`, VND nguyên dương, category đúng loại.
+2a. `income` không vượt 100.000.000 VND; `payment` không vượt 100.000.000.000 VND; API và UI từ chối cùng mức trần.
 3. Payment thiếu wallet bị reject atomic, không tạo row, wallet không âm; retry idempotency không duplicate.
 4. Savings atomic và không vào income/payment/budget totals.
 5. Category history không hỏng khi disable; report deterministic theo HCMC.

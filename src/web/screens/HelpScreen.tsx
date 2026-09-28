@@ -37,8 +37,8 @@ const FAQS: FaqItem[] = [
     category: 'transactions',
     questionVi: 'Làm thế nào để thêm một khoản thu hoặc chi tiêu mới?',
     questionEn: 'How do I add a new income or payment transaction?',
-    answerVi: 'Bạn có thể bấm vào nút "Thêm giao dịch" màu cam ở góc trên bên phải trang chủ, hoặc chọn tab Giao dịch. Bạn chọn loại giao dịch (Chi tiêu hoặc Thu nhập), nhập số tiền, chọn danh mục phù hợp và nhấn "Lưu giao dịch".',
-    answerEn: 'Click the orange "Add transaction" button on the top right of the dashboard, or go to the Transactions tab. Select the type (Payment or Income), enter the amount, select a category, and click "Save transaction".',
+    answerVi: 'Trên trang Tổng quan, chọn "Thêm khoản thu" hoặc "Thêm khoản chi" bên dưới các thẻ số liệu. Bạn cũng có thể mở mục Giao dịch. Nhập số tiền, chọn danh mục phù hợp và lưu giao dịch.',
+    answerEn: 'On the Overview page, choose "Add income" or "Add payment" below the summary cards. You can also open Transactions. Enter the amount, choose a category, and save the transaction.',
     icon: CreditCard
   },
   {

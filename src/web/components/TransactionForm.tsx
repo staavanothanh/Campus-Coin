@@ -36,6 +36,7 @@ interface TransactionFormProps {
 }
 
 const QUICK_AMOUNTS = [20000, 50000, 100000, 200000, 500000];
+const MAX_AMOUNT_VND = { income: 100_000_000, payment: 100_000_000_000 } as const;
 
 export function TransactionForm({
   kind: initialKind,
@@ -124,8 +125,12 @@ export function TransactionForm({
   function handleAddQuickAmount(addVal: number) {
     const currentAmount = BigInt(amount || '0');
     const nextAmount = currentAmount + BigInt(addVal);
-    if (nextAmount > BigInt(Number.MAX_SAFE_INTEGER)) return;
+    if (nextAmount > BigInt(MAX_AMOUNT_VND[currentType])) {
+      setError(currentType === 'income' ? t.incomeAmountLimit : t.paymentAmountLimit);
+      return;
+    }
     setAmount(nextAmount.toString());
+    setError(null);
   }
 
   async function submit(event: FormEvent) {
@@ -137,6 +142,11 @@ export function TransactionForm({
     const amountVnd = parseAmountVnd(amount);
     if (amountVnd === null) {
       setError(t.amountInvalid);
+      return;
+    }
+
+    if (amountVnd > MAX_AMOUNT_VND[currentType]) {
+      setError(currentType === 'income' ? t.incomeAmountLimit : t.paymentAmountLimit);
       return;
     }
 
@@ -373,6 +383,9 @@ export function TransactionForm({
                 className="amount-input"
               />
             </div>
+            <p className="field-hint">
+              {currentType === 'income' ? t.incomeAmountLimit : t.paymentAmountLimit}
+            </p>
 
             {/* Quick Amount Suggestion Chips */}
             <div className="quick-amount-chips">

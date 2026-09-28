@@ -29,7 +29,7 @@ Node API: validation, session, owner scope, idempotency
 
 ## 3. Xác thực và session
 
-Email/password/OTP tiếp tục theo ADR-0008. Google Sign-In được thêm như lựa chọn tùy chọn theo ADR-0009 qua server-side OIDC Authorization Code + PKCE S256, state, nonce và scope `openid email profile`. Danh tính dựa trên `(provider=google, subject=sub)`; ID token phải được verify theo audience, nonce và `email_verified`. Cả hai flow đều tạo opaque server session bằng cookie hiện có. Owner luôn lấy từ session.
+Email/password/OTP tiếp tục theo ADR-0008. Register và reset có màn OTP riêng cùng `POST /auth/verify-otp`; API xác minh trước để mở bước tiếp theo nhưng giữ mã lại. Endpoint hoàn tất đăng ký/reset phải xác minh mã lần nữa và tiêu thụ mã cùng transaction với thay đổi credential. Google Sign-In được thêm như lựa chọn tùy chọn theo ADR-0009 qua server-side OIDC Authorization Code + PKCE S256, state, nonce và scope `openid email profile`. Danh tính dựa trên `(provider=google, subject=sub)`; ID token phải được verify theo audience, nonce và `email_verified`. Cả hai flow đều tạo opaque server session bằng cookie hiện có. Owner luôn lấy từ session.
 
 Google chưa cấu hình thì nút Google ẩn và email login vẫn hoạt động. Email trùng account hiện hữu không tự động merge; user cần đăng nhập trước rồi chủ động kết nối Google. Không lưu Google access/refresh token, không dùng Gmail credential cá nhân/inbox/API hoặc JWT browser. SMTP/provider phải có timeout, số retry hữu hạn, lỗi rõ và không được ghi OTP ra log/dev fallback.
 
@@ -38,6 +38,8 @@ Google chưa cấu hình thì nút Google ẩn và email login vẫn hoạt đ�
 Logical tables: `users`, `auth_identities`, `auth_credentials`, `email_otps`, `sessions`, `wallet_accounts`, `ledger_transactions`, `categories`, `budgets`, `savings_accounts`, `savings_transfers`, `issues`, `issue_events`, `audit_events` và metadata JEV đã mask nếu cần.
 
 MySQL được chọn vì transaction, FK, row lock, immutable reference và báo cáo deterministic. Dùng integer VND/exact decimal, không dùng floating point. Mọi financial row có owner; mọi query có owner scope.
+
+Ngày sinh và giới tính là dữ liệu hồ sơ tùy chọn, lưu ở `users` qua migration additive. API lấy owner từ session; chỉ trả các trường cho user hiện tại, không đưa vào admin list, audit detail, analytics hoặc JEV context. DB runtime grant chỉ mở các cột cần cập nhật.
 
 Payment lock wallet và kiểm tra đủ tiền trước insert. Savings lock wallet rồi savings theo thứ tự cố định. Không gọi OpenRouter, email hoặc worker trong money transaction.
 

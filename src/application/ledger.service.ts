@@ -29,6 +29,7 @@ import {
   addSafeIntegers,
   isCorrectionRole,
   isPositiveVnd,
+  isTransactionAmountVnd,
   isTransactionType,
   walletDeltaForCorrection,
   walletDeltaForOriginal,
@@ -125,7 +126,9 @@ export async function createTransaction(
   input: CreateTransactionInput,
 ): Promise<TransactionResult> {
   if (!isTransactionType(input.type)) throw invalidInput("type must be income|payment");
-  if (!isPositiveVnd(input.amountVnd)) throw invalidInput("amountVnd must be a positive integer VND");
+  if (!isTransactionAmountVnd(input.type, input.amountVnd)) {
+    throw invalidInput("amountVnd is outside the allowed range for transaction type");
+  }
   if (input.description !== null && input.description.length > 500) {
     throw invalidInput("description too long (max 500)");
   }
@@ -272,7 +275,7 @@ export async function createCorrection(db: Db, input: CreateCorrectionInput): Pr
         newAmountVnd = target.amountVnd;
       } else {
         // Đã validate ở đầu hàm: adjustment/replacement bắt buộc có newAmountVnd.
-        if (input.newAmountVnd === null || !isPositiveVnd(input.newAmountVnd)) {
+        if (input.newAmountVnd === null || !isTransactionAmountVnd(target.type, input.newAmountVnd)) {
           throw invalidInput("newAmountVnd required for adjustment/replacement");
         }
         newAmountVnd = input.newAmountVnd;

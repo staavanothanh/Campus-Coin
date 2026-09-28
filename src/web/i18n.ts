@@ -2,9 +2,13 @@ import type { Locale } from './types.js';
 
 export interface Copy {
   // Shell
-  greeting: string;
+  greetingMorning: string;
+  greetingNoon: string;
+  greetingAfternoon: string;
+  greetingEvening: string;
   overview: string;
   thisMonth: string;
+  balanceExplanation: string;
   preview: string;
   workspace: string;
   more: string;
@@ -28,7 +32,6 @@ export interface Copy {
   savings: string;
   recent: string;
   seeAll: string;
-  addTransaction: string;
   goodStart: string;
   budget: string;
   left: string;
@@ -36,6 +39,8 @@ export interface Copy {
   // Transaction form
   addIncome: string;
   addPayment: string;
+  incomeAmountLimit: string;
+  paymentAmountLimit: string;
   amount: string;
   category: string;
   description: string;
@@ -87,6 +92,14 @@ export interface Copy {
   settingsTitle: string;
   language: string;
   appearance: string;
+  notifications: string;
+  noNotifications: string;
+  profileUpdatedNotification: string;
+  dateFrom: string;
+  dateTo: string;
+  groupByDay: string;
+  groupByMonth: string;
+  invalidDateRange: string;
 
   // Admin
   adminOnly: string;
@@ -98,9 +111,13 @@ export interface Copy {
 export const copy: Record<Locale, Copy> = {
   vi: {
     // Shell
-    greeting: 'Chào buổi sáng, {name}',
+    greetingMorning: 'Chào buổi sáng',
+    greetingNoon: 'Chào buổi trưa',
+    greetingAfternoon: 'Chào buổi chiều',
+    greetingEvening: 'Chào buổi tối',
     overview: 'Một góc nhìn rõ ràng hơn về tiền của bạn.',
     thisMonth: 'Tháng này',
+    balanceExplanation: 'Số dư gồm số dư khởi tạo và toàn bộ thu, chi cùng các khoản chuyển tiết kiệm; hai thẻ thu và chi bên cạnh chỉ tính tháng này.',
     preview: 'Bản xem trước giao diện',
     workspace: 'Không gian',
     more: 'Thêm',
@@ -124,14 +141,15 @@ export const copy: Record<Locale, Copy> = {
     savings: 'Tiết kiệm',
     recent: 'Giao dịch gần đây',
     seeAll: 'Xem tất cả',
-    addTransaction: 'Thêm giao dịch',
     goodStart: 'Bạn đang bắt đầu rất tốt',
     budget: 'Ngân sách tháng này',
     left: 'còn lại',
 
     // Transaction form
-    addIncome: 'Thêm thu nhập',
-    addPayment: 'Thêm thanh toán',
+    addIncome: 'Thêm khoản thu',
+    addPayment: 'Thêm khoản chi',
+    incomeAmountLimit: 'Mỗi khoản thu tối đa 100.000.000 VND.',
+    paymentAmountLimit: 'Mỗi khoản chi tối đa 100.000.000.000 VND.',
     amount: 'Số tiền (VND)',
     category: 'Danh mục',
     description: 'Mô tả (không bắt buộc)',
@@ -183,6 +201,14 @@ export const copy: Record<Locale, Copy> = {
     settingsTitle: 'Cài đặt',
     language: 'Ngôn ngữ',
     appearance: 'Giao diện',
+    notifications: 'Thông báo',
+    noNotifications: 'Chưa có thông báo mới.',
+    profileUpdatedNotification: 'Hồ sơ của bạn đã được cập nhật.',
+    dateFrom: 'Từ ngày',
+    dateTo: 'Đến ngày',
+    groupByDay: 'Theo ngày',
+    groupByMonth: 'Theo tháng',
+    invalidDateRange: 'Ngày bắt đầu không được sau ngày kết thúc.',
 
     // Admin
     adminOnly: 'Khu vực dành cho quản trị viên',
@@ -192,9 +218,13 @@ export const copy: Record<Locale, Copy> = {
   },
   en: {
     // Shell
-    greeting: 'Good morning, {name}',
+    greetingMorning: 'Good morning',
+    greetingNoon: 'Good afternoon',
+    greetingAfternoon: 'Good afternoon',
+    greetingEvening: 'Good evening',
     overview: 'A clearer view of where your money is going.',
     thisMonth: 'This month',
+    balanceExplanation: 'Balance includes your opening amount, all income and payments, and savings transfers; the income and spent cards show this month only.',
     preview: 'Interface preview',
     workspace: 'Workspace',
     more: 'More',
@@ -218,7 +248,6 @@ export const copy: Record<Locale, Copy> = {
     savings: 'Savings',
     recent: 'Recent activity',
     seeAll: 'See all',
-    addTransaction: 'Add transaction',
     goodStart: "You're off to a good start",
     budget: "This month\u2019s budget",
     left: 'left',
@@ -226,6 +255,8 @@ export const copy: Record<Locale, Copy> = {
     // Transaction form
     addIncome: 'Add income',
     addPayment: 'Add payment',
+    incomeAmountLimit: 'Each income entry is limited to 100,000,000 VND.',
+    paymentAmountLimit: 'Each payment entry is limited to 100,000,000,000 VND.',
     amount: 'Amount (VND)',
     category: 'Category',
     description: 'Description (optional)',
@@ -277,6 +308,14 @@ export const copy: Record<Locale, Copy> = {
     settingsTitle: 'Settings',
     language: 'Language',
     appearance: 'Appearance',
+    notifications: 'Notifications',
+    noNotifications: 'No new notifications.',
+    profileUpdatedNotification: 'Your profile has been updated.',
+    dateFrom: 'From',
+    dateTo: 'To',
+    groupByDay: 'By day',
+    groupByMonth: 'By month',
+    invalidDateRange: 'The start date must be on or before the end date.',
 
     // Admin
     adminOnly: 'Administrator area',

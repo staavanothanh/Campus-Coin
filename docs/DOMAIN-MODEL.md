@@ -17,7 +17,7 @@ Campus Coin là sổ theo dõi do user nhập, không phải sao kê ngân hàng
 
 ### User và AuthCredential
 
-`User` có `id`, display name, email đã xác minh, status, locale, timezone và timestamps. `AuthCredential` lưu password hash/salt phía server; OTP challenge lưu hash, purpose, expiry, attempts và created time. Google Sign-In tùy chọn lưu identity `(provider=google, subject=sub)` trong `auth_identities`; account linking cần session và thao tác rõ ràng, không tự động merge theo email. Không dùng Gmail credential/inbox/API hoặc lưu Google token. Mọi financial query scope theo `user_id` lấy từ session.
+`User` có `id`, display name, email đã xác minh, status, locale, timezone và timestamps; ngày sinh (`birth_date`) và giới tính (`gender`) là trường hồ sơ tùy chọn, chỉ người dùng hiện tại mới đọc/sửa. Admin list không đưa các trường này ra. `AuthCredential` lưu password hash/salt phía server; OTP challenge lưu hash, purpose, expiry, attempts và created time. Google Sign-In tùy chọn lưu identity `(provider=google, subject=sub)` trong `auth_identities`; account linking cần session và thao tác rõ ràng, không tự động merge theo email. Không dùng Gmail credential/inbox/API hoặc lưu Google token. Mọi financial query scope theo `user_id` lấy từ session.
 
 ### WalletAccount
 
@@ -54,7 +54,7 @@ Reversal giữ bản gốc, tạo row mới và áp dụng effect đối nghịc
 ## 4. Invariant bắt buộc
 
 1. `type ∈ {income, payment}`.
-2. `amount_vnd` là integer dương, không overflow.
+2. `amount_vnd` là integer dương, không overflow; `income` không vượt 100.000.000 VND và `payment` không vượt 100.000.000.000 VND. Cùng giới hạn áp dụng cho adjustment/replacement theo type của giao dịch gốc.
 3. Mọi row có đúng một owner; mọi read/write scope theo owner.
 4. Ledger/audit sau commit không update/delete.
 5. Payment chỉ commit khi wallet khả dụng `>= amount` tại lock/commit.

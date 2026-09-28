@@ -1,6 +1,7 @@
 import type { ResultSetHeader, RowDataPacket } from 'mysql2/promise';
 import type { Db } from '../db/pool.ts';
 import { idFromDb, isoFromDb } from './rows.ts';
+import type { ProfileGender } from '../../domain/user-profile.ts';
 
 export interface UserProfile {
   id: string;
@@ -8,6 +9,8 @@ export interface UserProfile {
   displayName: string;
   locale: 'en' | 'vi';
   role: string;
+  birthDate: string | null;
+  gender: ProfileGender | null;
 }
 
 export interface AdminUserRow {
@@ -87,12 +90,14 @@ interface UserProfileRow extends RowDataPacket {
   display_name: string;
   locale: 'en' | 'vi';
   role: string;
+  birth_date: string | null;
+  gender: ProfileGender | null;
 }
 
 export async function updateUserProfile(
   db: Db,
   userId: number,
-  patch: { displayName?: string; locale?: 'en' | 'vi' },
+  patch: { displayName?: string; locale?: 'en' | 'vi'; birthDate?: string | null; gender?: ProfileGender | null },
 ): Promise<UserProfile | null> {
   const assignments: string[] = [];
   const values: unknown[] = [];
@@ -104,6 +109,14 @@ export async function updateUserProfile(
     assignments.push('locale = ?');
     values.push(patch.locale);
   }
+  if (patch.birthDate !== undefined) {
+    assignments.push('birth_date = ?');
+    values.push(patch.birthDate);
+  }
+  if (patch.gender !== undefined) {
+    assignments.push('gender = ?');
+    values.push(patch.gender);
+  }
   if (assignments.length === 0) return findUserProfile(db, userId);
 
   await db.query<ResultSetHeader>(`UPDATE users SET ${assignments.join(', ')} WHERE id = ?`, [...values, userId]);
@@ -112,7 +125,7 @@ export async function updateUserProfile(
 
 async function findUserProfile(db: Db, userId: number): Promise<UserProfile | null> {
   const [rows] = await db.execute<UserProfileRow[]>(
-    'SELECT id, email, display_name, locale, role FROM users WHERE id = ? LIMIT 1',
+    "SELECT id, email, display_name, locale, role, DATE_FORMAT(birth_date, '%Y-%m-%d') AS birth_date, gender FROM users WHERE id = ? LIMIT 1",
     [userId],
   );
   const row = rows[0];
@@ -123,5 +136,7 @@ async function findUserProfile(db: Db, userId: number): Promise<UserProfile | nu
     displayName: row.display_name,
     locale: row.locale,
     role: row.role,
+    birthDate: row.birth_date,
+    gender: row.gender,
   };
 }

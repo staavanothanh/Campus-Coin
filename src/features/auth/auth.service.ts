@@ -7,6 +7,11 @@ import { admitAuthAttempt, authRateLimitRetryAfter, clearAuthRateLimit, consumeA
 
 type Purpose = 'registration' | 'password_reset';
 
+function purposeValue(value: unknown): Purpose {
+  if (value === 'registration' || value === 'password_reset') return value;
+  throw new AppError(422, 'VALIDATION_ERROR', 'Loại mã xác minh không hợp lệ');
+}
+
 export class AppError extends Error {
   status: number;
   code: string;
@@ -39,7 +44,7 @@ function passwordValue(value: unknown) {
 
 async function findUser(email: string) {
   const [rows] = await getDb().execute<UserRow[]>(
-    'SELECT id, email, display_name, locale, role, email_verified, status FROM users WHERE email = ? LIMIT 1',
+    "SELECT id, email, display_name, locale, role, email_verified, status, DATE_FORMAT(birth_date, '%Y-%m-%d') AS birth_date, gender FROM users WHERE email = ? LIMIT 1",
     [email]
   );
   return rows[0];
@@ -111,7 +116,7 @@ async function issueOtp(email: string, purpose: Purpose, ip: string, emailSender
   }
 }
 
-async function consumeOtp(db: PoolConnection, email: string, purpose: Purpose, code: unknown) {
+async function checkOtp(db: PoolConnection, email: string, purpose: Purpose, code: unknown, consume: boolean) {
   if (typeof code !== 'string' || !/^\d{6}$/.test(code)) {
     return false;
   }
@@ -123,8 +128,46 @@ async function consumeOtp(db: PoolConnection, email: string, purpose: Purpose, c
     await db.execute('UPDATE email_otps SET attempts = attempts + 1 WHERE id = ?', [record.id]);
     return false;
   }
-  await db.execute('DELETE FROM email_otps WHERE email = ? AND purpose = ?', [email, purpose]);
+  if (consume) {
+    await db.execute('DELETE FROM email_otps WHERE email = ? AND purpose = ?', [email, purpose]);
+  }
   return true;
+}
+
+async function consumeOtp(db: PoolConnection, email: string, purpose: Purpose, code: unknown) {
+  return checkOtp(db, email, purpose, code, true);
+}
+
+export async function verifyOtp(input: Record<string, unknown>, ip = 'unknown') {
+  const email = emailValue(input.email);
+  const purpose = purposeValue(input.purpose);
+  const policies = otpVerifyPolicies(email, ip, purpose);
+  await requireNotRateLimited(policies, 'Đã vượt số lần thử, vui lòng thử lại sau');
+
+  if (purpose === 'registration' && await findUser(email)) {
+    throw new AppError(409, 'CONFLICT', 'Email đã được đăng ký');
+  }
+
+  const user = purpose === 'password_reset' ? await findUser(email) : undefined;
+  const canResetPassword = purpose !== 'password_reset' || Boolean(user && user.email_verified && user.status === 'active');
+  const db = await getDb().getConnection();
+  let valid = false;
+  try {
+    await db.beginTransaction();
+    valid = canResetPassword && await checkOtp(db, email, purpose, input.otp, false);
+    await db.commit();
+  } catch (error) {
+    await db.rollback();
+    throw error;
+  } finally {
+    db.release();
+  }
+
+  if (!valid) {
+    await recordAuthFailures(policies);
+    throw new AppError(422, 'OTP_INVALID', 'Mã xác minh không đúng hoặc đã hết hạn');
+  }
+  return { message: 'Mã xác minh hợp lệ' };
 }
 
 export async function register(input: Record<string, unknown>, ip = 'unknown', emailSender: OtpSender = sendOtp) {
@@ -178,10 +221,8 @@ export async function verifyRegistration(input: Record<string, unknown>, ip = 'u
 
 export async function resendOtp(input: Record<string, unknown>, ip = 'unknown', emailSender: OtpSender = sendOtp) {
   const email = emailValue(input.email);
-  if (input.purpose !== 'registration' && input.purpose !== 'password_reset') {
-    throw new AppError(422, 'VALIDATION_ERROR', 'Loại mã xác minh không hợp lệ');
-  }
-  if (input.purpose === 'password_reset') return forgotPassword({ email }, ip, emailSender);
+  const purpose = purposeValue(input.purpose);
+  if (purpose === 'password_reset') return forgotPassword({ email }, ip, emailSender);
   if (await findUser(email)) throw new AppError(409, 'CONFLICT', 'Email đã được đăng ký');
   await issueOtp(email, 'registration', ip, emailSender);
   return { message: 'Đã gửi lại mã xác minh' };
@@ -381,7 +422,7 @@ export async function resetPassword(input: Record<string, unknown>, ip = 'unknow
 
 export async function getSession(token: string) {
   const [rows] = await getDb().execute<(UserRow & { should_update_last_seen: number })[]>(
-    'SELECT u.id, u.email, u.display_name, u.locale, u.role, u.email_verified, u.status, (s.last_seen_at IS NULL OR s.last_seen_at < DATE_SUB(UTC_TIMESTAMP(3), INTERVAL 1 MINUTE)) AS should_update_last_seen FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token_hash = ? AND s.revoked_at IS NULL AND s.expires_at > UTC_TIMESTAMP(3) AND u.email_verified = 1 AND u.status = ? LIMIT 1',
+    "SELECT u.id, u.email, u.display_name, u.locale, u.role, u.email_verified, u.status, DATE_FORMAT(u.birth_date, '%Y-%m-%d') AS birth_date, u.gender, (s.last_seen_at IS NULL OR s.last_seen_at < DATE_SUB(UTC_TIMESTAMP(3), INTERVAL 1 MINUTE)) AS should_update_last_seen FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token_hash = ? AND s.revoked_at IS NULL AND s.expires_at > UTC_TIMESTAMP(3) AND u.email_verified = 1 AND u.status = ? LIMIT 1",
     [hashSession(token), 'active']
   );
   const session = rows[0];

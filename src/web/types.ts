@@ -10,6 +10,7 @@ export type Locale = 'vi' | 'en';
 export type Theme = 'light' | 'dark';
 export type TransactionType = 'income' | 'payment';
 export type UserRole = 'user' | 'admin' | 'security';
+export type ProfileGender = 'female' | 'male' | 'non_binary' | 'prefer_not_to_say';
 export type CorrectionRole = 'reversal' | 'adjustment' | 'replacement';
 export type CategoryStatus = 'active' | 'disabled' | 'retired';
 export type TransferDirection = 'deposit' | 'withdraw';
@@ -25,6 +26,8 @@ export interface User {
   email: string;
   locale: Locale;
   role: UserRole;
+  birthDate: string | null;
+  gender: ProfileGender | null;
 }
 
 export interface Session {
@@ -206,6 +209,8 @@ export interface WalletBaselineRequest {
 export interface UpdatePreferencesRequest {
   displayName?: string;
   locale?: Locale;
+  birthDate?: string | null;
+  gender?: ProfileGender | null;
 }
 
 export interface UpsertBudgetRequest {

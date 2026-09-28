@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import { usePagination } from '../hooks/use-pagination.js';
 import { useCategories } from '../hooks/use-categories.js';
 import type { Transaction, Locale } from '../types.js';
@@ -7,15 +7,14 @@ import { formatVnd, formatDate } from '../format.js';
 import {
   ArrowDownLeft,
   ArrowUpRight,
-  Filter,
   CreditCard,
   Calendar,
-  Tag,
   Search,
   ChevronRight,
   RefreshCw
 } from 'lucide-react';
 import { ErrorBanner } from '../components/ErrorBanner.js';
+import { formatTransactionGroupLabel, groupTransactions, isValidDateRange, transactionListPath, type TransactionGrouping } from '../transaction-filters.js';
 
 interface TransactionsScreenProps {
   t: Copy;
@@ -26,17 +25,21 @@ export function TransactionsScreen({ t, locale }: TransactionsScreenProps) {
   const isVi = locale === 'vi';
   const { getCategoryName } = useCategories();
   const [typeFilter, setTypeFilter] = useState<'all' | 'income' | 'payment'>('all');
+  const [grouping, setGrouping] = useState<TransactionGrouping>('day');
   const [searchTerm, setSearchTerm] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
 
-  const basePath = `/ledger/transactions?limit=20${typeFilter !== 'all' ? `&type=${typeFilter}` : ''}`;
+  const validDateRange = isValidDateRange(dateFrom, dateTo);
+  const basePath = transactionListPath(typeFilter, dateFrom, dateTo);
   const { data, loading, error, hasMore, loadMore, reload } = usePagination<Transaction>(basePath);
 
-  // Reload only when filter changes
+  // Reset cursor and ignore any older request when a server-side filter changes.
   useEffect(() => {
-    void reload();
-  }, [typeFilter, reload]);
+    if (validDateRange) void reload();
+  }, [typeFilter, dateFrom, dateTo, validDateRange, reload]);
 
-  const filteredData = data.filter(tx => {
+  const filteredData = (validDateRange ? data : []).filter(tx => {
     if (!searchTerm.trim()) return true;
     const term = searchTerm.toLowerCase();
     const catName = getCategoryName(tx.categoryId, locale).toLowerCase();
@@ -48,6 +51,7 @@ export function TransactionsScreen({ t, locale }: TransactionsScreenProps) {
   const totalFilteredAmount = filteredData.reduce((sum, tx) => {
     return tx.type === 'income' ? sum + tx.amountVnd : sum - tx.amountVnd;
   }, 0);
+  const groupedTransactions = groupTransactions(filteredData, grouping);
 
   return (
     <div className="transactions-page">
@@ -64,11 +68,12 @@ export function TransactionsScreen({ t, locale }: TransactionsScreenProps) {
           </div>
 
           {/* Quick Filter Tabs */}
-          <div className="type-filter-group">
+          <div className="type-filter-group" role="group" aria-label={isVi ? 'Lọc theo loại giao dịch' : 'Filter by transaction type'}>
             <button
               type="button"
               className={`filter-chip ${typeFilter === 'all' ? 'active' : ''}`}
               onClick={() => setTypeFilter('all')}
+              aria-pressed={typeFilter === 'all'}
             >
               {isVi ? 'Tất cả' : 'All'}
             </button>
@@ -76,6 +81,7 @@ export function TransactionsScreen({ t, locale }: TransactionsScreenProps) {
               type="button"
               className={`filter-chip mint ${typeFilter === 'income' ? 'active' : ''}`}
               onClick={() => setTypeFilter('income')}
+              aria-pressed={typeFilter === 'income'}
             >
               <ArrowDownLeft size={14} />
               {t.income}
@@ -84,6 +90,7 @@ export function TransactionsScreen({ t, locale }: TransactionsScreenProps) {
               type="button"
               className={`filter-chip coral ${typeFilter === 'payment' ? 'active' : ''}`}
               onClick={() => setTypeFilter('payment')}
+              aria-pressed={typeFilter === 'payment'}
             >
               <ArrowUpRight size={14} />
               {t.spending}
@@ -91,25 +98,56 @@ export function TransactionsScreen({ t, locale }: TransactionsScreenProps) {
           </div>
         </div>
 
-        {/* Search & Stats Bar */}
+        {/* Search, grouping, date range and summary */}
         <div className="transactions-subbar">
-          <div className="search-box">
-            <Search size={15} className="search-icon" />
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
-              placeholder={isVi ? 'Tìm theo danh mục hoặc ghi chú...' : 'Search category or note...'}
-            />
-          </div>
-
-          <div className="transactions-summary-chip">
-            <span className="summary-label">
-              {isVi ? 'Tổng hiển thị:' : 'Filtered Net:'}
-            </span>
-            <strong className={totalFilteredAmount >= 0 ? 'positive' : 'negative'}>
-              {totalFilteredAmount >= 0 ? '+' : ''}{formatVnd(totalFilteredAmount, locale)}
-            </strong>
+          <div className="transaction-controls">
+            <div className="transaction-filter-row">
+              <div className="search-box">
+                <Search size={15} className="search-icon" />
+                <input
+                  type="search"
+                  value={searchTerm}
+                  onChange={e => setSearchTerm(e.target.value)}
+                  placeholder={isVi ? 'Tìm theo danh mục hoặc ghi chú...' : 'Search category or note...'}
+                  aria-label={isVi ? 'Tìm giao dịch' : 'Search transactions'}
+                />
+              </div>
+              <div className="transaction-grouping" role="group" aria-label={isVi ? 'Nhóm giao dịch' : 'Group transactions'}>
+                <button
+                  type="button"
+                  className={`filter-chip ${grouping === 'day' ? 'active' : ''}`}
+                  aria-pressed={grouping === 'day'}
+                  onClick={() => setGrouping('day')}
+                >{t.groupByDay}</button>
+                <button
+                  type="button"
+                  className={`filter-chip ${grouping === 'month' ? 'active' : ''}`}
+                  aria-pressed={grouping === 'month'}
+                  onClick={() => setGrouping('month')}
+                >{t.groupByMonth}</button>
+              </div>
+            </div>
+            <div className="transaction-filter-row">
+              <div className="transaction-date-range">
+                <label className="transaction-date-field">
+                  <span>{t.dateFrom}</span>
+                  <input type="date" value={dateFrom} onChange={event => setDateFrom(event.currentTarget.value)} />
+                </label>
+                <label className="transaction-date-field">
+                  <span>{t.dateTo}</span>
+                  <input type="date" value={dateTo} onChange={event => setDateTo(event.currentTarget.value)} />
+                </label>
+                {!validDateRange && <p className="transaction-range-error" role="alert">{t.invalidDateRange}</p>}
+              </div>
+              <div className="transactions-summary-chip">
+                <span className="summary-label">
+                  {isVi ? 'Tổng hiển thị:' : 'Filtered Net:'}
+                </span>
+                <strong className={totalFilteredAmount >= 0 ? 'positive' : 'negative'}>
+                  {totalFilteredAmount >= 0 ? '+' : ''}{formatVnd(totalFilteredAmount, locale)}
+                </strong>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -129,9 +167,14 @@ export function TransactionsScreen({ t, locale }: TransactionsScreenProps) {
               </tr>
             </thead>
             <tbody>
-              {filteredData.map(tx => {
-                const isIncome = tx.type === 'income';
-                return (
+              {groupedTransactions.map(group => (
+                <Fragment key={group.key}>
+                  <tr key={`group-${group.key}`} className="transaction-group-heading">
+                    <th scope="rowgroup" colSpan={4}>{formatTransactionGroupLabel(group.key, grouping, locale)}</th>
+                  </tr>
+                  {group.transactions.map(tx => {
+                    const isIncome = tx.type === 'income';
+                    return (
                   <tr key={tx.id} className="transaction-table-row">
                     <td>
                       <div
@@ -161,8 +204,10 @@ export function TransactionsScreen({ t, locale }: TransactionsScreenProps) {
                       </strong>
                     </td>
                   </tr>
-                );
-              })}
+                    );
+                  })}
+                </Fragment>
+              ))}
 
               {!loading && filteredData.length === 0 && (
                 <tr>
@@ -184,7 +229,7 @@ export function TransactionsScreen({ t, locale }: TransactionsScreenProps) {
           </div>
         )}
 
-        {hasMore && !loading && (
+        {validDateRange && hasMore && !loading && (
           <div className="table-footer-actions">
             <button
               type="button"

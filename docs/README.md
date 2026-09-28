@@ -43,6 +43,7 @@ Root `docs/` là canonical product docs; `adr/` là canonical history; `working/
 | Triển khai/email | Domain Vercel; custom email domain không bắt buộc; SMTP gửi OTP phải được chọn/kiểm chứng | [ADR-0004](./adr/0004-vercel-domain-no-custom-email.md), [ADR-0008](./adr/0008-email-password-otp-auth.md) |
 | Tiền | `income`/`payment` bất biến, VND nguyên, savings tách biệt, budget chỉ cảnh báo | [ADR-0005](./adr/0005-immutable-money-domain.md) |
 | JEV | Optional, backend-only, OpenRouter typed contract, default-off, manual fallback | [ADR-0006](./adr/0006-optional-openrouter-jev.md) |
+| Hồ sơ | Ngày sinh và giới tính tùy chọn, self-service, giới hạn quyền truy cập | [ADR-0010](./adr/0010-optional-profile-details.md) |
 | Giao hàng | Thin-slice 4–5 ngày, bốn developer, Team Leader quyết định GO/NO-GO | [ADR-0007](./adr/0007-five-day-thin-slice.md) |
 
 ## 3. Bản đồ tài liệu chuẩn
