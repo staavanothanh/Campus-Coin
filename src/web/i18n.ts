@@ -51,11 +51,8 @@ export interface Copy {
   transactionSaved: string;
   amountInvalid: string;
   suggestCategory: string;
-  suggestionLoading: string;
   suggestionAvailable: string;
-  suggestionManual: string;
   suggestionDisabled: string;
-  suggestionUnavailable: string;
   suggestionFailed: string;
   suggestionUse: string;
   suggestionConfirm: string;
@@ -138,11 +135,12 @@ export const copy: Record<Locale, Copy> = {
     amount: 'Số tiền (VND)',
     category: 'Danh mục',
     description: 'Mô tả (không bắt buộc)',
-    suggestionLoading: 'Đang phân loại danh mục…',
-    suggestionSuggested: 'JEV đã gợi ý danh mục này. Bạn vẫn có thể đổi lại.',
-    suggestionManual: 'Bạn có thể chọn danh mục thủ công.',
-    suggestionUnavailable: 'Gợi ý AI chưa khả dụng. Vui lòng chọn danh mục thủ công.',
-    suggestionError: 'Không thể tải gợi ý. Vui lòng chọn danh mục thủ công.',
+    suggestionLoading: 'Đang lấy gợi ý…',
+    suggestionSuggested: 'JEV đề xuất danh mục này. Hãy kiểm tra và xác nhận trước khi lưu.',
+    suggestionManual: 'Chưa có gợi ý phù hợp. Bạn có thể chọn danh mục thủ công.',
+    suggestionDisabled: 'Tính năng gợi ý AI chưa được bật. Bạn có thể chọn danh mục thủ công.',
+    suggestionUnavailable: 'Gợi ý AI tạm thời không khả dụng. Bạn có thể chọn danh mục thủ công.',
+    suggestionError: 'Không thể lấy gợi ý. Bạn vẫn có thể chọn danh mục thủ công.',
     submit: 'Lưu giao dịch',
     close: 'Đóng',
     selectCategory: 'Chọn danh mục',
@@ -150,11 +148,7 @@ export const copy: Record<Locale, Copy> = {
     transactionSaved: 'Giao dịch đã lưu',
     amountInvalid: 'Số tiền phải là số nguyên dương',
     suggestCategory: 'Gợi ý danh mục',
-    suggestionLoading: 'Đang lấy gợi ý…',
     suggestionAvailable: 'JEV đề xuất danh mục này. Hãy kiểm tra và xác nhận trước khi lưu.',
-    suggestionManual: 'Chưa có gợi ý phù hợp. Bạn có thể chọn danh mục thủ công.',
-    suggestionDisabled: 'Tính năng gợi ý AI chưa được bật. Bạn có thể chọn danh mục thủ công.',
-    suggestionUnavailable: 'Gợi ý AI tạm thời không khả dụng. Bạn có thể chọn danh mục thủ công.',
     suggestionFailed: 'Không thể lấy gợi ý. Bạn vẫn có thể chọn danh mục thủ công.',
     suggestionUse: 'Dùng gợi ý',
     suggestionConfirm: 'Tôi xác nhận danh mục được gợi ý',
@@ -235,11 +229,12 @@ export const copy: Record<Locale, Copy> = {
     amount: 'Amount (VND)',
     category: 'Category',
     description: 'Description (optional)',
-    suggestionLoading: 'Classifying the category…',
-    suggestionSuggested: 'JEV suggested this category. You can still change it.',
-    suggestionManual: 'You can choose a category manually.',
-    suggestionUnavailable: 'AI suggestions are unavailable. Choose a category manually.',
-    suggestionError: 'Could not load a suggestion. Choose a category manually.',
+    suggestionLoading: 'Getting suggestion…',
+    suggestionSuggested: 'JEV suggested this category. Review and confirm it before saving.',
+    suggestionManual: 'No suitable suggestion. You can choose a category manually.',
+    suggestionDisabled: 'AI suggestion is not enabled. You can choose a category manually.',
+    suggestionUnavailable: 'AI suggestion is temporarily unavailable. You can choose a category manually.',
+    suggestionError: 'Could not get a suggestion. You can still choose a category manually.',
     submit: 'Save transaction',
     close: 'Close',
     selectCategory: 'Select a category',
@@ -247,11 +242,7 @@ export const copy: Record<Locale, Copy> = {
     transactionSaved: 'Transaction saved',
     amountInvalid: 'Amount must be a positive integer',
     suggestCategory: 'Suggest category',
-    suggestionLoading: 'Getting suggestion…',
     suggestionAvailable: 'JEV suggested this category. Review and confirm it before saving.',
-    suggestionManual: 'No suitable suggestion. You can choose a category manually.',
-    suggestionDisabled: 'AI suggestion is not enabled. You can choose a category manually.',
-    suggestionUnavailable: 'AI suggestion is temporarily unavailable. You can choose a category manually.',
     suggestionFailed: 'Could not get a suggestion. You can still choose a category manually.',
     suggestionUse: 'Use suggestion',
     suggestionConfirm: 'I confirm the suggested category',
