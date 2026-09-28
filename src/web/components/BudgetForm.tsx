@@ -6,26 +6,32 @@ import { Modal } from './Modal.js';
 
 type BudgetPayload = { month: string; limitVnd: number };
 
-export function BudgetForm({ categoryId, month, initialLimitVnd, csrfToken, t, locale, onClose, onSuccess }: {
-  categoryId: string; month: string; initialLimitVnd: number | null; csrfToken: string; t: Copy; locale: Locale; onClose(): void; onSuccess(): void;
+export function BudgetForm({ categoryId, categoryName, month, initialLimitVnd, csrfToken, t, locale, restoreFocusRef, onClose, onSuccess }: {
+  categoryId: string; categoryName?: string; month: string; initialLimitVnd: number | null; csrfToken: string; t: Copy; locale: Locale; restoreFocusRef: React.RefObject<HTMLElement | null> | null; onClose(): void; onSuccess(): void;
 }) {
   const [limit, setLimit] = useState(initialLimitVnd === null ? '' : String(initialLimitVnd));
   const [pending, setPending] = useState(false);
   const [retryPending, setRetryPending] = useState(false);
   const [error, setError] = useState('');
+  const limitInputRef = useRef<HTMLInputElement>(null);
+  const pendingRef = useRef(false);
+  const retryPendingRef = useRef(false);
+  const canClose = () => !pendingRef.current && !retryPendingRef.current;
   const key = useRef(crypto.randomUUID());
   const payload = useRef<BudgetPayload | null>(null);
   const title = locale === 'vi' ? 'Thiết lập ngân sách' : 'Set budget';
 
   async function submit(event: FormEvent) {
     event.preventDefault();
-    if (pending) return;
+    if (pendingRef.current) return;
     const request = payload.current ?? (!/^\d+$/.test(limit) || !Number.isSafeInteger(Number(limit)) ? null : { month, limitVnd: Number(limit) });
     if (!request) {
       setError(t.validationError);
       return;
     }
     payload.current = request;
+    pendingRef.current = true;
+    retryPendingRef.current = true;
     setPending(true);
     setError('');
     try {
@@ -34,10 +40,12 @@ export function BudgetForm({ categoryId, month, initialLimitVnd, csrfToken, t, l
         body: JSON.stringify(request),
       });
       setRetryPending(false);
+      retryPendingRef.current = false;
       onSuccess();
     } catch (caught) {
       const requestError = caught as Error & { status?: number };
       const isAmbiguous = requestError.status === undefined || requestError.status === 408 || requestError.status >= 500;
+      retryPendingRef.current = isAmbiguous;
       setRetryPending(isAmbiguous);
       if (!isAmbiguous) {
         payload.current = null;
@@ -45,14 +53,15 @@ export function BudgetForm({ categoryId, month, initialLimitVnd, csrfToken, t, l
       }
       setError(errorMessage(caught, t));
     } finally {
+      pendingRef.current = false;
       setPending(false);
     }
   }
 
-  return <Modal isOpen onClose={onClose} ariaLabel={title}><form className="modal-form" onSubmit={submit}>
-    <div className="panel-heading"><h2>{title}</h2><button type="button" className="icon-button" onClick={onClose} disabled={pending || retryPending} aria-label={t.close}><X size={18} /></button></div>
-    <p><strong>{t.category}:</strong> {categoryId}</p><label htmlFor="budget-limit">{t.budgetLimit} (VND)<input id="budget-limit" required inputMode="numeric" value={limit} onChange={event => setLimit(event.target.value)} disabled={pending || retryPending} /></label>
-    {retryPending && <p role="alert" className="form-message">{t.retryTransaction}</p>}
-    <button type="submit" className="primary-button" disabled={pending}>{pending ? t.submitPending : retryPending ? t.retryTransaction : t.submit}</button>{error && <p role="alert" className="form-message">{error}</p>}
+  return <Modal isOpen onClose={() => { if (canClose()) onClose(); }} ariaLabel={title} initialFocusRef={limitInputRef} {...(restoreFocusRef ? { restoreFocusRef } : {})} canClose={canClose}><form className="modal-form" onSubmit={submit}>
+    <div className="panel-heading"><h2>{title}</h2><button type="button" className="icon-button" onClick={() => { if (canClose()) onClose(); }} disabled={!canClose()} aria-label={t.close}><X size={18} aria-hidden="true" /></button></div>
+    <p><strong>{t.category}:</strong> {categoryName ?? categoryId}</p><label htmlFor="budget-limit">{t.budgetLimit} (VND)<input ref={limitInputRef} id="budget-limit" required inputMode="numeric" value={limit} onChange={event => setLimit(event.target.value)} disabled={pending || retryPending} aria-invalid={Boolean(error || retryPending)} aria-describedby={error || retryPending ? 'budget-error-msg' : undefined} /></label>
+    {(retryPending || error) && <p id="budget-error-msg" role="alert" className="form-message">{retryPending ? t.retryTransaction : error}</p>}
+    <button type="submit" className="primary-button" disabled={pending}>{pending ? t.submitPending : retryPending ? t.retryTransaction : t.submit}</button>
   </form></Modal>;
 }

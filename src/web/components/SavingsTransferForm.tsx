@@ -15,6 +15,7 @@ export function SavingsTransferForm({ direction, csrfToken, t, locale, onClose, 
   const [error, setError] = useState('');
   const [pending, setPending] = useState(false);
   const [retryPending, setRetryPending] = useState(false);
+  const canClose = () => !pending && !retryPending;
   const key = useRef(crypto.randomUUID());
   const payload = useRef<SavingsTransferPayload | null>(null);
   const title = direction === 'deposit' ? t.deposit : t.withdraw;
@@ -54,9 +55,9 @@ export function SavingsTransferForm({ direction, csrfToken, t, locale, onClose, 
     }
   }
 
-  return <Modal isOpen onClose={onClose} ariaLabel={title}>
+  return <Modal isOpen onClose={() => { if (canClose()) onClose(); }} ariaLabel={title} canClose={canClose}>
     <form className="modal-form" onSubmit={submit}>
-      <div className="panel-heading"><h2>{title}</h2><button type="button" className="icon-button" onClick={onClose} disabled={pending || retryPending} aria-label={t.close}><X size={18} /></button></div>
+      <div className="panel-heading"><h2>{title}</h2><button type="button" className="icon-button" onClick={onClose} disabled={!canClose()} aria-label={t.close}><X size={18} aria-hidden="true" /></button></div>
       <label htmlFor="savings-amount">{t.amount}<input id="savings-amount" required inputMode="numeric" value={amount} onChange={event => setAmount(event.target.value)} disabled={pending || retryPending} /></label>
       <label htmlFor="savings-note">{t.transferNote}<input id="savings-note" maxLength={500} value={note} onChange={event => setNote(event.target.value)} disabled={pending || retryPending} /></label>
       {retryPending && <p className="form-message" role="alert">{t.retryTransaction}</p>}

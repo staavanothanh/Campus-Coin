@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { apiRequest, setUnauthorizedHandler, type RequestError } from './api.js';
 import { copy } from './i18n.js';
+import { formatCategoryName } from './category-names.js';
 import { currentMonthKey, formatDate, formatVnd } from './format.js';
 import { AdminScreen } from './screens/AdminScreen.js';
 import { HelpScreen } from './screens/HelpScreen.js';
@@ -14,8 +15,9 @@ import { ReportsScreen } from './screens/ReportsScreen.js';
 import { SavingsScreen } from './screens/SavingsScreen.js';
 import { SettingsScreen } from './screens/SettingsScreen.js';
 import { TransactionsScreen } from './screens/TransactionsScreen.js';
+import { useCategories } from './hooks/use-categories.js';
 import { useDialogFocus } from './use-dialog-focus.js';
-import type { AuthenticatedSession, Category, Copy, Dashboard, Locale, Screen, Session, Theme, Transaction } from './types.js';
+import type { AuthenticatedSession, Budget, BudgetSummary, Category, Copy, Dashboard, Locale, Screen, Session, Theme, Transaction } from './types.js';
 import '../styles/main.css';
 import './styles.css';
 
@@ -32,9 +34,13 @@ export function App() {
   const [screen, setScreen] = useState<Screen>('dashboard');
   const [theme, setTheme] = useState<Theme>('light');
   const [menuOpen, setMenuOpen] = useState(false);
+  const menuTriggerRef = useRef<HTMLButtonElement>(null);
+  const sidebarRef = useRef<HTMLElement>(null);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [isDesktopViewport, setIsDesktopViewport] = useState(() => window.innerWidth > 800);
   const [formKind, setFormKind] = useState<'income' | 'payment' | null>(null);
   const [notice, setNotice] = useState('');
-  const [transactionNotice, setTransactionNotice] = useState('');
+  const [budgetRefreshKey, setBudgetRefreshKey] = useState(0);
   const [locale, setLocale] = useState<Locale>('vi');
   const t = copy[locale];
   const sessionGeneration = useRef(0);
@@ -54,15 +60,60 @@ export function App() {
     setAuthIdentity(null);
     setSession(null);
     setDashboard(null);
+    setMenuOpen(false);
     setAuthState('ready');
   }), []);
   useEffect(() => { if (!session) return; setLocale(session.user.locale === 'en' ? 'en' : 'vi'); }, [session]);
   useEffect(() => {
-    if (!menuOpen) return;
-    const closeOnEscape = (event: KeyboardEvent) => { if (event.key === 'Escape') setMenuOpen(false); };
-    document.addEventListener('keydown', closeOnEscape);
-    return () => document.removeEventListener('keydown', closeOnEscape);
-  }, [menuOpen]);
+    if (!menuOpen || isDesktopViewport || !session) return;
+    const sidebar = sidebarRef.current;
+    if (!sidebar) return;
+    const currentSidebar: HTMLElement = sidebar;
+    sidebar.querySelector<HTMLElement>('.sidebar-close')?.focus();
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        setMenuOpen(false);
+        return;
+      }
+      if (event.key !== 'Tab') return;
+      const items = Array.from(currentSidebar.querySelectorAll<HTMLElement>('button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'));
+      const first = items[0];
+      const last = items.at(-1);
+      if (!first || !last) {
+        event.preventDefault();
+        currentSidebar.focus();
+      } else if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      } else if (!currentSidebar.contains(document.activeElement)) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      if (menuTriggerRef.current?.isConnected) menuTriggerRef.current.focus();
+    };
+  }, [menuOpen, isDesktopViewport, session]);
+  function toggleSidebar() {
+    if (window.innerWidth <= 800) setMenuOpen(previous => !previous);
+    else setSidebarCollapsed(previous => !previous);
+  }
+  useEffect(() => {
+    const resetSidebarForViewport = () => {
+      const isDesktop = window.innerWidth > 800;
+      setIsDesktopViewport(isDesktop);
+      if (isDesktop) setMenuOpen(false);
+      else setSidebarCollapsed(false);
+    };
+    window.addEventListener('resize', resetSidebarForViewport);
+    return () => window.removeEventListener('resize', resetSidebarForViewport);
+  }, []);
   const handleAuthenticated = useCallback((nextSession: AuthenticatedSession | null) => {
     sessionGeneration.current += 1;
     currentUserId.current = nextSession?.user.id ?? null;
@@ -76,6 +127,7 @@ export function App() {
     setAuthState('ready');
     setLoginNotice('');
     setNotice('');
+    if (!nextSession) setMenuOpen(false);
   }, []);
 
   useEffect(() => {
@@ -91,6 +143,7 @@ export function App() {
       if (!active) return;
       if ((caught as RequestError).status === 401) {
         setSession(null);
+        setMenuOpen(false);
         setAuthState('ready');
         return;
       }
@@ -135,8 +188,8 @@ export function App() {
       if (requestError.status === 401) {
         setSession(null);
         setDashboard(null);
+        setMenuOpen(false);
         setAuthState('ready');
-        return null;
       }
       setDashboardError(requestError.status === 403 ? t.forbidden : t.unavailable);
       setDashboardState('error');
@@ -181,26 +234,26 @@ export function App() {
   const monthLabel = dashboard?.currentMonth?.month ?? currentMonthKey();
 
   return <div className={`app-shell ${theme === 'dark' ? 'theme-dark' : ''}`} lang={locale}>
-    <a className="skip-link" href="#main-content">{locale === 'vi' ? 'Tới nội dung chính' : 'Skip to main content'}</a>
-    {menuOpen && <button className="sidebar-backdrop" onClick={() => setMenuOpen(false)} aria-label={t.close} />}
-    <aside className={`sidebar ${menuOpen ? 'is-open' : ''}`}>
-      <div className="brand-lockup"><div className="brand-mark"><Leaf size={20} strokeWidth={2.5} /></div><span>campus<span>coin</span></span><button type="button" className="icon-button sidebar-close" aria-label={t.close} onClick={() => setMenuOpen(false)}><X size={18} /></button></div>
-      <nav aria-label={t.primaryNavigation}><p className="nav-label">{t.workspace}</p>{navItems.map(item => <button key={item.id} type="button" className={`nav-item ${screen === item.id ? 'active' : ''}`} onClick={() => { setScreen(item.id); setMenuOpen(false); }} aria-current={screen === item.id ? 'page' : undefined}>{item.icon}<span>{item.label}</span>{screen === item.id && <span className="active-pip" aria-hidden="true" />}</button>)}</nav>
-      <div className="sidebar-bottom"><div className="mini-profile"><div className="avatar" aria-hidden="true">{session.user.displayName.slice(0, 1).toUpperCase()}</div><div><strong>{session.user.displayName}</strong><small>{session.user.email}</small></div></div><button type="button" className="google-link" onClick={() => void signOut()}><LogOut size={15} />{t.signOut}</button></div>
+    <a className="skip-link" href="#main-content" onClick={event => { event.preventDefault(); document.getElementById('main-content')?.focus(); }}>{locale === 'vi' ? 'Tới nội dung chính' : 'Skip to main content'}</a>
+    {menuOpen && !isDesktopViewport && <button className="sidebar-backdrop" onClick={() => setMenuOpen(false)} aria-label={t.close} />}
+    <aside ref={sidebarRef} id="app-sidebar" className={`sidebar ${menuOpen ? 'is-open' : ''} ${sidebarCollapsed ? 'is-collapsed' : ''}`}>
+      <div className="brand-lockup"><div className="brand-mark"><Leaf size={20} strokeWidth={2.5} /></div><span className="brand-text">campus<span>coin</span></span><button type="button" className="icon-button sidebar-close" aria-label={t.close} onClick={() => setMenuOpen(false)}><X size={18} /></button></div>
+      <nav aria-label={t.primaryNavigation}><p className="nav-label">{t.workspace}</p>{navItems.map(item => <button key={item.id} type="button" className={`nav-item ${screen === item.id ? 'active' : ''}`} aria-label={item.label} title={sidebarCollapsed ? item.label : undefined} onClick={() => { setScreen(item.id); setMenuOpen(false); }} aria-current={screen === item.id ? 'page' : undefined}>{item.icon}<span>{item.label}</span>{screen === item.id && <span className="active-pip" aria-hidden="true" />}</button>)}</nav>
+      <div className="sidebar-bottom"><div className="mini-profile"><div className="avatar" aria-hidden="true">{session.user.displayName.slice(0, 1).toUpperCase()}</div><div><strong>{session.user.displayName}</strong><small>{session.user.email}</small></div></div><button type="button" className="google-link" onClick={() => void signOut()} aria-label={t.signOut} title={sidebarCollapsed ? t.signOut : undefined}><LogOut size={15} /><span>{t.signOut}</span></button></div>
     </aside>
-    <main id="main-content" className="main-content"><header className="topbar">
-      <button type="button" className="icon-button menu-trigger" aria-label={t.menu} aria-expanded={menuOpen} onClick={() => setMenuOpen(true)}><Menu size={21} /></button>
+    <main id="main-content" tabIndex={-1} inert={menuOpen && !isDesktopViewport} className={`main-content ${sidebarCollapsed ? 'is-expanded' : ''}`}><header className="topbar">
+      <button ref={menuTriggerRef} type="button" className="icon-button menu-trigger" aria-controls="app-sidebar" aria-label={isDesktopViewport ? (sidebarCollapsed ? (locale === 'vi' ? 'Mở rộng thanh điều hướng' : 'Expand sidebar') : (locale === 'vi' ? 'Thu gọn thanh điều hướng' : 'Collapse sidebar')) : t.menu} aria-expanded={isDesktopViewport ? !sidebarCollapsed : menuOpen} onClick={toggleSidebar}><Menu size={21} /></button>
       <div className="breadcrumbs"><span>{t.personal}</span><span aria-hidden="true">/</span><strong>{pageLabel}</strong></div>
       <div className="topbar-actions"><button type="button" className="locale-toggle" onClick={() => setLocale(locale === 'vi' ? 'en' : 'vi')} aria-label={t.language}>{locale.toUpperCase()}</button><button type="button" className="icon-button" onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')} aria-label={t.appearance}>{theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}</button></div>
-    </header>{notice && <p role="alert" className="form-message shell-notice">{notice}</p>}{transactionNotice && <p role="status" aria-live="polite" className="form-message shell-notice">{transactionNotice}</p>}
+    </header>{notice && <p role="alert" className="form-message shell-notice">{notice}</p>}
     <section className="content-wrap">
       {screen === 'dashboard' ? <>
         <div className="page-intro"><div><p className="eyebrow">{t.thisMonth} · {monthLabel}</p><h1>{t.greeting}, {session.user.displayName}</h1><p className="muted">{t.overview}</p></div>{dashboard?.wallet && <button type="button" className="primary-button" onClick={() => setFormKind('payment')}><ArrowUpRight size={16} />{t.addTransaction}</button>}</div>
         {dashboardState === 'loading' && <div className="status-panel" role="status">{t.loading}</div>}
-        {dashboardState === 'error' && <div className="status-panel"><p role="alert">{dashboardError}</p><button type="button" className="secondary-button" onClick={() => session && void loadDashboard(session)}><RefreshCw size={16} />{t.retry}</button></div>}
+        {dashboardState === 'error' && <div className="status-panel"><p role="alert">{dashboardError}</p><button type="button" className="secondary-button" aria-label={`${t.retry}: ${t.dashboard}`} onClick={() => session && void loadDashboard(session)}><RefreshCw size={16} aria-hidden="true" />{t.retry}</button></div>}
         {dashboardState === 'ready' && dashboard?.wallet === null && <WalletBaseline csrfToken={session.csrfToken} t={t} onComplete={async () => { const refreshed = await loadDashboard(session); if (!refreshed) throw new Error(t.requestFailed); }} onError={showRequestError} />}
-        {dashboardState === 'ready' && dashboard?.wallet !== null && dashboard && <DashboardView dashboard={dashboard} locale={locale} t={t} onIncome={() => setFormKind('income')} onPayment={() => setFormKind('payment')} />}
-        {formKind && dashboard?.wallet && <TransactionForm kind={formKind} csrfToken={session.csrfToken} locale={locale} t={t} onClose={() => setFormKind(null)} onCommitted={async () => { const refreshed = await loadDashboard(session); setTransactionNotice(refreshed ? t.submitSuccess : t.refreshFailed); }} onError={showRequestError} />}
+        {dashboardState === 'ready' && dashboard?.wallet !== null && dashboard && <DashboardView dashboard={dashboard} locale={locale} t={t} onIncome={() => setFormKind('income')} onPayment={() => setFormKind('payment')} onSetBudget={() => setScreen('reports')} budgetRefreshKey={budgetRefreshKey} />}
+        {formKind && <TransactionForm kind={formKind} csrfToken={session.csrfToken} locale={locale} t={t} onClose={() => setFormKind(null)} onCommitted={async () => { const refreshed = await loadDashboard(session); setBudgetRefreshKey(key => key + 1); return refreshed ? t.submitSuccess : t.refreshFailed; }} onError={showRequestError} />}
       </> : <>
         <div className="page-intro"><div><p className="eyebrow">{t.workspace}</p><h1>{pageLabel}</h1><p className="muted">{t.recentDescription}</p></div></div>
         {screen === 'transactions' && <TransactionsScreen t={t} locale={locale} />}
@@ -218,8 +271,9 @@ function StateScreen({ title, detail, retry, retryLabel }: { title: string; deta
   return <main className="state-screen"><Leaf size={30} /><h1>{title}</h1><p>{detail}</p>{retry && <button className="primary-button" onClick={retry}><RefreshCw size={16} />{retryLabel}</button>}</main>;
 }
 
-function DashboardView({ dashboard, locale, t, onIncome, onPayment }: { dashboard: Dashboard; locale: Locale; t: Copy; onIncome: () => void; onPayment: () => void }) {
+function DashboardView({ dashboard, locale, t, onIncome, onPayment, onSetBudget, budgetRefreshKey }: { dashboard: Dashboard; locale: Locale; t: Copy; onIncome: () => void; onPayment: () => void; onSetBudget: () => void; budgetRefreshKey: number }) {
   const transactions = dashboard.recentTransactions;
+  const { categories, hasError: categoryLoadFailed, isLoading: categoriesLoading, retry: retryCategories } = useCategories();
   return <>
     <div className="stats-grid">
       <section className="balance-card stat-card"><div className="stat-heading"><span>{t.balance}</span><WalletCards size={18} /></div><strong>{formatVnd(dashboard.wallet?.availableBalanceVnd, locale)}</strong><p className="muted">{dashboard.currentMonth?.month ?? t.noData}</p></section>
@@ -228,7 +282,8 @@ function DashboardView({ dashboard, locale, t, onIncome, onPayment }: { dashboar
       <StatCard label={t.savings} value={formatVnd(dashboard.savings?.balanceVnd, locale)} icon={<Leaf size={17} />} tone="amber" />
     </div>
     <div className="action-row"><button className="secondary-button" onClick={onIncome}><ArrowDownLeft size={16} />{t.addIncome}</button><button className="primary-button" onClick={onPayment}><ArrowUpRight size={16} />{t.addPayment}</button></div>
-    <section className="panel activity-panel"><div className="panel-heading"><div><h2>{t.recent}</h2><p className="muted">{t.recentDescription}</p></div></div><div className="transaction-list">{transactions.length ? transactions.map(transaction => <TransactionRow key={transaction.id} transaction={transaction} locale={locale} />) : <p className="empty-state">{t.noData}</p>}</div></section>
+    {(categoryLoadFailed || categoriesLoading) && <div className="form-message"><span role="status">{categoryLoadFailed ? t.categoryLoadFailed : t.loading}</span><button type="button" className="text-button" aria-label={`${t.retry}: ${t.categoryLoadFailed}`} disabled={categoriesLoading} onClick={retryCategories}>{t.retry}</button></div>}
+    <div className="dashboard-grid"><section className="panel activity-panel"><div className="panel-heading"><div><h2>{t.recent}</h2><p className="muted">{t.recentDescription}</p></div></div><div className="transaction-list">{transactions.length ? transactions.map(transaction => <TransactionRow key={transaction.id} transaction={transaction} locale={locale} categoryName={formatCategoryName(transaction.categoryId, categories, locale)} typeLabel={transaction.type === 'income' ? t.income : t.spending} />) : <p className="empty-state">{t.noData}</p>}</div></section><BudgetPanel locale={locale} t={t} onSetBudget={onSetBudget} refreshKey={budgetRefreshKey} /></div>
   </>;
 }
 
@@ -236,9 +291,37 @@ function StatCard({ label, value, icon, tone }: { label: string; value: string; 
   return <section className="stat-card"><div className="stat-heading"><span>{label}</span><span className={`metric-icon ${tone}`}>{icon}</span></div><strong>{value}</strong></section>;
 }
 
-function TransactionRow({ transaction, locale }: { transaction: Transaction; locale: Locale }) {
+function TransactionRow({ transaction, locale, categoryName, typeLabel }: { transaction: Transaction; locale: Locale; categoryName: string; typeLabel: string }) {
   const isIncome = transaction.type === 'income';
-  return <div className="transaction-row"><div className={`transaction-icon ${isIncome ? 'mint' : 'coral'}`}>{isIncome ? <ArrowDownLeft size={16} /> : <ArrowUpRight size={16} />}</div><div className="transaction-detail"><strong>{transaction.description?.trim() || (isIncome ? copy[locale].income : copy[locale].spending)}</strong><span>{formatDate(transaction.occurredAt, locale)}</span></div><strong className={isIncome ? 'amount-positive' : ''}>{isIncome ? '+' : '-'}{formatVnd(transaction.amountVnd, locale)}</strong></div>;
+  return <div className="transaction-row"><div className={`transaction-icon ${isIncome ? 'mint' : 'coral'}`}><span className="visually-hidden">{typeLabel}</span>{isIncome ? <ArrowDownLeft size={16} aria-hidden="true" /> : <ArrowUpRight size={16} aria-hidden="true" />}</div><div className="transaction-detail"><strong>{categoryName}</strong><span>{transaction.description?.trim() ? `${transaction.description.trim()} · ` : ''}{formatDate(transaction.occurredAt, locale)}</span></div><strong className={isIncome ? 'amount-positive' : ''}>{isIncome ? '+' : '-'}{formatVnd(transaction.amountVnd, locale)}</strong></div>;
+}
+
+function BudgetPanel({ locale, t, onSetBudget, refreshKey }: { locale: Locale; t: Copy; onSetBudget: () => void; refreshKey: number }) {
+  const [summary, setSummary] = useState<BudgetSummary | null>(null);
+  const [budgets, setBudgets] = useState<Budget[]>([]);
+  const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [retryKey, setRetryKey] = useState(0);
+
+  useEffect(() => {
+    let active = true;
+    setState('loading');
+    const month = currentMonthKey();
+    void Promise.all([
+      apiRequest<BudgetSummary>(`/budgets/summary?month=${encodeURIComponent(month)}`),
+      apiRequest<Budget[]>(`/budgets?month=${encodeURIComponent(month)}`),
+    ]).then(([nextSummary, nextBudgets]) => {
+      if (!active) return;
+      setSummary(nextSummary);
+      setBudgets(nextBudgets);
+      setState('ready');
+    }).catch(() => { if (active) setState('error'); });
+    return () => { active = false; };
+  }, [refreshKey, retryKey]);
+  if (state !== 'ready' || !summary) return <section className="panel budget-panel" aria-busy={state === 'loading'}><div className="panel-heading"><div><h2>{t.budget}</h2>{state === 'loading' ? <p className="muted" role="status">{t.loading}</p> : <p className="form-message"><span role="alert">{t.budgetUnavailable}</span></p>}</div><button type="button" className="text-button" aria-label={`${t.retry}: ${t.budget}`} disabled={state === 'loading'} onClick={() => setRetryKey(key => key + 1)}>{t.retry}</button></div></section>;
+  const percent = summary.totalLimitVnd === 0 ? (summary.totalUsedVnd > 0 ? 100 : 0) : Math.min(100, summary.totalUsedVnd / summary.totalLimitVnd * 100);
+
+  const isOverrun = summary.totalUsedVnd > summary.totalLimitVnd;
+  return <section className="panel budget-panel"><div className="panel-heading"><div><h2>{t.budget}</h2><p className="muted">{t.thisMonth}</p></div><button type="button" className="text-button" onClick={onSetBudget}>{t.viewReport}</button></div><div className="budget-ring" style={{ background: `conic-gradient(${isOverrun ? '#c85d45' : '#36856e'} 0 ${percent}%, #eee8db ${percent}% 100%)` }}><div><strong>{Math.round(percent)}%</strong><span>{t.budget}</span></div></div><div className="budget-summary"><div><span>{locale === 'vi' ? 'Đã dùng' : 'Used'}</span><strong>{formatVnd(summary.totalUsedVnd, locale)}</strong></div><div><span>{locale === 'vi' ? 'Còn lại' : 'Remaining'}</span><strong className={isOverrun ? 'negative' : ''}>{formatVnd(Math.max(0, summary.totalLimitVnd - summary.totalUsedVnd), locale)}</strong></div></div><div className="budget-progress"><span style={{ width: `${percent}%`, background: isOverrun ? '#c85d45' : '#36856e' }} /></div>{summary.exceededCategoryCount > 0 && <p className="budget-note"><span className="status-dot" />{locale === 'vi' ? `${summary.exceededCategoryCount} danh mục vượt mức` : `${summary.exceededCategoryCount} categories exceeded`}</p>}</section>;
 }
 
 function WalletBaseline({ csrfToken, t, onComplete, onError }: { csrfToken: string; t: Copy; onComplete(): Promise<void>; onError(error: unknown): string }) {
@@ -282,7 +365,7 @@ function WalletBaseline({ csrfToken, t, onComplete, onError }: { csrfToken: stri
 
 function TransactionForm({ kind, csrfToken, locale, t, onClose, onCommitted, onError }: {
   kind: 'income' | 'payment'; csrfToken: string; locale: Locale; t: Copy; onClose(): void;
-  onCommitted(): Promise<void>; onError(error: unknown): string;
+  onCommitted(): Promise<string>; onError(error: unknown): string;
 }) {
   const dialogRef = useRef<HTMLFormElement>(null);
   useDialogFocus(dialogRef, () => { if (!isSubmitting && !isRetryPending) onClose(); });
@@ -392,28 +475,27 @@ function TransactionForm({ kind, csrfToken, locale, t, onClose, onCommitted, onE
     }
     setIsRetryPending(false);
     setIsComplete(true);
-    onClose();
+    let notice: string;
     try {
-      await onCommitted();
-      setMessage(t.submitSuccess);
+      notice = await onCommitted();
     } catch {
-      setMessage(t.refreshFailed);
-    } finally {
-      setIsSubmitting(false);
+      notice = onError(new Error(t.refreshFailed));
     }
+    setMessage(notice);
+    setIsSubmitting(false);
   }
   return <div className="modal-backdrop"><form ref={dialogRef} className="modal" role="dialog" aria-modal="true" aria-labelledby="transaction-form-title" tabIndex={-1} onSubmit={submit}>
-    <div className="panel-heading"><h2 id="transaction-form-title">{kind === 'income' ? t.addIncome : t.addPayment}</h2><button type="button" className="icon-button" onClick={onClose} disabled={isSubmitting || isRetryPending} aria-label={t.close}><X size={18} /></button></div>
+    <div className="panel-heading"><h2 id="transaction-form-title">{kind === 'income' ? t.addIncome : t.addPayment}</h2><button type="button" className="icon-button" onClick={onClose} disabled={isSubmitting || isRetryPending} aria-label={t.close}><X size={18} aria-hidden="true" /></button></div>
     <label htmlFor="transaction-amount">{t.amount}<input ref={amountRef} id="transaction-amount" required inputMode="numeric" value={amount} onChange={event => setAmount(event.target.value)} disabled={isRetryPending || isComplete} /></label>
-    <label htmlFor="transaction-category">{t.category}<select id="transaction-category" required value={categoryId} onChange={event => { setCategoryId(event.target.value); setSuggestionConfirmed(false); }} disabled={isRetryPending || isComplete || categoryState !== 'ready' || categories.length === 0}><option value="">{categoryState === 'loading' ? t.loading : t.selectCategory}</option>{categories.map(category => <option key={category.id} value={category.id}>{category.name[locale]}</option>)}</select></label>
+    <label htmlFor="transaction-category">{t.category}<select id="transaction-category" required value={categoryId} onChange={event => { setCategoryId(event.target.value); setSuggestionConfirmed(false); }} disabled={isRetryPending || isComplete || categoryState !== 'ready' || categories.length === 0}><option value="">{categoryState === 'loading' ? t.loading : t.selectCategory}</option>{categories.map(category => <option key={category.id} value={category.id}>{formatCategoryName(category.id, categories, locale)}</option>)}</select></label>
     <label htmlFor="transaction-description">{t.description}<input id="transaction-description" value={description} onChange={event => { setDescription(event.target.value); setSuggestionState('idle'); setSuggestedCategoryId(null); setSuggestionConfirmed(false); }} disabled={isRetryPending || isComplete} /></label>
     {categoryState === 'ready' && description.trim() && <button className="secondary-button" type="button" onClick={() => void suggestCategory()} disabled={suggestionState === 'loading' || isRetryPending || isComplete}>{suggestionState === 'loading' ? t.suggestingCategory : t.suggestCategory}</button>}
     {suggestionState === 'error' && <p role="status" className="form-message">{t.suggestionFailed}</p>}
     {suggestionState === 'ready' && suggestedCategoryId && <div role="group" aria-label={t.suggestionReady}><p role="status" className="form-message">{t.suggestionReady}</p><button className="secondary-button" type="button" onClick={() => applySuggestion(suggestedCategoryId)}>{t.suggestionUse}</button></div>}
     {isRetryPending && <p role="alert" className="form-message">{t.retryTransaction}</p>}
     {categoryState === 'ready' && categories.length === 0 && <p role="status" className="form-message">{t.noCategories}</p>}
-    {categoryState === 'error' && <button type="button" className="secondary-button" onClick={() => setCategoryReloadKey(key => key + 1)}>{t.retry}</button>}
-    <button className="primary-button" type="submit" disabled={isSubmitting || isComplete || categoryState !== 'ready' || categories.length === 0}>{isRetryPending ? t.retryTransaction : isSubmitting ? t.submitPending : t.submit}</button>
+    {(categoryState === 'error' || categoryState === 'loading') && <><p role={categoryState === 'error' ? 'alert' : 'status'} className="form-message">{categoryState === 'error' ? categoryError : t.loading}</p><button type="button" className="secondary-button" aria-label={`${t.retry}: ${t.category}`} disabled={categoryState === 'loading'} onClick={() => setCategoryReloadKey(key => key + 1)}>{t.retry}</button></>}
     {message && <p role="status" aria-live="polite" className="form-message">{message}</p>}
+    <button className="primary-button" type={isComplete ? 'button' : 'submit'} onClick={isComplete ? onClose : undefined} disabled={isSubmitting || (!isComplete && !isRetryPending && (categoryState !== 'ready' || categories.length === 0))}>{isComplete ? t.close : isRetryPending ? t.retry : isSubmitting ? t.submitPending : t.submit}</button>
   </form></div>;
 }

@@ -25,6 +25,9 @@ export const copy: Record<Locale, Copy> = {
     noWalletForSavings: 'Khởi tạo ví trước khi sử dụng quỹ tiết kiệm.', budgetSaved: 'Đã cập nhật ngân sách.', settingsSaved: 'Đã lưu cài đặt.', displayName: 'Tên hiển thị',
     role: 'Vai trò', userId: 'Mã tài khoản', accountEmail: 'Email tài khoản', googleLinked: 'Đã liên kết Google', googleNotLinked: 'Chưa liên kết Google',
     themeLight: 'Sáng', themeDark: 'Tối', faqTitle: 'Câu hỏi thường gặp', feedbackNotAvailable: 'Kênh gửi góp ý chưa được kết nối.',
+    setUpBudget: 'Thiết lập ngân sách', viewReport: 'Xem báo cáo', budgetUnavailable: 'Không thể tải ngân sách.',
+    previousMonth: 'Tháng trước', nextMonth: 'Tháng sau', jumpToCurrentMonth: 'Về tháng hiện tại', selectReportMonth: 'Chọn tháng báo cáo',
+    previousYear: 'Năm trước', nextYear: 'Năm sau', thisMonthAction: 'Về tháng này',
   },
   en: {
     greeting: 'Hello', overview: 'A clear view of your wallet and transactions.', thisMonth: 'This month', balance: 'Wallet balance', income: 'Income', spending: 'Spent',
@@ -43,5 +46,8 @@ export const copy: Record<Locale, Copy> = {
     budget: 'Budgets', budgetLimit: 'Budget limit', spent: 'Spent', progress: 'Progress', status: 'Status', action: 'Action', noWalletForSavings: 'Initialize your wallet before using savings.',
     budgetSaved: 'Budget updated.', settingsSaved: 'Settings saved.', displayName: 'Display name', role: 'Role', userId: 'Account ID', accountEmail: 'Account email', googleLinked: 'Google linked',
     googleNotLinked: 'Google not linked', themeLight: 'Light', themeDark: 'Dark', faqTitle: 'Frequently asked questions', feedbackNotAvailable: 'Feedback submission is not connected.',
+    setUpBudget: 'Set up budget', viewReport: 'View report', budgetUnavailable: 'Budget data is unavailable.',
+    previousMonth: 'Previous month', nextMonth: 'Next month', jumpToCurrentMonth: 'Jump to current month', selectReportMonth: 'Select report month',
+    previousYear: 'Previous year', nextYear: 'Next year', thisMonthAction: 'This month',
   },
 };
