@@ -2,6 +2,7 @@
 // Identifier bắt buộc: CAMPUS_COIN_DB_* (xem .env.example).
 
 import { readFileSync } from "node:fs";
+import { X509Certificate } from "node:crypto";
 
 export type DbSslMode = "required" | "verify-ca" | "disabled";
 
@@ -100,17 +101,29 @@ export function readDbEnv(env: NodeJS.ProcessEnv = process.env): DbEnv {
     if (!/^[A-Za-z0-9+/]+={0,2}$/.test(caBase64) || caBase64.length % 4 !== 0) {
       throw new DbEnvError("CAMPUS_COIN_DB_CA_BASE64 must be valid base64 PEM");
     }
-    const decoded = Buffer.from(caBase64, "base64").toString("utf8");
-    if (!decoded.includes("-----BEGIN CERTIFICATE-----") || !decoded.includes("-----END CERTIFICATE-----")) {
-      throw new DbEnvError("CAMPUS_COIN_DB_CA_BASE64 must contain a PEM certificate");
-    }
-    caCertificate = decoded;
+    caCertificate = Buffer.from(caBase64, "base64").toString("utf8");
   }
 
-  if (sslMode === "verify-ca" && caPath === undefined && caCertificate === undefined) {
-    throw new DbEnvError(
-      `CAMPUS_COIN_DB_SSL=verify-ca requires CAMPUS_COIN_DB_CA_PATH or CAMPUS_COIN_DB_CA_BASE64`,
-    );
+  if (sslMode === "verify-ca" && caCertificate === undefined) {
+    if (caPath === undefined) {
+      throw new DbEnvError("CAMPUS_COIN_DB_SSL=verify-ca requires CAMPUS_COIN_DB_CA_PATH or CAMPUS_COIN_DB_CA_BASE64");
+    }
+    try {
+      caCertificate = readFileSync(caPath, "utf8");
+    } catch {
+      throw new DbEnvError("CAMPUS_COIN_DB_CA_PATH must point to a readable CA certificate");
+    }
+  }
+  if (caCertificate !== undefined) {
+    try {
+      const certificates = caCertificate.split(/(?=-----BEGIN CERTIFICATE-----)/g).filter(part => part.trim().length > 0);
+      if (certificates.length === 0 || certificates.some(certificate => !new X509Certificate(certificate))) {
+        throw new Error("invalid certificate");
+      }
+    } catch {
+      const source = caBase64 === undefined ? "CAMPUS_COIN_DB_CA_PATH" : "CAMPUS_COIN_DB_CA_BASE64";
+      throw new DbEnvError(`${source} must contain valid PEM certificates`);
+    }
   }
   return {
     host,
@@ -147,20 +160,15 @@ export interface DbSslOption {
   ca?: string;
 }
 
-/**
- * Dựng SSL option từ DbEnv — MỘT nguồn duy nhất cho pool, CLI migrate và test harness.
- * `verify-ca` đọc nội dung PEM từ `caPath`; mysql2 cần nội dung chứng chỉ, không phải
- * đường dẫn. Truyền path sẽ làm OpenSSL không tìm thấy CA và fail
- * "self-signed certificate in certificate chain" (đúng đường Aiven/free tier bắt buộc).
- */
+/** Build the shared verified TLS option for the runtime pool, migration CLI and test harness. */
 export function sslOption(env: DbEnv): DbSslOption | undefined {
   switch (env.sslMode) {
     case "verify-ca":
-      // Runtime serverless có thể nhận CA qua environment thay vì file local.
-      return {
-        rejectUnauthorized: true,
-        ca: env.caCertificate ?? readFileSync(env.caPath!, "utf8"),
-      };
+      // CA file/base64 is validated and loaded in readDbEnv before the pool is built.
+      if (env.caCertificate === undefined) {
+        throw new DbEnvError("CAMPUS_COIN_DB_SSL=verify-ca requires a validated CA certificate");
+      }
+      return { rejectUnauthorized: true, ca: env.caCertificate };
     case "disabled":
       // Chỉ local dev; production phải required|verify-ca (kiểm tra ở preflight).
       return undefined;

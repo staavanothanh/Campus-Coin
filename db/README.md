@@ -60,6 +60,8 @@ Xem `.env.example`; giá trị thật chỉ ở secret manager/Vercel environmen
 | `CAMPUS_COIN_DB_MIGRATE_USER` / `_PASSWORD` | migration role | tùy chọn; fallback runtime role cho dev |
 | `CAMPUS_COIN_MIGRATIONS_DIR` | thư mục migration | tùy chọn; mặc định `db/migrations` |
 
+Khi API không mở cổng `3000`, kiểm tra bằng `npm run db:preflight` trước; lệnh này chỉ đọc và không áp dụng migration. Với Aiven `verify-ca`, tải CA certificate đúng service từ **Overview → CA Certificate**, đặt trong thư mục bị Git bỏ qua (ví dụ `.tmp/aiven/ca.pem`) và đặt `CAMPUS_COIN_DB_CA_PATH=.tmp/aiven/ca.pem`. Đường dẫn tương đối tính từ repository root; file phải tồn tại và chứa PEM certificate. Không thay bằng TLS `disabled` cho host cloud. API hiển thị lỗi cấu hình an toàn; lỗi kết nối/schema khác cần đối chiếu output preflight trước khi thay đổi database.
+
 Runtime role chỉ DML (xem `db/grants.example.sql`); migration role có DDL. Pool runtime `waitForConnections`, `queueLimit=0`, timezone `Z` (UTC); kỳ HCMC tính ở application.
 
 ### MySQL local dev (không phải production — ADR-0003)

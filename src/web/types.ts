@@ -29,6 +29,7 @@ export type Dashboard = {
   recentTransactions: Transaction[];
 };
 export type Savings = { balanceVnd: MoneyVndWire; currency: 'VND'; updatedAt: string };
+export type BudgetSummary = { month: string; totalLimitVnd: number; totalUsedVnd: number; exceededCategoryCount: number };
 export type SavingsTransfer = { id: string; direction: 'deposit' | 'withdraw'; amountVnd: MoneyVndWire; note: string | null; createdAt: string };
 export type MonthlyReport = {
   month: string;
@@ -64,4 +65,7 @@ export type Copy = {
   status: string; action: string; noWalletForSavings: string; budgetSaved: string; settingsSaved: string;
   displayName: string; role: string; userId: string; accountEmail: string; googleLinked: string;
   googleNotLinked: string; themeLight: string; themeDark: string; faqTitle: string; feedbackNotAvailable: string;
+  setUpBudget: string; viewReport: string; budgetUnavailable: string;
+  previousMonth: string; nextMonth: string; jumpToCurrentMonth: string; selectReportMonth: string;
+  previousYear: string; nextYear: string; thisMonthAction: string;
 };

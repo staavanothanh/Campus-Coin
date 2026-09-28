@@ -1,3 +1,7 @@
+import { rootCertificates } from "node:tls";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { DbEnvError, migrationCreds, readDbEnv } from "../src/infrastructure/db/env.ts";
@@ -32,17 +36,39 @@ test("readDbEnv: port và connection limit ngoài dải → lỗi", () => {
   assert.throws(() => readDbEnv({ ...baseEnv(), CAMPUS_COIN_DB_PORT: "abc" }), DbEnvError);
   assert.throws(() => readDbEnv({ ...baseEnv(), CAMPUS_COIN_DB_CONNECTION_LIMIT: "99" }), DbEnvError);
 });
+test("readDbEnv: verify-ca requires a readable, parseable PEM certificate", () => {
+  assert.throws(() => readDbEnv({
+    ...baseEnv(),
+    CAMPUS_COIN_DB_SSL: "verify-ca",
+    CAMPUS_COIN_DB_CA_PATH: "./missing-ca.pem",
+  }), { name: "DbEnvError", message: /CAMPUS_COIN_DB_CA_PATH.*readable CA certificate/ });
 
-test("readDbEnv: ssl mode không hợp lệ và verify-ca thiếu CA → lỗi", () => {
-  assert.throws(() => readDbEnv({ ...baseEnv(), CAMPUS_COIN_DB_SSL: "sometimes" }), DbEnvError);
-  assert.throws(() => readDbEnv({ ...baseEnv(), CAMPUS_COIN_DB_SSL: "verify-ca" }), DbEnvError);
-  const ok = readDbEnv({ ...baseEnv(), CAMPUS_COIN_DB_SSL: "verify-ca", CAMPUS_COIN_DB_CA_PATH: "/tmp/ca.pem" });
-  assert.equal(ok.sslMode, "verify-ca");
-  assert.equal(ok.caPath, "/tmp/ca.pem");
+  const directory = mkdtempSync(path.join(os.tmpdir(), "campus-coin-ca-"));
+  const caPath = path.join(directory, "ca.pem");
+  const pem = rootCertificates[0]!;
+  try {
+    writeFileSync(caPath, pem);
+    const env = readDbEnv({
+      ...baseEnv(),
+      CAMPUS_COIN_DB_SSL: "verify-ca",
+      CAMPUS_COIN_DB_CA_PATH: caPath,
+    });
+    assert.equal(env.caPath, caPath);
+    assert.equal(env.caCertificate, pem);
+
+    writeFileSync(caPath, "-----BEGIN CERTIFICATE-----\nZmFrZQ==\n-----END CERTIFICATE-----");
+    assert.throws(() => readDbEnv({
+      ...baseEnv(),
+      CAMPUS_COIN_DB_SSL: "verify-ca",
+      CAMPUS_COIN_DB_CA_PATH: caPath,
+    }), { name: "DbEnvError", message: /CAMPUS_COIN_DB_CA_PATH.*valid PEM certificates/ });
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
 });
 
 test("readDbEnv: verify-ca cũng nhận PEM base64 cho môi trường serverless", () => {
-  const pem = "-----BEGIN CERTIFICATE-----\nZmFrZQ==\n-----END CERTIFICATE-----";
+  const pem = rootCertificates[0]!;
   const caBase64 = Buffer.from(pem).toString("base64");
   const env = readDbEnv({
     ...baseEnv(),
@@ -55,6 +81,12 @@ test("readDbEnv: verify-ca cũng nhận PEM base64 cho môi trường serverless
     CAMPUS_COIN_DB_SSL: "verify-ca",
     CAMPUS_COIN_DB_CA_BASE64: "not-base64",
   }), DbEnvError);
+  const malformedCa = Buffer.from("-----BEGIN CERTIFICATE-----\nZmFrZQ==\n-----END CERTIFICATE-----").toString("base64");
+  assert.throws(() => readDbEnv({
+    ...baseEnv(),
+    CAMPUS_COIN_DB_SSL: "verify-ca",
+    CAMPUS_COIN_DB_CA_BASE64: malformedCa,
+  }), { name: "DbEnvError", message: /CAMPUS_COIN_DB_CA_BASE64.*valid PEM certificates/ });
 });
 
 
