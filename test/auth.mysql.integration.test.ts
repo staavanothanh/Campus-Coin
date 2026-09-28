@@ -693,7 +693,7 @@ if (!ENABLED) {
     assert.equal((await notGoogle.json()).error.code, 'PASSWORD_SETUP_NOT_ALLOWED');
   });
 
-  test('email provider và database failure trả lỗi tổng quát, không lộ chi tiết', async () => {
+  test('email provider và schema database không sẵn sàng trả lỗi tổng quát', async () => {
     const email = `mail-failure-${randomUUID()}@example.test`;
     failEmailDelivery = true;
     const unavailable = await call('POST', '/api/v1/auth/register', { body: { email }, ip: '198.51.100.14' });
@@ -710,9 +710,9 @@ if (!ENABLED) {
     const databaseFailure = await call('POST', '/api/v1/auth/register', {
       body: { email: `db-failure-${randomUUID()}@example.test` }, ip: '198.51.100.15',
     });
-    assert.equal(databaseFailure.status, 500);
+    assert.equal(databaseFailure.status, 503);
     const error = await databaseFailure.json();
-    assert.equal(error.error.code, 'INTERNAL_ERROR');
+    assert.equal(error.error.code, 'SERVICE_UNAVAILABLE');
     assert.equal(JSON.stringify(error).includes('campus_coin_missing_database_for_test'), false);
   });
 }
