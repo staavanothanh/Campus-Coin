@@ -380,7 +380,7 @@ export function App() {
           )}
           {screen === 'reports' && <ReportsScreen csrfToken={session.csrfToken} t={t} locale={locale} />}
           {screen === 'admin' && <AdminScreen session={session} csrfToken={session.csrfToken} t={t} locale={locale} />}
-          {screen === 'help' && <HelpScreen t={t} locale={locale} />}
+          {screen === 'help' && <HelpScreen t={t} locale={locale} csrfToken={session.csrfToken} role={session.user.role} />}
           {screen === 'settings' && (
             <SettingsScreen
               session={session}
