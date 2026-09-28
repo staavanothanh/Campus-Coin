@@ -326,6 +326,33 @@ describe('JEV category suggestion application boundary', () => {
     assert.deepEqual(result, { status: 'disabled', categoryId: null, confidence: null, reasonCode: 'flag_off' })
     assert.equal(calls, 0)
   })
+  it('uses Luna when JEV and local matching are disabled', async () => {
+    let request
+    const service = createCategorySuggestionServiceFromEnvironment({
+      env: {
+        JEV_CATEGORY_SUGGESTION_ENABLED: 'false',
+        JEV_LOCAL_CATEGORY_SUGGESTION_ENABLED: 'false',
+        NGHIENAI_LLM_ENABLED: 'true',
+        NGHIENAI_API_KEY: 'synthetic-luna-key',
+        NGHIENAI_BASE_URL: 'https://api.aixingialaire.shop/v1',
+        NGHIENAI_MINIMUM_CONFIDENCE: '0.8',
+        NGHIENAI_MAX_CANDIDATES: '10',
+      },
+      loadEnvFile: () => {},
+      fetchImpl: async (_url, options) => {
+        request = { url: _url, body: JSON.parse(options.body) }
+        return new Response(JSON.stringify({
+          model: 'gpt-6-luna',
+          choices: [{ message: { role: 'assistant', content: '{"category":"groceries","confidence":0.91}' } }],
+        }), { status: 200 })
+      },
+      logger: { warn: () => {} },
+    })
+    const result = await service.suggest(eligibleInput)
+    assert.equal(request.url, 'https://api.aixingialaire.shop/v1/chat/completions')
+    assert.equal(request.body.model, 'gpt-6-luna')
+    assert.deepEqual(result, { status: 'suggested', categoryId: 'groceries', confidence: 0.91, reasonCode: null })
+  })
 
   it('returns unavailable without echoing provider details', async () => {
     const service = createCategorySuggestionService({ ...configuredPolicy,
