@@ -1,5 +1,35 @@
 import type { Locale } from './types.js';
 
+/** Format a user-editable VND value without adding the currency suffix. */
+export function formatAmountInputVnd(value: string, locale: Locale): string {
+  const digits = value.replace(/\D/g, '');
+  if (!digits) return '';
+  const amount = Number(digits);
+  return Number.isSafeInteger(amount)
+    ? new Intl.NumberFormat(locale === 'vi' ? 'vi-VN' : 'en-US').format(amount)
+    : digits;
+}
+
+export function formatAmountInputVndWithCaret(
+  value: string,
+  selectionStart: number | null,
+  locale: Locale,
+): { rawValue: string; caretPosition: number } {
+  const safeSelectionStart = selectionStart ?? value.length;
+  const rawValue = value.replace(/\D/g, '');
+  const digitsBeforeCaret = value.slice(0, safeSelectionStart).replace(/\D/g, '').length;
+  const formattedValue = formatAmountInputVnd(rawValue, locale);
+  if (digitsBeforeCaret === 0) return { rawValue, caretPosition: 0 };
+
+  let seenDigits = 0;
+  for (let index = 0; index < formattedValue.length; index += 1) {
+    if (/\d/.test(formattedValue[index] ?? '')) seenDigits += 1;
+    if (seenDigits >= digitsBeforeCaret) return { rawValue, caretPosition: index + 1 };
+  }
+
+  return { rawValue, caretPosition: formattedValue.length };
+}
+
 /** Format integer VND amount with locale-appropriate thousands separator. */
 export function formatVnd(value: number | undefined | null, locale: Locale): string {
   if (value === undefined || value === null) {

@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { formatAmountInputVnd, formatAmountInputVndWithCaret, parseAmountVnd as parseFormattedAmountVnd } from '../../src/web/format.ts';
 import { parseAmountVnd, retryPayloadAfterTransactionFailure, serializeTransactionPayload, serializeWalletBaseline, shouldRetainTransactionPayload } from '../../src/web/amount-vnd.ts';
 
 test('retains a transaction payload only after an ambiguous outcome', () => {
@@ -85,4 +86,23 @@ test('rejects values outside the positive safe-integer VND contract', () => {
   for (const input of ['', '0', '-1', '+1', '1.5', '1e3', ' 1', '9007199254740992', '１２３']) {
     assert.equal(parseAmountVnd(input), null, `expected ${JSON.stringify(input)} to be rejected`);
   }
+});
+
+test('formats editable VND values with locale thousands separators', () => {
+  assert.equal(formatAmountInputVnd('11092331111', 'vi'), '11.092.331.111');
+  assert.equal(formatAmountInputVnd('11.092.331.111', 'vi'), '11.092.331.111');
+  assert.equal(formatAmountInputVnd('11092331111', 'en'), '11,092,331,111');
+  assert.equal(formatAmountInputVnd('', 'vi'), '');
+  assert.equal(parseFormattedAmountVnd('11.092.331.111'), 11092331111);
+});
+
+test('keeps the caret aligned after a separator moves', () => {
+  assert.deepEqual(formatAmountInputVndWithCaret('19.000', 2, 'vi'), {
+    rawValue: '19000',
+    caretPosition: 2,
+  });
+  assert.deepEqual(formatAmountInputVndWithCaret('', 0, 'vi'), {
+    rawValue: '',
+    caretPosition: 0,
+  });
 });

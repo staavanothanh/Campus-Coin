@@ -5,7 +5,7 @@ import type { CreateSavingsTransferRequest, TransferDirection, Locale, SavingsTr
 import type { Copy } from '../i18n.js';
 import { Modal } from './Modal.js';
 import { ErrorBanner } from './ErrorBanner.js';
-
+import { useFormattedAmountInput } from '../hooks/use-formatted-amount-input.js';
 interface SavingsTransferFormProps {
   direction: TransferDirection;
   csrfToken: string;
@@ -27,7 +27,7 @@ export function SavingsTransferForm({
   onClose,
   onSuccess,
 }: SavingsTransferFormProps) {
-  const [amount, setAmount] = useState('');
+  const { rawValue: amount, setRawValue: setAmount, formattedValue: formattedAmount, inputRef: amountInputRef, handleChange: handleAmountChange } = useFormattedAmountInput('', locale);
   const [note, setNote] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<ApiRequestError | string | null>(null);
@@ -133,8 +133,9 @@ export function SavingsTransferForm({
           <input
             required
             inputMode="numeric"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
+            ref={amountInputRef}
+            value={formattedAmount}
+            onChange={handleAmountChange}
             disabled={loading}
             placeholder="0"
           />
