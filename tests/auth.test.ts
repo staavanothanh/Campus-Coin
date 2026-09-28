@@ -25,7 +25,8 @@ test('mật khẩu được băm với salt riêng và xác minh đúng', async 
   assert.equal(await checkPassword('WrongPassword123', first.hash, first.salt), false);
 });
 
-const server = createApiServer();
+// Các test HTTP này không cần database; readiness được kiểm tra riêng.
+const server = createApiServer({ checkSchema: async () => undefined });
 let baseUrl = '';
 before(async () => {
   await new Promise<void>(resolve => server.listen(0, resolve));
