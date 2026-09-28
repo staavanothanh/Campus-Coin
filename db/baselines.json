@@ -16,6 +16,14 @@
         "c4309279fed9e3328f596c5861bfc3108a230d2fd5cfd7183bf17a3553014e84"
       ],
       "reason": "Slot owned by another chain on the shared Aiven DB (0005_auth_rate_limits.sql, applied 2026-09-24). Local file 0005 is the domain chain's 0005_wallet_baseline_boundary.sql and is kept; its DDL was applied manually to Aiven during converge (ADR-0009 section 4), so the slot is external. Local auth DDL is 0033_auth_rate_limits.sql; 0031 is the shared OAuth migration."
+    },
+    {
+      "version": "0032",
+      "kind": "historical",
+      "acceptedChecksums": [
+        "e1dc480603ea0a212cb0514017d4cd845f29544e44cc68753443019c34f362bb"
+      ],
+      "reason": "Read-only probe on the configured campus_coin_clone database recorded version 0032 as 0032_reconcile_thien_merge_schema.sql with this checksum. SHOW CREATE TABLE confirms its auth_credentials and email_otps schema matches the current 0032_email_auth.sql contract; accept the applied historical checksum without editing the immutable migration file."
     }
   ]
 }
