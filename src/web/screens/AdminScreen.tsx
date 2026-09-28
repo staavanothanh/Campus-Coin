@@ -119,9 +119,9 @@ function AccountsTab({ session, csrfToken, locale, t }: { session: Session; csrf
           const isSelf = String(user.id) === currentUserId;
           const blocked = isSelf && user.status === 'active';
           return <tr key={user.id}>
-            <td>#{String(user.id)}</td><td>{user.emailMasked}</td><td className="admin-report-title">{user.displayName || '—'}</td><td>{user.role}</td><td>{user.locale === 'vi' ? 'Tiếng Việt' : 'English'}</td>
+            <td className="admin-id">#{String(user.id)}</td><td className="admin-email">{user.emailMasked}</td><td className="admin-report-title">{user.displayName || '—'}</td><td><span className={`admin-role admin-role-${user.role}`}>{user.role}</span></td><td className="admin-locale">{user.locale === 'vi' ? 'Tiếng Việt' : 'English'}</td>
             <td><span className={`admin-status admin-status-${user.status}`}>{user.status === 'active' ? c.activeStatus : c.disabledStatus}</span></td>
-            <td>{formatDate(user.createdAt, locale)}</td>
+            <td style={{ whiteSpace: 'nowrap' }}>{formatDate(user.createdAt, locale)}</td>
             <td>{blocked ? <span className="muted">{c.selfBlocked}</span> : <button type="button" className="secondary-button" aria-label={`${user.status === 'active' ? c.disableAccount : c.enableAccount} #${user.id}`} onClick={() => setTarget(user)}>{user.status === 'active' ? c.disableAccount : c.enableAccount}</button>}</td>
           </tr>;
         })}</tbody>
@@ -174,7 +174,7 @@ function AuditQueue({ locale, t }: { locale: Locale; t: Copy }) {
     {error && <div role="alert"><p>{t.unavailable}</p><button type="button" className="secondary-button" disabled={loading} onClick={() => void reload()}>{t.retry}</button></div>}
     <div className="table-responsive"><table className="data-table"><caption>{c.audit}</caption>
       <thead><tr><th scope="col">{c.created}</th><th scope="col">{c.action}</th><th scope="col">{c.outcome}</th></tr></thead>
-      <tbody>{data.map(event => <tr key={event.id}><td>{formatDate(event.createdAt, locale)}</td><td>{event.action}</td><td>{event.outcome === 'success' ? c.success : event.outcome === 'failure' ? c.failure : event.outcome}</td></tr>)}</tbody>
+      <tbody>{data.map(event => <tr key={event.id}><td style={{ whiteSpace: 'nowrap' }}>{formatDate(event.createdAt, locale)}</td><td className="admin-action">{event.action}</td><td><span className={`admin-outcome admin-outcome-${event.outcome === 'success' ? 'success' : 'failure'}`}>{event.outcome === 'success' ? c.success : event.outcome === 'failure' ? c.failure : event.outcome}</span></td></tr>)}</tbody>
     </table></div>
     {loading && <p role="status">{t.loading}</p>}
     {!loading && !error && data.length === 0 && <p className="empty-state">{c.emptyAudit}</p>}
