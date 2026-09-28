@@ -7,6 +7,7 @@ import { createHash } from "node:crypto";
 import {
   applyMigration,
   loadAppliedMigrations,
+  migrationPlanProblems,
   planMigrations,
   scanMigrationDir,
   supportsCheckConstraints,
@@ -80,11 +81,46 @@ test("planMigrations: pending/applied/checksum mismatch", async () => {
     new Map([
       ["0001", "aaa"],
       ["0002", "CHANGED"],
+      ["0099", "unknown"],
     ]),
   );
   assert.deepEqual(plan.pending.map((f) => f.version), ["0003"]);
   assert.deepEqual(plan.appliedClean, ["0001"]);
   assert.deepEqual(plan.appliedMismatch, [{ version: "0002", expected: "bbb", actual: "CHANGED" }]);
+  assert.deepEqual(plan.unknownAppliedMigrations, ["0099"]);
+  assert.deepEqual(migrationPlanProblems(plan), [
+    "checksum mismatch: 0002",
+    "unknown applied migrations: 0099",
+  ]);
+});
+
+test("migrationPlanProblems: version đã áp dụng nhưng không có trong source bị chặn", () => {
+  const plan = planMigrations(
+    [{ version: "0001", name: "0001_a.sql", checksum: "aaa", sql: "x" }],
+    new Map([["0001", "aaa"], ["0007", "from another branch"]]),
+  );
+
+  assert.deepEqual(plan.appliedClean, ["0001"]);
+  assert.deepEqual(plan.pending, []);
+  assert.deepEqual(plan.unknownAppliedMigrations, ["0007"]);
+  assert.deepEqual(migrationPlanProblems(plan), ["unknown applied migrations: 0007"]);
+});
+
+test("migrationPlanProblems: không cho áp migration bị khuyết đứng trước version đã applied", () => {
+  const plan = planMigrations(
+    [
+      { version: "0001", name: "0001_a.sql", checksum: "aaa", sql: "a" },
+      { version: "0002", name: "0002_b.sql", checksum: "bbb", sql: "b" },
+      { version: "0003", name: "0003_c.sql", checksum: "ccc", sql: "c" },
+    ],
+    new Map([["0001", "aaa"], ["0003", "ccc"]]),
+  );
+
+  assert.deepEqual(plan.pending.map((migration) => migration.version), ["0002"]);
+  assert.deepEqual(plan.appliedAfterPendingGap, ["0003"]);
+  assert.deepEqual(migrationPlanProblems(plan), [
+    "pending migration 0002 precedes applied migration(s): 0003",
+  ]);
 });
 
 test("supportsCheckConstraints: phiên bản >= 8.0.16 kể cả khi VERSION() có suffix", () => {

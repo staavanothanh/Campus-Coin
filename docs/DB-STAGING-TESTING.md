@@ -165,3 +165,33 @@ Các kết quả `campus_coin_done` và `3/15` dưới đây là trạng thái c
 - Cùng lần kiểm tra, preflight và `db:status` dừng vì checksum `0006`, `0007`, `0008`, `0009`, `0010` khác migration files của `hiep`. Chỉ chạy hai lệnh đọc trạng thái; không chạy migration, seed hoặc test ghi trên clone.
 - Các suite `db:datatest` `23/23` và ba bộ MySQL `53/53` chạy riêng qua harness tạo schema test có tên ngẫu nhiên rồi dọn schema đó. Kết quả chứng minh migration/code của working tree trên schema sạch; không khẳng định clone có cùng schema hay lineage.
 - DevB/DB owner cần đối chiếu file migration/checksum đã áp, trigger và baseline clone; giữ nguyên dữ liệu tài chính, không sửa migration đã chạy. Không deploy code mới lên môi trường dùng clone cho tới khi lineage được giải quyết hoặc có kiểm chứng runtime tương thích riêng.
+
+## Kiểm tra chỉ đọc mới nhất ngày 2026-09-28
+
+- Target cấu hình hiện tại vẫn là schema `campus_coin_clone` trên MySQL `8.4.8`; kết nối TLS và database tồn tại.
+- `npm run db:preflight` và `npm run db:status` đều dừng vì checksum mismatch ở `0006`–`0013`; `schema_migrations` còn có các version `0014`–`0031` không có migration file ở nhánh `hiep`. Migrations `0001`–`0005` được báo `applied`. Đây là kết quả mới nhất; không suy luận các version lạ thuộc migration nào nếu chưa đối chiếu DB owner.
+- API local liveness trả `200`, còn `/api/v1/health/ready` trả `503 SERVICE_UNAVAILABLE` với thông báo chung `Database schema chưa sẵn sàng`. Readiness từ chối phục vụ data routes cho đến khi lineage/schema đạt yêu cầu.
+- Chỉ chạy lệnh kiểm tra chỉ đọc; không chạy migration, seed, datatest, MySQL integration hoặc ghi trực tiếp trên clone. DevB/DB owner cần so sánh toàn bộ `schema_migrations(version, name, checksum)` (bao gồm `0014`–`0031`) với đúng migration source và kiểm tra cấu trúc thực tế, sau đó chuẩn bị backup/restore và phương án forward-only/baseline có kiểm soát. Không sửa migration/checksum đã tồn tại để bỏ qua gate.
+- Truy vấn DBeaver chỉ đọc để DevB đối chiếu target và schema (chạy trên connection đã xác nhận là `campus_coin_clone`):
+
+  ```sql
+  SELECT DATABASE() AS schema_name, VERSION() AS mysql_version;
+
+  SELECT version, name, checksum
+  FROM schema_migrations
+  ORDER BY version;
+
+  SELECT table_name, column_name, column_type, is_nullable
+  FROM information_schema.columns
+  WHERE table_schema = DATABASE()
+    AND table_name IN (
+      'schema_migrations',
+      'wallet_accounts',
+      'ledger_transactions',
+      'cashflow_plans',
+      'cashflow_plan_status_events'
+    )
+  ORDER BY table_name, ordinal_position;
+  ```
+
+  Chỉ gửi lại tên schema, versions/checksums và metadata cột đã đối chiếu; không gửi URI, password, CA private hoặc dữ liệu người dùng.

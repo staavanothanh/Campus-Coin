@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { ApiRequestError } from '../api-client.js';
 import { App } from '../App.js';
 
 const { apiGetMock, apiPatchMock, apiPostMock } = vi.hoisted(() => ({
@@ -12,7 +13,20 @@ vi.mock('../api-client.js', () => ({
   apiGet: apiGetMock,
   apiPatch: apiPatchMock,
   apiPost: apiPostMock,
-  ApiRequestError: class ApiRequestError extends Error {},
+  ApiRequestError: class ApiRequestError extends Error {
+    status: number;
+    apiError: { code: string; message: string } | null;
+
+    constructor(status: number, apiError: { code: string; message: string } | null) {
+      super(apiError?.message ?? `HTTP_${status}`);
+      this.status = status;
+      this.apiError = apiError;
+    }
+
+    get isUnauthorized() {
+      return this.status === 401;
+    }
+  },
   setUnauthorizedHandler: vi.fn(),
 }));
 
@@ -67,6 +81,34 @@ describe('language preference stays in sync', () => {
     expect(error.textContent).toContain('HTTP_502');
     expect(error.closest('section.state-screen--embedded')).not.toBeNull();
     expect(screen.getAllByRole('main')).toHaveLength(1);
+  });
+
+  it('shows a localized database-unavailable message without exposing API detail', async () => {
+    apiGetMock.mockImplementation((path: string) => {
+      if (path === '/auth/session') {
+        return Promise.resolve({
+          user: { ...user, locale: 'en' },
+          csrfToken: 'csrf-test',
+          googleLinked: false,
+          walletInitialized: false,
+        });
+      }
+      if (path === '/reports/dashboard') {
+        const error = new ApiRequestError(503, {
+          code: 'SERVICE_UNAVAILABLE',
+          message: 'Database schema chưa sẵn sàng',
+        });
+        return Promise.reject(error);
+      }
+      return Promise.resolve([]);
+    });
+
+    render(<App />);
+
+    const error = await screen.findByRole('alert');
+    expect(error.textContent).toContain('Data is unavailable');
+    expect(error.textContent).toContain('Your data is temporarily unavailable. Please try again shortly.');
+    expect(error.textContent).not.toContain('Database schema chưa sẵn sàng');
   });
 
   it('shows the Google success notice in the saved session language', async () => {

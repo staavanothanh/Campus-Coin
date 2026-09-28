@@ -23,7 +23,9 @@ Coding agent bên DevB được kỳ vọng tự đọc repo, sửa code/test/do
 
 - Nhánh sản phẩm chuẩn là hiep. Khi tài liệu này được viết, commit mới nhất là 6e0b812; kiểm tra lại nhánh/commit thực tế trước khi làm.
 - Team Leader đã báo campus_coin_clone kết nối TLS được, MySQL 8.4.8, migrations 0001–0005 applied. Đây là kết quả ngày 2026-09-26; xác minh lại trước mọi thao tác mới.
-- Changeset hiện tại thêm migrations `0011` (tên mặt hàng trong ledger), `0012` (kế hoạch dòng tiền) và `0013` (lịch sử bật/tắt kế hoạch). `0013` backfill trạng thái từ audit history hiện có rồi khóa update/delete sự kiện mới. CI kiểm tra trên MySQL disposable; không apply lên `campus_coin_clone` cho đến khi DevB giải quyết checksum mismatch `0006`–`0010`, xác nhận backup/restore và target.
+- Changeset hiện tại thêm migrations `0011` (tên mặt hàng trong ledger), `0012` (kế hoạch dòng tiền) và `0013` (lịch sử bật/tắt kế hoạch). `0013` backfill trạng thái từ audit history hiện có rồi khóa update/delete sự kiện mới. CI kiểm tra trên MySQL disposable; không apply lên `campus_coin_clone` cho đến khi DevB giải quyết checksum mismatch và xác nhận backup/restore cùng target.
+- Kết quả chỉ đọc mới nhất ngày 2026-09-28 từ nhánh `hiep`: `npm run db:preflight`/`npm run db:status` kết nối TLS tới `campus_coin_clone`, báo `MISMATCH` cho migrations `0006`–`0013`, và có các version `0014`–`0031` không có migration source trong nhánh này; `0001`–`0005` vẫn `applied`. Local `/api/v1/health` trả `200`, `/api/v1/health/ready` trả `503 SERVICE_UNAVAILABLE` (`Database schema chưa sẵn sàng`). Không chạy migration, datatest hay test ghi trên clone.
+- Trước khi đề xuất apply/deploy, DevB cần xác minh applied SQL/checksum từng version (nhất là các version không có source `0014`–`0031`) với migration source đúng branch và kiểm tra cấu trúc thật. DBeaver query read-only nằm trong `docs/DB-STAGING-TESTING.md`. Cần backup và restore rehearsal sang target riêng; sau đó Team Leader/DB owner quyết định giữ nguyên clone và dùng forward-only fix hay tạo một clone sạch. Không sửa checksum lịch sử để làm readiness pass.
 - Team Leader đã báo db:datatest 23/23, MySQL domain integration 31/31, contract smoke 13/13, Auth MySQL 8/8 và auth security 1/1 trên MySQL service thử nghiệm. Đây là evidence do Team Leader cung cấp; không chứng minh backup/restore hoặc benchmark.
 - MySQL test harness hiện tạo schema ngẫu nhiên dạng campus_coin_test với PID và mã ngẫu nhiên, apply migrations trong db/migrations rồi drop schema khi dừng. Prefix trong CAMPUS_COIN_DB_NAME xác nhận ý định chạy test, không chứng minh host MySQL là môi trường riêng.
 - Bộ SQL cũ trong benchmark không an toàn để chạy: setup chọn campus_coin, dùng ID cố định và cleanup để lại users, ledger và savings transfers. Không chạy các file SQL này.
@@ -115,7 +117,7 @@ Chạy tests mới và unit guard hiện tại. Chỉ chạy integration DB khi 
 ### 4. Review migrations và runtime role
 
 - Đọc migrations 0006–0010 và viết checklist read-only để tìm dữ liệu ngoài safe-integer range trước khi thêm CHECK constraints.
-- Không suy ra migration đã apply chỉ vì file có trong repo. Clone trước đây được báo 0001–0005 applied; yêu cầu DevB chạy lại status để có evidence mới.
+- Không suy ra migration đã apply chỉ vì file có trong repo. Clone được báo `0001`–`0005 applied`; lần chỉ đọc ngày 2026-09-28 ghi nhận `0006`–`0013` là `MISMATCH`. Đối chiếu output mới nhất trước khi chọn phương án; không xem mismatch là migration pending an toàn để apply.
 - Không tự apply 0006–0010. Điều kiện apply: backup đã restore thử thành công, precheck dữ liệu đạt, clone được xác nhận và DevB/DB owner cấp phép.
 - Review hoặc đề xuất bảng quyền migration role/runtime role. Runtime không dùng avnadmin; không cấp UPDATE/DELETE cho ledger/audit append-only nếu không có lý do được kiểm chứng từ code/schema.
 - Nếu chưa có grant evidence, ghi “chưa xác minh”; không kết luận least privilege chỉ từ config/env.

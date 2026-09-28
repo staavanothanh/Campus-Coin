@@ -8,6 +8,7 @@ import {
   acquireMigrationLock,
   applyMigration,
   loadAppliedMigrations,
+  migrationPlanProblems,
   MigrationError,
   planMigrations,
   releaseMigrationLock,
@@ -146,13 +147,14 @@ async function cmdPreflight(): Promise<number> {
     const files = await scanMigrationDir(MIGRATIONS_DIR);
     const applied = await loadAppliedMigrations(conn as unknown as MigrationConnection);
     const plan = planMigrations(files, applied);
+    const problems = migrationPlanProblems(plan);
     results.push({
-      ok: plan.appliedMismatch.length === 0,
+      ok: problems.length === 0,
       warn: false,
       label: "migration files vs schema_migrations",
       detail:
-        plan.appliedMismatch.length > 0
-          ? `checksum mismatch: ${plan.appliedMismatch.map((m) => m.version).join(", ")}`
+        problems.length > 0
+          ? problems.join("; ")
           : `applied=${plan.appliedClean.length} pending=${plan.pending.length} total=${files.length}`,
     });
   } catch (error) {
@@ -183,6 +185,7 @@ async function cmdStatus(): Promise<number> {
     const files = await scanMigrationDir(MIGRATIONS_DIR);
     const applied = await loadAppliedMigrations(conn as unknown as MigrationConnection);
     const plan = planMigrations(files, applied);
+    const problems = migrationPlanProblems(plan);
     console.log(`Migrations dir: ${MIGRATIONS_DIR}`);
     for (const file of files) {
       const state = applied.has(file.version)
@@ -190,8 +193,11 @@ async function cmdStatus(): Promise<number> {
         : "pending ";
       console.log(`${state}  ${file.version}  ${file.name}`);
     }
-    if (plan.appliedMismatch.length > 0) {
-      console.log(`FAIL  ${plan.appliedMismatch.length} checksum mismatch — dừng mọi deploy, kiểm tra thủ công`);
+    for (const version of plan.unknownAppliedMigrations) {
+      console.log(`UNKNOWN  ${version}  không có file migration trong source hiện tại`);
+    }
+    if (problems.length > 0) {
+      for (const problem of problems) console.log(`FAIL  ${problem} — dừng mọi deploy, kiểm tra thủ công`);
       return 1;
     }
     return 0;
@@ -222,8 +228,9 @@ async function cmdUp(): Promise<number> {
     const files = await scanMigrationDir(MIGRATIONS_DIR);
     const applied = await loadAppliedMigrations(conn as unknown as MigrationConnection);
     const plan = planMigrations(files, applied);
-    if (plan.appliedMismatch.length > 0) {
-      console.log(`FAIL  checksum mismatch: ${plan.appliedMismatch.map((m) => m.version).join(", ")}`);
+    const problems = migrationPlanProblems(plan);
+    if (problems.length > 0) {
+      for (const problem of problems) console.log(`FAIL  ${problem} — dừng trước khi áp migration`);
       return 1;
     }
     if (plan.pending.length === 0) {

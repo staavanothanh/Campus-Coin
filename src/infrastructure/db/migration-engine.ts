@@ -92,6 +92,8 @@ export interface MigrationPlan {
   pending: MigrationFile[];
   appliedClean: string[];
   appliedMismatch: Array<{ version: string; expected: string; actual: string }>;
+  unknownAppliedMigrations: string[];
+  appliedAfterPendingGap: string[];
 }
 
 /**
@@ -99,7 +101,14 @@ export interface MigrationPlan {
  * Checksum lệch → lỗi hard (fail closed): không âm thầm apply lại file đã chạy.
  */
 export function planMigrations(files: MigrationFile[], applied: Map<string, string>): MigrationPlan {
-  const plan: MigrationPlan = { pending: [], appliedClean: [], appliedMismatch: [] };
+  const plan: MigrationPlan = {
+    pending: [],
+    appliedClean: [],
+    appliedMismatch: [],
+    unknownAppliedMigrations: [],
+    appliedAfterPendingGap: [],
+  };
+  const knownVersions = new Set(files.map((file) => file.version));
   for (const file of files) {
     const recorded = applied.get(file.version);
     if (recorded === undefined) {
@@ -110,7 +119,37 @@ export function planMigrations(files: MigrationFile[], applied: Map<string, stri
       plan.appliedMismatch.push({ version: file.version, expected: file.checksum, actual: recorded });
     }
   }
+  plan.unknownAppliedMigrations = [...applied.keys()]
+    .filter((version) => !knownVersions.has(version))
+    .sort();
+  const firstPendingIndex = files.findIndex((file) => !applied.has(file.version));
+  if (firstPendingIndex >= 0) {
+    plan.appliedAfterPendingGap = files
+      .slice(firstPendingIndex + 1)
+      .filter((file) => applied.has(file.version))
+      .map((file) => file.version);
+  }
   return plan;
+}
+
+export function migrationPlanProblems(plan: MigrationPlan): string[] {
+  const problems: string[] = [];
+  if (plan.appliedMismatch.length > 0) {
+    problems.push(`checksum mismatch: ${plan.appliedMismatch.map((migration) => migration.version).join(", ")}`);
+  }
+  if (plan.unknownAppliedMigrations.length > 0) {
+    problems.push(`unknown applied migrations: ${plan.unknownAppliedMigrations.join(", ")}`);
+  }
+  if (plan.appliedAfterPendingGap.length > 0) {
+    const pendingVersion = plan.pending[0]?.version;
+    const appliedVersions = plan.appliedAfterPendingGap.join(", ");
+    problems.push(
+      pendingVersion
+        ? `pending migration ${pendingVersion} precedes applied migration(s): ${appliedVersions}`
+        : `applied migrations follow a pending migration: ${appliedVersions}`,
+    );
+  }
+  return problems;
 }
 
 /** GET_LOCK (session-scoped) — lock name unique per DB; trả true khi lấy được. */

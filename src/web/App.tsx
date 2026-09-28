@@ -289,7 +289,10 @@ export function App() {
       if (requestId !== dashboardRequestRef.current) return;
       if (caught instanceof ApiRequestError && caught.isUnauthorized) return;
       if (!silent) setState('error');
-      setError(caught instanceof Error ? caught.message : 'REQUEST_FAILED');
+      const message = caught instanceof ApiRequestError && caught.apiError?.code === 'SERVICE_UNAVAILABLE'
+        ? t.unavailableDetail
+        : caught instanceof Error ? caught.message : 'REQUEST_FAILED';
+      setError(message);
     }
   }
 

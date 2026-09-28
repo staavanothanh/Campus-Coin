@@ -53,8 +53,8 @@ jobs:
       - run: npm run api:bundle
       - run: npm run api:types
       - run: git diff --exit-code -- artifacts/openapi.json artifacts/api.d.ts
-      - name: Domain and adapter unit tests
-        run: node --import tsx --test test/domain.format.test.ts test/domain.api.test.ts test/ledger-validation.test.ts test/cashflow-plan.domain.test.ts test/cashflow-plan-contract.test.ts test/jev-category.test.ts test/receipt-ocr.test.ts test/db-benchmark.test.ts test/auth-profile-completion.test.ts
+      - name: Domain, migration and adapter unit tests
+        run: node --import tsx --test test/domain.format.test.ts test/domain.api.test.ts test/ledger-validation.test.ts test/cashflow-plan.domain.test.ts test/cashflow-plan-contract.test.ts test/jev-category.test.ts test/receipt-ocr.test.ts test/db-benchmark.test.ts test/auth-profile-completion.test.ts test/migration-engine.test.ts
       - run: node --import tsx --test tests/auth.test.ts test/schema-readiness.test.ts tests/google-oauth.test.ts tests/client-ip.test.ts test/env.test.ts tests/api-cache-header.test.ts
       - run: node --import tsx --test tests/vercel-adapter.test.ts tests/mail.test.ts
       - name: API schema readiness gate regression

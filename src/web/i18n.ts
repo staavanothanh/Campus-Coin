@@ -69,6 +69,7 @@ export interface Copy {
   // Status
   loading: string;
   unavailable: string;
+  unavailableDetail: string;
   retry: string;
   noData: string;
 
@@ -166,6 +167,7 @@ export const copy: Record<Locale, Copy> = {
     // Status
     loading: 'Đang tải\u2026',
     unavailable: 'Dữ liệu chưa khả dụng',
+    unavailableDetail: 'Dữ liệu tạm thời chưa sẵn sàng. Vui lòng thử lại sau.',
     retry: 'Thử lại',
     noData: 'Chưa có dữ liệu',
 
@@ -261,6 +263,7 @@ export const copy: Record<Locale, Copy> = {
     // Status
     loading: 'Loading\u2026',
     unavailable: 'Data is unavailable',
+    unavailableDetail: 'Your data is temporarily unavailable. Please try again shortly.',
     retry: 'Retry',
     noData: 'No data yet',
 
