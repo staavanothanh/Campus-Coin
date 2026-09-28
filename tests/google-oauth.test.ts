@@ -48,6 +48,29 @@ test('Google OAuth requires all settings and a valid callback URL', () => {
     SESSION_SECRET: '01234567890123456789012345678901',
   }));
 });
+test('Google OAuth uses SESSION_SECURE outside production and clears the secure flow cookie', () => {
+  const oauthConfig = readGoogleOAuthConfig({
+    GOOGLE_OAUTH_CLIENT_ID: 'id',
+    GOOGLE_OAUTH_CLIENT_SECRET: 'secret',
+    GOOGLE_OAUTH_REDIRECT_URI: 'https://campus.example/api/v1/auth/google/callback',
+    SESSION_SECRET: '01234567890123456789012345678901',
+    NODE_ENV: 'staging',
+    SESSION_SECURE: 'true',
+  });
+  assert.equal(oauthConfig?.secureCookie, true);
+  const provider = createGoogleOAuthProvider(oauthConfig, fakeClient());
+  assert.match(provider.clearCookie(), /^__Host-cc_google_flow=/);
+  assert.match(provider.clearCookie(), /Secure/);
+});
+test('Google OAuth rejects invalid SESSION_SECURE values', () => {
+  assert.throws(() => readGoogleOAuthConfig({
+    GOOGLE_OAUTH_CLIENT_ID: 'id',
+    GOOGLE_OAUTH_CLIENT_SECRET: 'secret',
+    GOOGLE_OAUTH_REDIRECT_URI: 'https://campus.example/api/v1/auth/google/callback',
+    SESSION_SECRET: '01234567890123456789012345678901',
+    SESSION_SECURE: 'yes',
+  }), /SESSION_SECURE must be true or false/);
+});
 
 test('Google OAuth keeps state, nonce and PKCE verifier inside a signed host cookie', async () => {
   const provider = createGoogleOAuthProvider(config, fakeClient());

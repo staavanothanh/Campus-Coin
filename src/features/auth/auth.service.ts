@@ -230,9 +230,12 @@ export async function loginWithGoogle(identity: { subject: string; email: string
   try {
     await db.beginTransaction();
     const [identityRows] = await db.execute<UserRow[]>(
-      'SELECT u.id, u.email, u.display_name, u.locale, u.role, u.email_verified, u.status FROM auth_identities a JOIN users u ON u.id = a.user_id WHERE a.provider = ? AND a.subject = ? LIMIT 1 FOR UPDATE',
+      'SELECT u.id, u.email, u.display_name, u.locale, u.role, u.email_verified, u.status FROM auth_identities a JOIN users u ON u.id = a.user_id WHERE a.provider = ? AND a.subject = ? LIMIT 1',
       ['google', identity.subject],
     );
+    if (identityRows[0]) {
+      await db.execute('SELECT id FROM users WHERE id = ? FOR UPDATE', [identityRows[0].id]);
+    }
     user = identityRows[0];
 
     if (!user) {
@@ -289,10 +292,13 @@ export async function linkGoogleIdentity(userId: string, identity: { subject: st
   try {
     await db.beginTransaction();
     const [rows] = await db.execute<(RowDataPacket & { user_id: string | number })[]>(
-      'SELECT user_id FROM auth_identities WHERE provider = ? AND subject = ? LIMIT 1 FOR UPDATE',
+      'SELECT user_id FROM auth_identities WHERE provider = ? AND subject = ? LIMIT 1',
       ['google', identity.subject],
     );
     const existing = rows[0];
+    if (existing) {
+      await db.execute('SELECT id FROM users WHERE id = ? FOR UPDATE', [existing.user_id]);
+    }
     if (existing && String(existing.user_id) !== userId) {
       throw new AppError(409, 'GOOGLE_ACCOUNT_CONFLICT', 'Tài khoản Google đã được kết nối với một tài khoản khác');
     }

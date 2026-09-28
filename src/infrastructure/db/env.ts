@@ -52,6 +52,16 @@ function requireValue(name: string, env: NodeJS.ProcessEnv): string {
   return value;
 }
 
+function readDbPassword(env: NodeJS.ProcessEnv): string {
+  const value = env["CAMPUS_COIN_DB_PASSWORD"];
+  const isLoopback = ["localhost", "127.0.0.1", "::1"].includes(env["CAMPUS_COIN_DB_HOST"] ?? "");
+  const isDisposableTest = env["CAMPUS_COIN_TEST_DB"] === "1" && isLoopback;
+  if (value === undefined || value === null || (value === "" && !isDisposableTest)) {
+    throw new DbEnvError("missing required environment variable: CAMPUS_COIN_DB_PASSWORD");
+  }
+  return value;
+}
+
 function optionalValue(name: string, env: NodeJS.ProcessEnv): string | undefined {
   const value = env[name];
   return value === undefined || value === "" ? undefined : value;
@@ -91,7 +101,7 @@ export function readDbEnv(env: NodeJS.ProcessEnv = process.env): DbEnv {
   const host = requireValue("CAMPUS_COIN_DB_HOST", env);
   const database = requireValue("CAMPUS_COIN_DB_NAME", env);
   const user = requireValue("CAMPUS_COIN_DB_USER", env);
-  const password = requireValue("CAMPUS_COIN_DB_PASSWORD", env);
+  const password = readDbPassword(env);
   const sslMode = parseSslMode(env["CAMPUS_COIN_DB_SSL"], env);
   const caPath = optionalValue("CAMPUS_COIN_DB_CA_PATH", env);
   const caBase64 = optionalValue("CAMPUS_COIN_DB_CA_BASE64", env);

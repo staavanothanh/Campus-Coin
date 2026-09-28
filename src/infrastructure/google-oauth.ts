@@ -1,3 +1,4 @@
+import { isSecureCookieEnvironment } from '../lib/cookie-security.ts';
 import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import { CodeChallengeMethod, OAuth2Client } from 'google-auth-library';
 
@@ -91,18 +92,17 @@ export function readGoogleOAuthConfig(env: NodeJS.ProcessEnv = process.env): Goo
   ) {
     throw new Error('Google OAuth redirect URI is invalid');
   }
-
   const sessionSecret = env.SESSION_SECRET || '';
   if (Buffer.byteLength(sessionSecret, 'utf8') < 32) {
     throw new Error('SESSION_SECRET must be configured before Google OAuth');
   }
-
+  const secureCookie = isSecureCookieEnvironment(env);
   return {
     clientId,
     clientSecret,
     redirectUri: redirect.toString(),
     sessionSecret,
-    secureCookie: env.NODE_ENV === 'production',
+    secureCookie,
   };
 }
 

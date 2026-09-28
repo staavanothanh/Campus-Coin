@@ -33,21 +33,27 @@ try {
 
 function runCli(arg) {
   const result = spawnSync(process.execPath, ["src/infrastructure/db/migrate.ts", arg], {
-    // Disposable MySQL service trong CI dùng root với password rỗng; readDbEnv chỉ
-    // chấp nhận empty password khi CAMPUS_COIN_TEST_DB=1 trên loopback host.
     env: {
-      ...process.env,
+      PATH: process.env.PATH,
+      NODE_ENV: "test",
+      CAMPUS_COIN_DB_HOST: host,
+      CAMPUS_COIN_DB_PORT: String(port),
       CAMPUS_COIN_DB_NAME: dbName,
       CAMPUS_COIN_DB_USER: dbUser,
       CAMPUS_COIN_DB_PASSWORD: dbPassword,
+      CAMPUS_COIN_DB_SSL: process.env.CAMPUS_COIN_DB_SSL ?? "disabled",
+      CAMPUS_COIN_DB_MIGRATE_USER: process.env.CAMPUS_COIN_DB_MIGRATE_USER ?? dbUser,
+      CAMPUS_COIN_DB_MIGRATE_PASSWORD: process.env.CAMPUS_COIN_DB_MIGRATE_PASSWORD ?? dbPassword,
       CAMPUS_COIN_TEST_DB: "1",
+      ...(process.env.CAMPUS_COIN_DB_CA_PATH === undefined ? {} : { CAMPUS_COIN_DB_CA_PATH: process.env.CAMPUS_COIN_DB_CA_PATH }),
+      ...(process.env.CAMPUS_COIN_DB_CA_BASE64 === undefined ? {} : { CAMPUS_COIN_DB_CA_BASE64: process.env.CAMPUS_COIN_DB_CA_BASE64 }),
+      ...(process.env.CAMPUS_COIN_MIGRATIONS_DIR === undefined ? {} : { CAMPUS_COIN_MIGRATIONS_DIR: process.env.CAMPUS_COIN_MIGRATIONS_DIR }),
     },
     encoding: "utf8",
   });
   console.log(`--- migrate.ts ${arg} (exit ${result.status}) ---`);
-  console.log((result.stdout ?? "").trim().split("\n").slice(-4).join("\n"));
   if (result.status !== 0) {
-    console.error((result.stderr ?? "").trim().split("\n").slice(-4).join("\n"));
+    console.error(`migrate.ts ${arg} failed with exit ${result.status}`);
     throw new Error(`migrate.ts ${arg} failed with exit ${result.status}`);
   }
   return (result.stdout ?? "").trim();

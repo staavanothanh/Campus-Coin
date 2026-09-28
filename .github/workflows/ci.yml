@@ -39,7 +39,6 @@ jobs:
       OTP_SECRET: '0000000000000000000000000000000000000000000000000000000000000000'
       SESSION_SECRET: '1111111111111111111111111111111111111111111111111111111111111111'
       AUTH_RATE_LIMIT_SECRET: '2222222222222222222222222222222222222222222222222222222222222222'
-      CAMPUS_COIN_CURSOR_SIGNING_KEY: 'ci-only-cursor-signing-key-at-least-32-bytes-long-000000000000'
       CLIENT_ORIGIN: http://127.0.0.1:5173
       TRUST_PROXY: 'false'
     steps:
@@ -48,6 +47,12 @@ jobs:
         with:
           node-version: '24'
           cache: npm
+      - name: Generate ephemeral cursor signing key
+        shell: bash
+        run: |
+          cursor_key="$(openssl rand -hex 32)"
+          echo "::add-mask::$cursor_key"
+          echo "CAMPUS_COIN_CURSOR_SIGNING_KEY=$cursor_key" >> "$GITHUB_ENV"
       - name: Allow trigger creation on disposable MySQL
         run: |
           container_id="$(docker ps --filter ancestor=mysql:8.4 --format '{{.ID}}')"

@@ -91,9 +91,6 @@ export function createMysqlHarness(): MysqlHarness {
       ["email_otps", "attempts"],
       ["auth_credentials", "password_hash, password_salt"],
       ["auth_rate_limits", "attempt_count, window_started_at, blocked_until"],
-      // Google login/link dùng SELECT ... FOR UPDATE trên auth_identities (locking
-      // read); MySQL 8 đòi UPDATE privilege cho locking read.
-      ["auth_identities", "user_id, provider, subject"],
     ] as const;
     for (const [table, columns] of updateGrants) {
       await admin.query(`GRANT UPDATE (${columns}) ON \`${database}\`.\`${table}\` TO ${account}`);

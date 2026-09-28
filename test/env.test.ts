@@ -29,6 +29,17 @@ test("readDbEnv: thiếu biến bắt buộc → fail closed", () => {
     assert.throws(() => readDbEnv(env), DbEnvError, missing);
   }
 });
+test("readDbEnv: disposable loopback test may use an empty database password", () => {
+  const env = {
+    ...baseEnv(),
+    CAMPUS_COIN_DB_HOST: "127.0.0.1",
+    CAMPUS_COIN_DB_PASSWORD: "",
+    CAMPUS_COIN_TEST_DB: "1",
+  };
+  assert.equal(readDbEnv(env).password, "");
+  assert.throws(() => readDbEnv({ ...env, CAMPUS_COIN_TEST_DB: undefined }), DbEnvError);
+  assert.throws(() => readDbEnv({ ...env, CAMPUS_COIN_DB_HOST: "db.example.com" }), DbEnvError);
+});
 
 test("readDbEnv: port và connection limit ngoài dải → lỗi", () => {
   assert.throws(() => readDbEnv({ ...baseEnv(), CAMPUS_COIN_DB_PORT: "0" }), DbEnvError);
