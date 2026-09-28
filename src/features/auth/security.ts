@@ -46,6 +46,22 @@ export function csrfForSession(token: string) {
   return createHmac('sha256', secret).update(`csrf:${token}`).digest('hex');
 }
 
-export function publicUser(user: { id: string | number; email: string; display_name: string; role: string; locale: string }) {
-  return { id: String(user.id), email: user.email, displayName: user.display_name, role: user.role, locale: user.locale };
+export function publicUser(user: {
+  id: string | number;
+  email: string;
+  display_name: string;
+  role: string;
+  locale: string;
+  birth_date?: string | null;
+  gender?: string | null;
+}) {
+  return {
+    id: String(user.id),
+    email: user.email,
+    displayName: user.display_name,
+    role: user.role,
+    locale: user.locale,
+    birthDate: user.birth_date ?? null,
+    gender: user.gender ?? null,
+  };
 }

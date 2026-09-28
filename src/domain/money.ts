@@ -12,6 +12,11 @@ export const CORRECTION_ROLES = ["reversal", "adjustment", "replacement"] as con
 export const TRANSFER_DIRECTIONS = ["deposit", "withdraw"] as const;
 export const CATEGORY_STATUSES = ["active", "disabled", "retired"] as const;
 
+export const MAX_TRANSACTION_AMOUNT_VND = {
+  income: 100_000_000,
+  payment: 100_000_000_000,
+} as const;
+
 /** Arithmetic for VND and database aggregates must remain exactly representable. */
 export function addSafeIntegers(left: number, right: number): number {
   assertSafeInteger(left);
@@ -72,6 +77,14 @@ export function isPositiveVnd(value: unknown): value is number {
     value >= 1 &&
     value <= Number.MAX_SAFE_INTEGER
   );
+}
+
+/** Validate a positive transaction amount against the user-approved per-type cap. */
+export function isTransactionAmountVnd(
+  type: TransactionType,
+  value: unknown,
+): value is number {
+  return isPositiveVnd(value) && value <= MAX_TRANSACTION_AMOUNT_VND[type];
 }
 
 export function isNonNegativeVnd(value: unknown): value is number {

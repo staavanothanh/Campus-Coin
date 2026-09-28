@@ -24,6 +24,7 @@ export function usePagination<T>(basePath: string): UsePaginationResult<T> {
 
   const loadingRef = useRef(false);
   const metaRef = useRef(meta);
+  const requestIdRef = useRef(0);
   metaRef.current = meta;
 
   const basePathRef = useRef(basePath);
@@ -31,7 +32,17 @@ export function usePagination<T>(basePath: string): UsePaginationResult<T> {
 
   const fetchPage = useCallback(
     async (reset = false) => {
-      if (loadingRef.current || (!reset && !metaRef.current.hasNext)) return;
+      if (!reset && (loadingRef.current || !metaRef.current.hasNext)) return;
+
+      if (reset) {
+        requestIdRef.current += 1;
+        loadingRef.current = false;
+        const emptyMeta: PageMeta = { cursor: null, hasNext: true };
+        setData([]);
+        setMeta(emptyMeta);
+        metaRef.current = emptyMeta;
+      }
+      const requestId = ++requestIdRef.current;
 
       loadingRef.current = true;
       setLoading(true);
@@ -47,14 +58,18 @@ export function usePagination<T>(basePath: string): UsePaginationResult<T> {
 
       try {
         const response = await apiGetPaged<T>(pathWithQuery);
+        if (requestId !== requestIdRef.current) return;
         setData(prev => reset ? response.data : [...prev, ...response.data]);
         setMeta(response.meta);
         metaRef.current = response.meta;
       } catch (err) {
+        if (requestId !== requestIdRef.current) return;
         setError(err instanceof Error ? err : new Error('Failed to fetch data'));
       } finally {
-        loadingRef.current = false;
-        setLoading(false);
+        if (requestId === requestIdRef.current) {
+          loadingRef.current = false;
+          setLoading(false);
+        }
       }
     },
     [] // stable callback

@@ -1,21 +1,20 @@
-import { useEffect, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import { usePagination } from '../hooks/use-pagination.js';
 import { useCategories } from '../hooks/use-categories.js';
 import type { Transaction, Locale } from '../types.js';
 import type { Copy } from '../i18n.js';
-import { formatVnd, formatDate } from '../format.js';
+import { formatVnd, formatDate, getCurrentMonth } from '../format.js';
 import {
   ArrowDownLeft,
   ArrowUpRight,
-  Filter,
   CreditCard,
   Calendar,
-  Tag,
   Search,
   ChevronRight,
   RefreshCw
 } from 'lucide-react';
 import { ErrorBanner } from '../components/ErrorBanner.js';
+import { calendarMonthRange, defaultTransactionDateRange, formatTransactionGroupLabel, groupTransactions, isValidDateRange, summarizeTransactions, transactionListPath, type TransactionGrouping } from '../transaction-filters.js';
 
 interface TransactionsScreenProps {
   t: Copy;
@@ -26,17 +25,25 @@ export function TransactionsScreen({ t, locale }: TransactionsScreenProps) {
   const isVi = locale === 'vi';
   const { getCategoryName } = useCategories();
   const [typeFilter, setTypeFilter] = useState<'all' | 'income' | 'payment'>('all');
+  const [grouping, setGrouping] = useState<TransactionGrouping>('month');
   const [searchTerm, setSearchTerm] = useState('');
+  const now = new Date();
+  const currentMonth = getCurrentMonth(now);
+  const initialDateRange = defaultTransactionDateRange(now);
+  const [selectedMonth, setSelectedMonth] = useState(currentMonth);
+  const [dateFrom, setDateFrom] = useState(initialDateRange.from);
+  const [dateTo, setDateTo] = useState(initialDateRange.to);
 
-  const basePath = `/ledger/transactions?limit=20${typeFilter !== 'all' ? `&type=${typeFilter}` : ''}`;
+  const validDateRange = isValidDateRange(dateFrom, dateTo);
+  const basePath = transactionListPath(typeFilter, dateFrom, dateTo);
   const { data, loading, error, hasMore, loadMore, reload } = usePagination<Transaction>(basePath);
 
-  // Reload only when filter changes
+  // Reset cursor and ignore any older request when a server-side filter changes.
   useEffect(() => {
-    void reload();
-  }, [typeFilter, reload]);
+    if (validDateRange) void reload();
+  }, [typeFilter, dateFrom, dateTo, validDateRange, reload]);
 
-  const filteredData = data.filter(tx => {
+  const filteredData = (validDateRange ? data : []).filter(tx => {
     if (!searchTerm.trim()) return true;
     const term = searchTerm.toLowerCase();
     const catName = getCategoryName(tx.categoryId, locale).toLowerCase();
@@ -45,9 +52,16 @@ export function TransactionsScreen({ t, locale }: TransactionsScreenProps) {
     return matchesCategory || matchesDesc;
   });
 
-  const totalFilteredAmount = filteredData.reduce((sum, tx) => {
-    return tx.type === 'income' ? sum + tx.amountVnd : sum - tx.amountVnd;
-  }, 0);
+  const transactionTotals = summarizeTransactions(filteredData);
+  const groupedTransactions = groupTransactions(filteredData, grouping);
+
+  function handleMonthChange(month: string) {
+    const range = calendarMonthRange(month);
+    setSelectedMonth(month);
+    if (!range) return;
+    setDateFrom(range.from);
+    setDateTo(range.to);
+  }
 
   return (
     <div className="transactions-page">
@@ -64,11 +78,12 @@ export function TransactionsScreen({ t, locale }: TransactionsScreenProps) {
           </div>
 
           {/* Quick Filter Tabs */}
-          <div className="type-filter-group">
+          <div className="type-filter-group" role="group" aria-label={isVi ? 'Lọc theo loại giao dịch' : 'Filter by transaction type'}>
             <button
               type="button"
               className={`filter-chip ${typeFilter === 'all' ? 'active' : ''}`}
               onClick={() => setTypeFilter('all')}
+              aria-pressed={typeFilter === 'all'}
             >
               {isVi ? 'Tất cả' : 'All'}
             </button>
@@ -76,6 +91,7 @@ export function TransactionsScreen({ t, locale }: TransactionsScreenProps) {
               type="button"
               className={`filter-chip mint ${typeFilter === 'income' ? 'active' : ''}`}
               onClick={() => setTypeFilter('income')}
+              aria-pressed={typeFilter === 'income'}
             >
               <ArrowDownLeft size={14} />
               {t.income}
@@ -84,6 +100,7 @@ export function TransactionsScreen({ t, locale }: TransactionsScreenProps) {
               type="button"
               className={`filter-chip coral ${typeFilter === 'payment' ? 'active' : ''}`}
               onClick={() => setTypeFilter('payment')}
+              aria-pressed={typeFilter === 'payment'}
             >
               <ArrowUpRight size={14} />
               {t.spending}
@@ -91,25 +108,71 @@ export function TransactionsScreen({ t, locale }: TransactionsScreenProps) {
           </div>
         </div>
 
-        {/* Search & Stats Bar */}
+        {/* Search, grouping, calendar month and custom date range */}
         <div className="transactions-subbar">
-          <div className="search-box">
-            <Search size={15} className="search-icon" />
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
-              placeholder={isVi ? 'Tìm theo danh mục hoặc ghi chú...' : 'Search category or note...'}
-            />
-          </div>
-
-          <div className="transactions-summary-chip">
-            <span className="summary-label">
-              {isVi ? 'Tổng hiển thị:' : 'Filtered Net:'}
-            </span>
-            <strong className={totalFilteredAmount >= 0 ? 'positive' : 'negative'}>
-              {totalFilteredAmount >= 0 ? '+' : ''}{formatVnd(totalFilteredAmount, locale)}
-            </strong>
+          <div className="transaction-controls">
+            <div className="transaction-filter-row">
+              <div className="search-box">
+                <Search size={15} className="search-icon" />
+                <input
+                  type="search"
+                  value={searchTerm}
+                  onChange={e => setSearchTerm(e.target.value)}
+                  placeholder={isVi ? 'Tìm theo danh mục hoặc ghi chú...' : 'Search category or note...'}
+                  aria-label={isVi ? 'Tìm giao dịch' : 'Search transactions'}
+                />
+              </div>
+              <div className="transaction-grouping" role="group" aria-label={isVi ? 'Nhóm giao dịch' : 'Group transactions'}>
+                <button
+                  type="button"
+                  className={`filter-chip ${grouping === 'day' ? 'active' : ''}`}
+                  aria-pressed={grouping === 'day'}
+                  onClick={() => setGrouping('day')}
+                >{t.groupByDay}</button>
+                <button
+                  type="button"
+                  className={`filter-chip ${grouping === 'month' ? 'active' : ''}`}
+                  aria-pressed={grouping === 'month'}
+                  onClick={() => setGrouping('month')}
+                >{t.groupByMonth}</button>
+              </div>
+            </div>
+            <div className="transaction-filter-row">
+              <div className="transaction-date-range">
+                <label className="transaction-date-field transaction-month-field">
+                  <span>{t.selectMonth}</span>
+                  <input
+                    type="month"
+                    value={selectedMonth}
+                    onChange={event => handleMonthChange(event.currentTarget.value)}
+                    aria-label={t.selectMonth}
+                  />
+                </label>
+                <label className="transaction-date-field">
+                  <span>{t.dateFrom}</span>
+                  <input
+                    type="date"
+                    value={dateFrom}
+                    onChange={event => {
+                      setSelectedMonth('');
+                      setDateFrom(event.currentTarget.value);
+                    }}
+                  />
+                </label>
+                <label className="transaction-date-field">
+                  <span>{t.dateTo}</span>
+                  <input
+                    type="date"
+                    value={dateTo}
+                    onChange={event => {
+                      setSelectedMonth('');
+                      setDateTo(event.currentTarget.value);
+                    }}
+                  />
+                </label>
+                {!validDateRange && <p className="transaction-range-error" role="alert">{t.invalidDateRange}</p>}
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -125,13 +188,19 @@ export function TransactionsScreen({ t, locale }: TransactionsScreenProps) {
                 <th scope="col" style={{ width: '56px' }}>{isVi ? 'Loại' : 'Type'}</th>
                 <th scope="col">{isVi ? 'Mô tả / Danh mục' : 'Description / Category'}</th>
                 <th scope="col">{isVi ? 'Ngày giao dịch' : 'Date'}</th>
-                <th scope="col" className="text-right">{isVi ? 'Số tiền' : 'Amount'}</th>
+                <th scope="col" className="text-right">{t.income}</th>
+                <th scope="col" className="text-right">{t.spending}</th>
               </tr>
             </thead>
             <tbody>
-              {filteredData.map(tx => {
-                const isIncome = tx.type === 'income';
-                return (
+              {groupedTransactions.map(group => (
+                <Fragment key={group.key}>
+                  <tr key={`group-${group.key}`} className="transaction-group-heading">
+                    <th scope="rowgroup" colSpan={5}>{formatTransactionGroupLabel(group.key, grouping, locale)}</th>
+                  </tr>
+                  {group.transactions.map(tx => {
+                    const isIncome = tx.type === 'income';
+                    return (
                   <tr key={tx.id} className="transaction-table-row">
                     <td>
                       <div
@@ -156,17 +225,24 @@ export function TransactionsScreen({ t, locale }: TransactionsScreenProps) {
                       </div>
                     </td>
                     <td className="text-right">
-                      <strong className={`tx-amount ${isIncome ? 'positive' : 'negative'}`}>
-                        {isIncome ? '+' : '-'}{formatVnd(tx.amountVnd, locale)}
-                      </strong>
+                      {isIncome
+                        ? <strong className="tx-amount positive">+{formatVnd(tx.amountVnd, locale)}</strong>
+                        : <span className="transaction-empty-amount" aria-hidden="true">—</span>}
+                    </td>
+                    <td className="text-right">
+                      {!isIncome
+                        ? <strong className="tx-amount negative">−{formatVnd(tx.amountVnd, locale)}</strong>
+                        : <span className="transaction-empty-amount" aria-hidden="true">—</span>}
                     </td>
                   </tr>
-                );
-              })}
+                    );
+                  })}
+                </Fragment>
+              ))}
 
               {!loading && filteredData.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="empty-state">
+                  <td colSpan={5} className="empty-state">
                     <CreditCard size={28} style={{ margin: '0 auto 8px', opacity: 0.5 }} />
                     <p>{searchTerm ? (isVi ? 'Không tìm thấy giao dịch phù hợp' : 'No matching transactions') : t.noData}</p>
                   </td>
@@ -184,7 +260,7 @@ export function TransactionsScreen({ t, locale }: TransactionsScreenProps) {
           </div>
         )}
 
-        {hasMore && !loading && (
+        {validDateRange && hasMore && !loading && (
           <div className="table-footer-actions">
             <button
               type="button"
@@ -195,6 +271,28 @@ export function TransactionsScreen({ t, locale }: TransactionsScreenProps) {
               <ChevronRight size={16} />
             </button>
           </div>
+        )}
+
+        {!error && !loading && (
+          <section className="transactions-total-summary" aria-label={isVi ? 'Tổng kết các giao dịch đã tải' : 'Loaded transaction totals'}>
+            <p className="transactions-total-note">{t.transactionsTotalsBasedOnLoaded}</p>
+            <div className="transactions-total-grid">
+              <div className="transactions-total-card">
+                <span>{t.incomeTotal}</span>
+                <strong className="positive">+{formatVnd(transactionTotals.income, locale)}</strong>
+              </div>
+              <div className="transactions-total-card">
+                <span>{t.paymentTotal}</span>
+                <strong className="negative">−{formatVnd(transactionTotals.payment, locale)}</strong>
+              </div>
+              <div className="transactions-total-card">
+                <span>{t.netTotal}</span>
+                <strong className={transactionTotals.net >= 0 ? 'positive' : 'negative'}>
+                  {transactionTotals.net > 0 ? '+' : transactionTotals.net < 0 ? '−' : ''}{formatVnd(Math.abs(transactionTotals.net), locale)}
+                </strong>
+              </div>
+            </div>
+          </section>
         )}
       </div>
     </div>

@@ -5,8 +5,8 @@
 Campus Coin giữ email/password/OTP theo [ADR-0008](./adr/0008-email-password-otp-auth.md) và bổ sung Google Sign-In tùy chọn theo [ADR-0009](./adr/0009-optional-google-sign-in.md). Không dùng Gmail credential cá nhân, Gmail inbox hoặc Gmail API. Team Leader đã báo register/reset gửi và nhận email thành công trên staging. DevD còn cần xác minh riêng provider outage, timeout/retry và log đã redact; kết quả gửi email thành công không thay cho các kiểm tra đó.
 
 ```text
-register → verify OTP → login → session
-forgot password → reset password
+register → send OTP → verify-otp (không tiêu thụ mã) → nhập tên/mật khẩu → verify-registration (xác minh và tiêu thụ mã atomic)
+forgot password → gửi OTP → verify-otp (không tiêu thụ mã) → nhập mật khẩu mới → reset-password (xác minh, tiêu thụ mã và thu hồi session atomic)
 Google Sign-In (tùy chọn) → xác minh OIDC → session
 đang đăng nhập → chủ động kết nối Google
 ```
@@ -27,11 +27,12 @@ ADR-0009 là quyết định mới nhất khi tài liệu cũ mâu thuẫn về 
 
 1. `POST /auth/register` chuẩn hóa email, từ chối xung đột phù hợp và tạo OTP registration.
 2. SMTP adapter gửi mã; DB chỉ lưu OTP đã hash. Không đưa OTP vào response, log, fallback dev hoặc client storage.
-3. `POST /auth/verify-registration` xác minh mã đúng hạn/chưa dùng/chưa vượt attempts rồi tạo `users` và `auth_credentials` atomic.
-4. `POST /auth/login` kiểm tra password, trạng thái user, email verified và rate limit theo account/IP.
-5. Login hợp lệ tạo opaque server session; browser nhận cookie, không nhận session ID qua JSON.
-6. `POST /auth/forgot-password` luôn trả thông báo chung để hạn chế account enumeration; OTP chỉ được gửi khi điều kiện account hợp lệ.
-7. `POST /auth/reset-password` xác minh OTP, đổi hash và thu hồi session cũ trong cùng transaction.
+3. Màn hình OTP chỉ nhận mã và gọi `POST /auth/verify-otp`. API kiểm tra expiry/attempts/rate limit nhưng không tiêu thụ OTP; OTP đúng vẫn được giữ để bước hoàn tất tự xác minh lại.
+4. Sau OTP hợp lệ, đăng ký mới hiện form tên/mật khẩu. `POST /auth/verify-registration` xác minh lại và tiêu thụ mã trong transaction tạo `users` và `auth_credentials`.
+5. `POST /auth/login` kiểm tra password, trạng thái user, email verified và rate limit theo account/IP.
+6. Login hợp lệ tạo opaque server session; browser nhận cookie, không nhận session ID qua JSON.
+7. `POST /auth/forgot-password` luôn trả thông báo chung để hạn chế account enumeration; OTP chỉ được gửi khi điều kiện account hợp lệ.
+8. Màn hình đặt lại chỉ nhận OTP trước; sau `POST /auth/verify-otp` thành công mới hiện form mật khẩu mới. `POST /auth/reset-password` xác minh lại và tiêu thụ OTP đồng thời đổi hash, thu hồi session cũ trong cùng transaction.
 
 Google Sign-In dùng Authorization Code phía server, PKCE S256, `state`, `nonce` và scope `openid email profile`. Server kiểm tra ID token theo client audience, nonce, `sub` và `email_verified=true`. Google account mới chỉ được tạo khi email chưa có account; email trùng cần người dùng đăng nhập phương thức hiện tại và kết nối Google rõ ràng. Kết nối chỉ được bắt đầu từ session hợp lệ và callback xác nhận cùng user.
 
@@ -64,7 +65,7 @@ Mỗi lần dùng session hợp lệ, server cập nhật `sessions.last_seen_at
 | Rủi ro | Kiểm soát cần có |
 |---|---|
 | Brute force password | Rate limit bền vững theo account và IP; lockout/backoff có thời hạn; trả lỗi không tiết lộ credential nào sai |
-| OTP brute force/replay | Expiry, maximum attempts, resend cooldown, single-use và rate limit; so sánh hash an toàn |
+| OTP brute force/replay | Expiry, maximum attempts, resend cooldown và rate limit; bước xác minh riêng không tiêu thụ mã, còn thao tác hoàn tất phải kiểm tra lại và tiêu thụ mã single-use trong transaction; so sánh hash an toàn |
 | Email enumeration | Forgot-password trả cùng response; đăng ký chỉ lộ conflict trong contract đã duyệt |
 | Session theft | Opaque hash, cookie HttpOnly/Secure/SameSite, expiry/revoke, không browser storage |
 | CSRF/cross-origin | Origin allowlist cho public auth; Origin + CSRF token cho mutation có session, kể cả logout |
@@ -78,7 +79,7 @@ Mỗi lần dùng session hợp lệ, server cập nhật `sessions.last_seen_at
 
 ## 7. Tiêu chí chấp nhận production
 
-1. Register/verify/login/session và forgot/reset chạy qua DB cô lập cùng email provider đã xác nhận.
+1. Register/email OTP-only verify/details/final consume/login/session và forgot/email OTP-only verify/new-password/final consume chạy qua DB cô lập cùng email provider đã xác nhận.
 2. OTP đúng/sai/hết hạn/quá attempts/resend/single-use được kiểm tra.
 3. Login sai bị rate-limit theo account/IP; lockout/backoff có thời hạn và không phụ thuộc một API instance.
 4. Session cookie, expiry, revoke, logout và session cũ sau reset được kiểm tra.

@@ -3,7 +3,6 @@ import {
   ArrowDownLeft,
   ArrowUpRight,
   Bell,
-  BellOff,
   CircleHelp,
   Coins,
   CreditCard,
@@ -12,7 +11,6 @@ import {
   LogOut,
   Menu,
   Moon,
-  Plus,
   RefreshCw,
   Settings,
   Sparkles,
@@ -20,10 +18,10 @@ import {
   WalletCards,
   X,
 } from 'lucide-react';
-import { apiGet, apiPost, setUnauthorizedHandler, ApiRequestError } from './api-client.js';
-import { formatVnd, formatDate, getCurrentMonth, getCurrentDateFormatted } from './format.js';
+import { apiGet, apiPatch, apiPost, setUnauthorizedHandler, ApiRequestError } from './api-client.js';
+import { formatVnd, formatDate, getCurrentMonth, getCurrentDateFormatted, getVietnamGreetingPeriod } from './format.js';
 import { copy, type Copy } from './i18n.js';
-import type { Locale, Theme, Screen, Session, Dashboard, BudgetSummary, Transaction } from './types.js';
+import type { Locale, Theme, Screen, Session, Dashboard, BudgetSummary, Transaction, User } from './types.js';
 import { TransactionForm } from './components/TransactionForm.js';
 import { InitWalletModal } from './components/InitWalletModal.js';
 import { TransactionsScreen } from './screens/TransactionsScreen.js';
@@ -35,8 +33,16 @@ import { HelpScreen } from './screens/HelpScreen.js';
 import { useCategories } from './hooks/use-categories.js';
 import { AuthScreen } from './components/AuthScreen.js';
 
+interface ProfileNotification {
+  id: string;
+  createdAt: string;
+  isRead: boolean;
+  kind: 'profile-updated';
+}
+
 export function App() {
   const [locale, setLocale] = useState<Locale>('vi');
+  const [clockNow, setClockNow] = useState(() => new Date());
   const [theme, setTheme] = useState<Theme>(() => {
     try {
       const saved = localStorage.getItem('theme');
@@ -61,6 +67,7 @@ export function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [screen, setScreen] = useState<Screen>('dashboard');
   const sidebarRef = useRef<HTMLElement>(null);
+  const notificationPanelRef = useRef<HTMLDivElement>(null);
 
   function toggleSidebar() {
     if (window.innerWidth <= 800) {
@@ -97,39 +104,99 @@ export function App() {
       document.removeEventListener('keydown', handleKeyDown);
     };
   }, [menuOpen]);
+
   const [session, setSession] = useState<Session | null>(null);
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
   const [state, setState] = useState<'loading' | 'ready' | 'unauthenticated' | 'error'>('loading');
   const [error, setError] = useState('');
   const [formOpen, setFormOpen] = useState<'income' | 'payment' | null>(null);
   const [initWalletOpen, setInitWalletOpen] = useState(false);
-  const [notificationsEnabled, setNotificationsEnabled] = useState<boolean>(() => {
-    try {
-      const saved = localStorage.getItem('notifications_enabled');
-      return saved !== null ? saved === 'true' : true;
-    } catch {
-      return true;
-    }
-  });
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [notifications, setNotifications] = useState<ProfileNotification[]>([]);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [isLocaleSaving, setIsLocaleSaving] = useState(false);
+  const [localeError, setLocaleError] = useState('');
   const [signOutError, setSignOutError] = useState(false);
   const dashboardRequestId = useRef(0);
   const t = copy[locale];
+  const isProfileIncomplete = Boolean(session && (!session.user.birthDate || !session.user.gender));
+  const unreadNotificationCount = notifications.filter(notification => !notification.isRead).length + Number(isProfileIncomplete);
+  const notificationItems = [
+    ...(isProfileIncomplete ? [{ id: 'profile-completion-required', kind: 'profile-completion' as const }] : []),
+    ...notifications,
+  ];
+  const greetingPeriod = getVietnamGreetingPeriod(clockNow);
+  const greeting = greetingPeriod === 'morning'
+    ? t.greetingMorning
+    : greetingPeriod === 'noon'
+      ? t.greetingNoon
+      : greetingPeriod === 'afternoon'
+        ? t.greetingAfternoon
+        : t.greetingEvening;
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setClockNow(new Date()), 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   function toggleNotifications() {
-    setNotificationsEnabled((prev) => {
-      const next = !prev;
-      try {
-        localStorage.setItem('notifications_enabled', String(next));
-      } catch { }
-      const msg = next
-        ? (locale === 'vi' ? 'Đã bật thông báo' : 'Notifications enabled')
-        : (locale === 'vi' ? 'Đã tắt thông báo' : 'Notifications muted');
-      setToastMessage(msg);
-      setTimeout(() => setToastMessage(null), 2500);
-      return next;
-    });
+    const shouldOpen = !notificationsOpen;
+    setNotificationsOpen(shouldOpen);
+    if (shouldOpen) {
+      setNotifications(previous => previous.map(notification => ({ ...notification, isRead: true })));
+    }
   }
+
+  function recordProfileUpdated() {
+    setNotifications(previous => [{
+      id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      createdAt: new Date().toISOString(),
+      isRead: false,
+      kind: 'profile-updated' as const,
+    }, ...previous].slice(0, 10));
+  }
+
+  async function toggleLocale() {
+    if (!session || isLocaleSaving) return;
+    const nextLocale: Locale = locale === 'vi' ? 'en' : 'vi';
+    setLocaleError('');
+    setIsLocaleSaving(true);
+    try {
+      const updatedUser = await apiPatch<User>(
+        '/users/me/preferences',
+        { locale: nextLocale },
+        { 'X-CSRF-Token': session.csrfToken },
+      );
+      setSession(current => current ? { ...current, user: updatedUser } : current);
+      setLocale(updatedUser.locale);
+      recordProfileUpdated();
+    } catch {
+      setLocaleError(copy[locale].serverError);
+    } finally {
+      setIsLocaleSaving(false);
+    }
+  }
+
+  useEffect(() => {
+    if (!notificationsOpen) return;
+
+    function handleClickOutside(event: MouseEvent | TouchEvent) {
+      if (notificationPanelRef.current && !notificationPanelRef.current.contains(event.target as Node)) {
+        setNotificationsOpen(false);
+      }
+    }
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') setNotificationsOpen(false);
+    }
+
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [notificationsOpen]);
 
   // Configure global unauthorized handler for the API client
   useEffect(() => {
@@ -202,7 +269,17 @@ export function App() {
     dashboardRequestId.current += 1;
     setSession(null);
     setDashboard(null);
+    setNotifications([]);
+    setNotificationsOpen(false);
     setState('unauthenticated');
+  }
+
+  function openTransactionForm(type: 'income' | 'payment') {
+    if (!dashboard?.wallet) {
+      setInitWalletOpen(true);
+      return;
+    }
+    setFormOpen(type);
   }
 
   if (state === 'loading' && !session) return <StateScreen title={t.loading} detail={t.loading} />;
@@ -215,6 +292,8 @@ export function App() {
           dashboardRequestId.current += 1;
           setDashboard(null);
           setSession(newSession);
+          setNotifications([]);
+          setNotificationsOpen(false);
           setState('loading');
           setSignOutError(false);
         }}
@@ -292,15 +371,54 @@ export function App() {
               <div className="avatar micro">{(session.user.displayName || 'U').substring(0, 2).toUpperCase()}</div>
               <span className="topbar-user-name">{session.user.displayName}</span>
             </div>
-            <button
-              className="icon-button"
-              onClick={toggleNotifications}
-              aria-label={notificationsEnabled ? (locale === 'vi' ? 'Tắt thông báo' : 'Mute notifications') : (locale === 'vi' ? 'Bật thông báo' : 'Enable notifications')}
-              title={notificationsEnabled ? (locale === 'vi' ? 'Thông báo: Đang bật (nhấp để tắt)' : 'Notifications: ON (click to mute)') : (locale === 'vi' ? 'Thông báo: Đang tắt (nhấp để bật)' : 'Notifications: OFF (click to enable)')}
-            >
-              {notificationsEnabled ? <Bell size={19} /> : <BellOff size={19} />}
-            </button>
-            <button className="locale-toggle" onClick={() => setLocale(locale === 'vi' ? 'en' : 'vi')} aria-label={t.language}>{locale.toUpperCase()}</button>
+            <div className="notification-menu" ref={notificationPanelRef}>
+              <button
+                className="icon-button notification-trigger"
+                onClick={toggleNotifications}
+                aria-label={`${t.notifications}${unreadNotificationCount ? ` (${unreadNotificationCount})` : ''}`}
+                aria-expanded={notificationsOpen}
+                aria-controls="notification-panel"
+                title={t.notifications}
+              >
+                <Bell size={19} />
+                {unreadNotificationCount > 0 && <span className="notification-badge" aria-hidden="true">{unreadNotificationCount}</span>}
+              </button>
+              <div
+                id="notification-panel"
+                className="notification-panel"
+                role="region"
+                aria-label={t.notifications}
+                hidden={!notificationsOpen}
+              >
+                <h2>{t.notifications}</h2>
+                {notificationItems.length === 0 ? (
+                  <p className="notification-empty">{t.noNotifications}</p>
+                ) : (
+                  <ul>
+                    {notificationItems.map(notification => (
+                      <li
+                        key={notification.id}
+                        className={notification.kind === 'profile-completion' || !notification.isRead ? 'is-unread' : ''}
+                      >
+                        <span>{notification.kind === 'profile-completion' ? t.profileCompletionReminder : t.profileUpdatedNotification}</span>
+                        {notification.kind === 'profile-completion' ? (
+                          <button
+                            type="button"
+                            className="notification-action"
+                            onClick={() => { setNotificationsOpen(false); setScreen('settings'); }}
+                          >
+                            {t.openProfileSettings}
+                          </button>
+                        ) : (
+                          <time dateTime={notification.createdAt}>{formatDate(notification.createdAt, locale)}</time>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
+            <button className="locale-toggle" onClick={() => void toggleLocale()} disabled={isLocaleSaving} aria-label={t.language}>{locale.toUpperCase()}</button>
             <button
               className="icon-button"
               onClick={cycleTheme}
@@ -318,27 +436,15 @@ export function App() {
 
         <section className="content-wrap">
           {signOutError && <p role="alert" className="error-banner">{t.signOutFailed}</p>}
+          {localeError && <p role="alert" className="error-banner">{localeError}</p>}
           {screen === 'dashboard' && (
             <>
               <div className="page-intro">
                 <div>
                   <p className="eyebrow">{getCurrentDateFormatted(locale)}</p>
-                  <h1>{t.greeting.replace('{name}', session.user.displayName)}</h1>
+                  <h1>{greeting}</h1>
                   <p className="muted">{t.overview}</p>
                 </div>
-                <button
-                  className="primary-button"
-                  onClick={() => {
-                    if (!dashboard?.wallet) {
-                      setInitWalletOpen(true);
-                    } else {
-                      setFormOpen('payment');
-                    }
-                  }}
-                >
-                  <Plus size={18} />
-                  {t.addTransaction}
-                </button>
               </div>
 
               {state === 'error' && <StateScreen title={t.unavailable} detail={error} retry={() => void loadDashboard()} retryLabel={t.retry} />}
@@ -348,20 +454,8 @@ export function App() {
                   dashboard={dashboard}
                   locale={locale}
                   t={t}
-                  onIncome={() => {
-                    if (!dashboard?.wallet) {
-                      setInitWalletOpen(true);
-                    } else {
-                      setFormOpen('income');
-                    }
-                  }}
-                  onPayment={() => {
-                    if (!dashboard?.wallet) {
-                      setInitWalletOpen(true);
-                    } else {
-                      setFormOpen('payment');
-                    }
-                  }}
+                  onIncome={() => openTransactionForm('income')}
+                  onPayment={() => openTransactionForm('payment')}
                   onInitWallet={() => setInitWalletOpen(true)}
                   onSetBudget={() => setScreen('reports')}
                 />
@@ -387,6 +481,7 @@ export function App() {
               theme={theme}
               onThemeChange={handleThemeChange}
               onSessionUpdate={(newSession) => { setSession(newSession); setLocale(newSession.user.locale); }}
+              onProfileUpdated={recordProfileUpdated}
               t={t}
               locale={locale}
             />
@@ -418,28 +513,6 @@ export function App() {
         </section>
       </main>
 
-      {toastMessage && (
-        <div style={{
-          position: 'fixed',
-          top: 20,
-          right: 20,
-          zIndex: 9999,
-          padding: '10px 16px',
-          borderRadius: 10,
-          background: theme === 'dark' ? 'linear-gradient(135deg, #181938 0%, #0d0f26 100%)' : '#0f172a',
-          color: '#ffffff',
-          fontSize: 13,
-          fontWeight: 600,
-          boxShadow: theme === 'dark' ? '0 10px 30px rgba(0, 0, 0, 0.6), 0 0 20px rgba(168, 85, 247, 0.25)' : '0 10px 30px rgba(0, 0, 0, 0.35)',
-          border: theme === 'dark' ? '1px solid rgba(168, 85, 247, 0.35)' : '1px solid rgba(255, 255, 255, 0.2)',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 9,
-        }}>
-          {notificationsEnabled ? <Bell size={16} color="#f59e0b" /> : <BellOff size={16} color="#94a3b8" />}
-          <span>{toastMessage}</span>
-        </div>
-      )}
     </div>
   );
 }
@@ -514,7 +587,6 @@ function DashboardView({
         {isWalletInit ? (
           <>
             <strong>{formatVnd(dashboard?.wallet?.availableBalanceVnd, locale)}</strong>
-            <p className="muted">{t.thisMonth}</p>
           </>
         ) : (
           <div style={{ marginTop: 4 }}>
@@ -542,9 +614,13 @@ function DashboardView({
       <StatCard label={t.spending} value={formatVnd(dashboard?.currentMonth?.totalPaymentVnd, locale)} icon={<ArrowUpRight size={17} />} tone="coral" />
       <StatCard label={t.savings} value={formatVnd(dashboard?.savings?.balanceVnd, locale)} icon={<Coins size={17} />} tone="amber" />
     </div>
-    <div className="action-row">
-      <button className="secondary-button action-btn-income" onClick={onIncome}><ArrowDownLeft size={16} />{t.addIncome}</button>
-      <button className="primary-button action-btn-payment" onClick={onPayment}><ArrowUpRight size={16} />{t.addPayment}</button>
+    <div className="dashboard-action-row" role="group" aria-label={locale === 'vi' ? 'Thêm giao dịch' : 'Add a transaction'}>
+      <button className="secondary-button action-btn-income" type="button" onClick={onIncome}>
+        <ArrowDownLeft size={16} />{t.addIncome}
+      </button>
+      <button className="primary-button action-btn-payment" type="button" onClick={onPayment}>
+        <ArrowUpRight size={16} />{t.addPayment}
+      </button>
     </div>
     <div className="dashboard-grid">
       <section className="panel activity-panel">

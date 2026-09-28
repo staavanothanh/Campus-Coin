@@ -79,7 +79,7 @@ GRANT INSERT ON campus_coin.auth_credentials TO 'cc_runtime'@'%';
 GRANT INSERT ON campus_coin.email_otps TO 'cc_runtime'@'%';
 GRANT INSERT ON campus_coin.auth_rate_limits TO 'cc_runtime'@'%';
 
-GRANT UPDATE (display_name, locale, timezone) ON campus_coin.users TO 'cc_runtime'@'%';
+GRANT UPDATE (display_name, locale, timezone, birth_date, gender) ON campus_coin.users TO 'cc_runtime'@'%';
 GRANT UPDATE (last_seen_at, revoked_at) ON campus_coin.sessions TO 'cc_runtime'@'%';
 GRANT UPDATE (response_json) ON campus_coin.mutation_idempotency TO 'cc_runtime'@'%';
 GRANT UPDATE (name_en, name_vi, status) ON campus_coin.categories TO 'cc_runtime'@'%';

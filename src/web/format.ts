@@ -1,5 +1,44 @@
 import type { Locale } from './types.js';
 
+export type GreetingPeriod = 'morning' | 'noon' | 'afternoon' | 'evening';
+
+/** Select a greeting using the product's business timezone, independent of the browser timezone. */
+export function getVietnamGreetingPeriod(now: Date = new Date()): GreetingPeriod {
+  const hour = Number(new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Ho_Chi_Minh',
+    hour: '2-digit',
+    hourCycle: 'h23',
+  }).format(now));
+  if (hour >= 5 && hour < 12) return 'morning';
+  if (hour >= 12 && hour < 14) return 'noon';
+  if (hour >= 14 && hour < 18) return 'afternoon';
+  return 'evening';
+}
+
+export function getCurrentVietnamDate(now: Date = new Date()): string {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Ho_Chi_Minh',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(now);
+  const value = (type: Intl.DateTimeFormatPartTypes) => parts.find(part => part.type === type)?.value;
+  const year = value('year');
+  const month = value('month');
+  const day = value('day');
+  return year && month && day ? `${year}-${month}-${day}` : '';
+}
+
+/** Get the final calendar date of the current month in Asia/Ho_Chi_Minh. */
+export function getCurrentVietnamMonthEnd(now: Date = new Date()): string {
+  const today = getCurrentVietnamDate(now);
+  const [year, month] = today.split('-').map(Number);
+  if (!year || !month) return '';
+
+  const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  return `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+}
+
 /** Format a user-editable VND value without adding the currency suffix. */
 export function formatAmountInputVnd(value: string, locale: Locale): string {
   const digits = value.replace(/\D/g, '');
@@ -54,7 +93,7 @@ export function formatMonth(month: string, locale: Locale): string {
   const year = parts[0];
   const m = parts[1];
   if (!year || !m) return month;
-  const date = new Date(Number(year), Number(m) - 1, 1);
+  const date = new Date(Date.UTC(Number(year), Number(m) - 1, 15, 12));
   return new Intl.DateTimeFormat(locale === 'vi' ? 'vi-VN' : 'en-US', {
     timeZone: 'Asia/Ho_Chi_Minh',
     year: 'numeric',

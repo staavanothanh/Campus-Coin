@@ -9,6 +9,8 @@ export interface UserRow extends RowDataPacket {
   role: 'user' | 'admin' | 'security';
   email_verified: number;
   status: 'active' | 'disabled';
+  birth_date: string | null;
+  gender: string | null;
 }
 
 export interface OtpRow extends RowDataPacket {

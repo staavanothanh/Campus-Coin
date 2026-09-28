@@ -503,6 +503,17 @@ if (!ENABLED) {
     const emailCookie = sessionCookie(emailLogin);
     const emailSession = (await emailLogin.json()).data;
 
+    const profileUpdate = await call('PATCH', '/api/v1/users/me/preferences', {
+      body: { birthDate: '2003-05-17', gender: 'female' },
+      cookie: emailCookie,
+      csrf: emailSession.csrfToken,
+      ip,
+    });
+    assert.equal(profileUpdate.status, 200);
+    const savedProfile = (await profileUpdate.json()).data;
+    assert.equal(savedProfile.birthDate, '2003-05-17');
+    assert.equal(savedProfile.gender, 'female');
+
     nextGoogleIdentity = { subject: `google-${randomUUID()}`, email, displayName: 'Existing User' };
     const googleStart = await call('GET', '/api/v1/auth/google/start', { ip });
     assert.equal(googleStart.status, 302);
@@ -542,6 +553,8 @@ if (!ENABLED) {
     const sessionData = (await session.json()).data;
     assert.equal(sessionData.user.email, email);
     assert.equal(sessionData.user.id, emailSession.user.id);
+    assert.equal(sessionData.user.birthDate, '2003-05-17');
+    assert.equal(sessionData.user.gender, 'female');
     assert.equal(sessionData.googleLinked, true);
   });
 

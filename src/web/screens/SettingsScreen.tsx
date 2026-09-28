@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import {
   User,
   Mail,
@@ -17,15 +17,17 @@ import {
   Copy as CopyIcon,
 } from 'lucide-react';
 import { apiPatch, ApiRequestError } from '../api-client.js';
-import type { Session, Locale, Theme } from '../types.js';
+import type { Session, Locale, Theme, ProfileGender } from '../types.js';
 import type { Copy } from '../i18n.js';
 import { ErrorBanner } from '../components/ErrorBanner.js';
+import { getCurrentVietnamDate } from '../format.js';
 
 interface SettingsScreenProps {
   session: Session;
   theme: Theme;
   onThemeChange: (theme: Theme) => void;
   onSessionUpdate: (session: Session) => void;
+  onProfileUpdated: () => void;
   t: Copy;
   locale: Locale;
 }
@@ -35,24 +37,35 @@ export function SettingsScreen({
   theme,
   onThemeChange,
   onSessionUpdate,
+  onProfileUpdated,
   t,
   locale,
 }: SettingsScreenProps) {
   const user = session?.user;
   const initialName = user?.displayName || '';
   const initialLocale: Locale = user?.locale === 'en' ? 'en' : 'vi';
+  const initialBirthDate = user?.birthDate ?? '';
+  const initialGender = user?.gender ?? '';
 
   const [displayName, setDisplayName] = useState(initialName);
   const [prefLocale, setPrefLocale] = useState<Locale>(initialLocale);
+  const [birthDate, setBirthDate] = useState(initialBirthDate);
+  const [gender, setGender] = useState<ProfileGender | ''>(initialGender);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<ApiRequestError | string | null>(null);
   const [successMsg, setSuccessMsg] = useState('');
   const [copiedId, setCopiedId] = useState(false);
 
+  useEffect(() => {
+    setPrefLocale(initialLocale);
+  }, [initialLocale]);
+
   const isVi = locale === 'vi';
   const hasChanges =
     displayName.trim() !== initialName.trim() ||
-    prefLocale !== initialLocale;
+    prefLocale !== initialLocale ||
+    birthDate !== initialBirthDate ||
+    gender !== initialGender;
 
   const userIdStr = String(user?.id ?? '');
   const idDisplay = userIdStr
@@ -68,6 +81,8 @@ export function SettingsScreen({
   function handleReset() {
     setDisplayName(initialName);
     setPrefLocale(initialLocale);
+    setBirthDate(initialBirthDate);
+    setGender(initialGender);
     setError(null);
     setSuccessMsg('');
   }
@@ -94,7 +109,9 @@ export function SettingsScreen({
         '/users/me/preferences',
         {
           displayName: displayName.trim(),
-          locale: prefLocale
+          locale: prefLocale,
+          birthDate: birthDate || null,
+          gender: gender || null,
         },
         { 'X-CSRF-Token': session.csrfToken }
       );
@@ -103,6 +120,7 @@ export function SettingsScreen({
         ...session,
         user: updatedUser
       });
+      onProfileUpdated();
 
       setSuccessMsg(
         prefLocale === 'vi'
@@ -201,8 +219,8 @@ export function SettingsScreen({
               <h3>{isVi ? 'Thông tin cá nhân' : 'Personal Information'}</h3>
               <p className="settings-section-desc">
                 {isVi
-                  ? 'Quản lý tên hiển thị và thông tin liên kết tài khoản của bạn'
-                  : 'Manage your display name and linked account details'}
+                  ? 'Quản lý tên hiển thị và thông tin hồ sơ cá nhân của bạn'
+                  : 'Manage your display name and personal profile details'}
               </p>
             </div>
           </div>
@@ -228,11 +246,6 @@ export function SettingsScreen({
                   placeholder={isVi ? 'Nhập họ và tên...' : 'Enter your name...'}
                 />
               </div>
-              <p className="field-hint">
-                {isVi
-                  ? 'Tên này sẽ xuất hiện trên lời chào trang tổng quan và lịch sử giao dịch.'
-                  : 'This name appears on the dashboard greeting and transaction logs.'}
-              </p>
             </div>
 
             <div className="settings-field">
@@ -252,11 +265,46 @@ export function SettingsScreen({
                   readOnly
                 />
               </div>
-              <p className="field-hint">
-                {isVi
-                  ? 'Email được liên kết qua Google Single Sign-On và được bảo vệ tự động.'
-                  : 'Email is linked securely through Google Single Sign-On and cannot be changed.'}
-              </p>
+            </div>
+
+            <div className="settings-field">
+              <div className="field-header">
+                <label htmlFor="settings-birthDate">
+                  {isVi ? 'Ngày sinh' : 'Date of birth'}
+                </label>
+                <span className="char-count">{isVi ? 'Không bắt buộc' : 'Optional'}</span>
+              </div>
+              <input
+                id="settings-birthDate"
+                className="settings-native-input"
+                type="date"
+                value={birthDate}
+                max={getCurrentVietnamDate()}
+                onChange={event => setBirthDate(event.currentTarget.value)}
+                disabled={loading}
+              />
+            </div>
+
+            <div className="settings-field">
+              <div className="field-header">
+                <label htmlFor="settings-gender">
+                  {isVi ? 'Giới tính' : 'Gender'}
+                </label>
+                <span className="char-count">{isVi ? 'Không bắt buộc' : 'Optional'}</span>
+              </div>
+              <select
+                id="settings-gender"
+                className="settings-native-input"
+                value={gender}
+                onChange={event => setGender(event.currentTarget.value as ProfileGender | '')}
+                disabled={loading}
+              >
+                <option value="">{isVi ? 'Chưa chọn' : 'Not specified'}</option>
+                <option value="female">{isVi ? 'Nữ' : 'Female'}</option>
+                <option value="male">{isVi ? 'Nam' : 'Male'}</option>
+                <option value="non_binary">{isVi ? 'Phi nhị nguyên' : 'Non-binary'}</option>
+                <option value="prefer_not_to_say">{isVi ? 'Không muốn tiết lộ' : 'Prefer not to say'}</option>
+              </select>
             </div>
           </div>
         </section>
@@ -371,8 +419,8 @@ export function SettingsScreen({
             >
               <span className="lang-flag">🇻🇳</span>
               <div className="lang-info">
-                <strong>Tiếng Việt</strong>
-                <small>Định dạng tiền tệ VNĐ (₫) & ngày tháng chuẩn</small>
+                <strong>{isVi ? 'Tiếng Việt' : 'Vietnamese'}</strong>
+                <small>{isVi ? 'Định dạng tiền tệ VND (₫) và ngày tháng Việt Nam' : 'Vietnamese interface and date formatting'}</small>
               </div>
               {prefLocale === 'vi' && (
                 <div className="option-check">
@@ -389,8 +437,8 @@ export function SettingsScreen({
             >
               <span className="lang-flag">🇬🇧</span>
               <div className="lang-info">
-                <strong>English</strong>
-                <small>Standard English interface & formatting</small>
+                <strong>{isVi ? 'Tiếng Anh' : 'English'}</strong>
+                <small>{isVi ? 'Giao diện tiếng Anh và định dạng ngày tháng chuẩn' : 'Standard English interface and date formatting'}</small>
               </div>
               {prefLocale === 'en' && (
                 <div className="option-check">
