@@ -77,7 +77,7 @@ export function createMysqlHarness(): MysqlHarness {
       ["budgets", "limit_vnd, idempotency_id, updated_at"],
       ["issues", "title, description, category, status, priority"],
       ["sessions", "last_seen_at, revoked_at"],
-      ["users", "display_name, locale, timezone"],
+      ["users", "display_name, locale, timezone, birth_date, gender"],
       // MySQL 8 kiểm tra quyền UPDATE cho SELECT ... FOR UPDATE (locking read).
       // Các grant dưới chỉ để services lock row; services không UPDATE trực tiếp:
       // - wallet/savings: chỉ updated_at (timestamp, không phải projection/money);
