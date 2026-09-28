@@ -134,7 +134,11 @@ export function ReportsScreen({ csrfToken, t, locale }: ReportsScreenProps) {
         </div>
 
         <div className="reports-header-controls">
-          <MonthPicker month={month} onChange={setMonth} locale={locale} />
+          <MonthPicker
+            month={month}
+            onChange={nextMonth => { setEditBudgetCategory(null); setMonth(nextMonth); }}
+            locale={locale}
+          />
         </div>
       </div>
 
@@ -147,9 +151,20 @@ export function ReportsScreen({ csrfToken, t, locale }: ReportsScreenProps) {
           </div>
         </div>
       ) : !hasData ? (
-        <div className="empty-state panel">
-          <Calendar size={32} style={{ margin: '0 auto 10px', opacity: 0.5 }} />
-          <p>{t.noData}</p>
+        <div className="reports-content-grid">
+          <div className="empty-state panel"><Calendar size={32} style={{ margin: '0 auto 10px', opacity: 0.5 }} /><p>{t.noData}</p></div>
+          <div className="reports-budgets-card panel">
+            <div className="panel-heading"><div><h3>{t.budget}</h3><p className="muted">{isVi ? 'Thiết lập ngân sách cho tháng này' : 'Set budgets for this month'}</p></div></div>
+            <div className="budget-category-quick-list">
+              {budgetCategories.map(category => {
+                const categoryId = String(category.id);
+                const budget = getBudgetForCategory(categoryId);
+                const categoryName = locale === 'vi' ? (category.name.vi || category.name.en) : (category.name.en || category.name.vi);
+                const actionLabel = budget ? (isVi ? 'Sửa' : 'Edit') : (isVi ? 'Thêm' : 'Add');
+                return <button key={categoryId} type="button" className="secondary-button" onClick={() => setEditBudgetCategory({ id: categoryId, name: categoryName, limit: budget?.limitVnd ?? null })}>{actionLabel} {categoryName}</button>;
+              })}
+            </div>
+          </div>
         </div>
       ) : (
         <div className="reports-content-grid">
@@ -341,6 +356,7 @@ export function ReportsScreen({ csrfToken, t, locale }: ReportsScreenProps) {
           categoryName={editBudgetCategory.name}
           month={month}
           initialLimitVnd={editBudgetCategory.limit}
+          categoryOptions={budgetCategories}
           csrfToken={csrfToken}
           t={t}
           locale={locale}

@@ -1,24 +1,16 @@
-import { CANONICAL_CATEGORIES, normalizeCategoryLabel } from '../../domain/category-taxonomy.ts'
+import { CANONICAL_CATEGORIES, CANONICAL_CATEGORY_ALIASES, normalizeCategoryLabel } from '../../domain/category-taxonomy.ts'
 
-const CATEGORY_BY_TYPE = Object.freeze({
-  income: Object.freeze({
-    1: ['salary', 'wage', 'payroll', 'pay', 'luong', 'tien luong', 'lam them', 'part time', 'freelance', 'intern', 'tutor', 'research assistant', 'teaching assistant'],
-    2: ['allowance', 'stipend', 'scholarship', 'tro cap', 'sinh hoat phi', 'family support', 'student support', 'parents', 'bme', 'bo gui', 'me gui'],
-    3: ['gift', 'present', 'bonus gift', 'qua tang', 'li xi', 'tien mung', 'mung tuoi', 'birthday gift', 'graduation gift', 'holiday gift'],
-    4: ['other income', 'cashback', 'refund', 'rebate', 'resale', 'ban do cu', 'ban hang', 'interest income', 'deposit return', 'roommate returned'],
-  }),
-  payment: Object.freeze({
-    5: ['food dining', 'food', 'dining', 'meal', 'lunch', 'dinner', 'breakfast', 'an uong', 'com', 'ca phe', 'coffee', 'tra sua', 'bubble tea', 'snack', 'canteen', 'restaurant', 'hotpot'],
-    6: ['transport', 'transportation', 'fuel', 'parking', 'bus', 'grab', 'bike', 'taxi', 'di chuyen', 'do xang', 'gui xe', 'motorbike', 'scooter', 'ride'],
-    7: ['shopping', 'clothing', 'apparel', 'toiletries', 'mua sam', 'mua ao', 'mua do', 'skincare', 'shoes', 'sneakers', 'backpack', 'towel', 'rice cooker'],
-    8: ['entertainment', 'movie', 'cinema', 'gaming', 'karaoke', 'streaming', 'giai tri', 'xem phim', 'board game', 'camping', 'concert', 'music'],
-    9: ['education', 'tuition', 'textbook', 'course', 'school', 'hoc tap', 'hoc phi', 'giao trinh', 'photo tai lieu', 'photocopy', 'exam', 'stationery', 'notebook', 'english course'],
-    10: ['rent utilities', 'rent', 'utility', 'utilities', 'internet', 'electricity', 'water bill', 'nha o', 'tien tro', 'tien dien', 'tien nuoc', 'dorm', 'wifi', 'garbage'],
-    11: ['other payment', 'student union', 'class fund', 'card reissue', 'maintenance', 'repair', 'library penalty', 'bank fee', 'health checkup', 'replacement key', 'compensation', 'fine'],
-  }),
-})
+const CATEGORY_BY_TYPE = Object.freeze(Object.fromEntries(
+  ['income', 'payment'].map(transactionType => [transactionType, Object.fromEntries(
+    CANONICAL_CATEGORIES
+      .filter(category => category.type === transactionType)
+      .map(category => [category.id, CANONICAL_CATEGORY_ALIASES[category.key]]),
+  )]),
+))
 
-const CATEGORY_IDS = Object.freeze({ income: Object.freeze([1, 2, 3, 4]), payment: Object.freeze([5, 6, 7, 8, 9, 10, 11]) })
+const CATEGORY_IDS = Object.freeze(Object.fromEntries(
+  Object.entries(CATEGORY_BY_TYPE).map(([transactionType, categories]) => [transactionType, Object.freeze(Object.keys(categories).map(Number))]),
+))
 const STATUS = Object.freeze({ status: 'suggested', confidence: 0.94, reasonCode: null })
 
 function includesPhrase(text, phrase) {

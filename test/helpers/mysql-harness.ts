@@ -131,6 +131,8 @@ export function createMysqlHarness(): MysqlHarness {
     const account = `'${username}'@'%'`;
     await admin.query(`GRANT INSERT ON \`${database}\`.categories TO ${account}`);
     await admin.query(`GRANT INSERT, UPDATE ON \`${database}\`.savings_accounts TO ${account}`);
+    await admin.query(`GRANT SELECT ON \`${database}\`.users TO ${account}`);
+    await admin.query(`GRANT UPDATE (gender) ON \`${database}\`.users TO ${account}`);
     const readableTables = [
       "categories", "ledger_transactions", "mutation_idempotency", "budgets", "wallet_accounts", "savings_accounts",
       "savings_transfers", "issues",

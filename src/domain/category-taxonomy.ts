@@ -34,64 +34,20 @@ export const CANONICAL_CATEGORIES: readonly CanonicalCategoryDefinition[] = Obje
   { id: 11, type: "payment", nameEn: "Other payment", nameVi: "Khác", key: "payment_other" },
 ]);
 
-interface SemanticAliasGroup {
-  readonly type: CanonicalCategoryType;
-  readonly key: CanonicalCategoryKey;
-  readonly aliases: readonly string[];
-}
-
-const SEMANTIC_ALIAS_GROUPS: readonly SemanticAliasGroup[] = Object.freeze([
-  {
-    type: "income",
-    key: "income_salary",
-    aliases: ["salary", "wage", "payroll", "pay", "luong", "tien luong", "lam them", "part time", "freelance"],
-  },
-  {
-    type: "income",
-    key: "income_allowance",
-    aliases: ["allowance", "stipend", "scholarship", "tro cap", "sinh hoat phi", "family support", "student support"],
-  },
-  {
-    type: "income",
-    key: "income_gift",
-    aliases: ["gift", "present", "bonus gift", "qua tang", "li xi", "tien mung", "mung tuoi"],
-  },
-  {
-    type: "income",
-    key: "income_other",
-    aliases: ["other income", "cashback", "refund", "rebate", "resale", "ban do cu", "ban hang", "interest income"],
-  },
-  {
-    type: "payment",
-    key: "payment_food",
-    aliases: ["food dining", "food", "dining", "meal", "lunch", "dinner", "breakfast", "an uong", "com", "ca phe", "tra sua"],
-  },
-  {
-    type: "payment",
-    key: "payment_transport",
-    aliases: ["transport", "transportation", "fuel", "parking", "bus", "grab", "di chuyen", "do xang", "gui xe"],
-  },
-  {
-    type: "payment",
-    key: "payment_shopping",
-    aliases: ["shopping", "clothing", "apparel", "toiletries", "mua sam", "mua ao", "mua do", "skincare"],
-  },
-  {
-    type: "payment",
-    key: "payment_entertainment",
-    aliases: ["entertainment", "movie", "cinema", "gaming", "karaoke", "streaming", "giai tri", "xem phim"],
-  },
-  {
-    type: "payment",
-    key: "payment_education",
-    aliases: ["education", "tuition", "textbook", "course", "school", "hoc tap", "hoc phi", "giao trinh", "photo tai lieu"],
-  },
-  {
-    type: "payment",
-    key: "payment_housing",
-    aliases: ["rent utilities", "rent", "utility", "utilities", "internet", "electricity", "water bill", "nha o", "tien tro", "tien dien", "tien nuoc"],
-  },
-]);
+/** Shared deterministic corpus used for both duplicate prevention and local suggestions. */
+export const CANONICAL_CATEGORY_ALIASES: Readonly<Record<CanonicalCategoryKey, readonly string[]>> = Object.freeze({
+  income_salary: ["salary", "wage", "payroll", "pay", "luong", "tien luong", "lam them", "part time", "freelance", "intern", "tutor", "research assistant", "teaching assistant"],
+  income_allowance: ["allowance", "stipend", "scholarship", "tro cap", "sinh hoat phi", "family support", "student support", "parents", "bme", "bo gui", "me gui"],
+  income_gift: ["gift", "present", "bonus gift", "qua tang", "li xi", "tien mung", "mung tuoi", "birthday gift", "graduation gift", "holiday gift"],
+  income_other: ["other income", "cashback", "refund", "rebate", "resale", "ban do cu", "ban hang", "interest income", "deposit return", "roommate returned"],
+  payment_food: ["food dining", "food", "dining", "meal", "lunch", "dinner", "breakfast", "an uong", "com", "do an", "ca phe", "coffee", "tra sua", "bubble tea", "snack", "canteen", "restaurant", "hotpot"],
+  payment_transport: ["transport", "transportation", "fuel", "parking", "bus", "grab", "bike", "taxi", "di chuyen", "do xang", "gui xe", "motorbike", "scooter", "ride"],
+  payment_shopping: ["shopping", "clothing", "apparel", "toiletries", "mua sam", "mua ao", "mua do", "skincare", "shoes", "sneakers", "backpack", "towel", "rice cooker"],
+  payment_entertainment: ["entertainment", "movie", "cinema", "gaming", "karaoke", "streaming", "giai tri", "xem phim", "board game", "camping", "concert", "music"],
+  payment_education: ["education", "tuition", "textbook", "course", "school", "hoc tap", "hoc phi", "giao trinh", "photo tai lieu", "photocopy", "exam", "stationery", "notebook", "english course", "vo ghi chep"],
+  payment_housing: ["rent utilities", "rent", "utility", "utilities", "internet", "electricity", "water bill", "nha o", "tien tro", "tien dien", "tien nuoc", "dorm", "wifi", "garbage"],
+  payment_other: ["other payment", "student union", "class fund", "card reissue", "maintenance", "repair", "library penalty", "bank fee", "health checkup", "replacement key", "compensation", "fine"],
+});
 
 export function normalizeCategoryLabel(value: string): string {
   return value
@@ -119,8 +75,8 @@ export function semanticCategoryKey(value: string, type: CanonicalCategoryType):
     normalizeCategoryLabel(category.nameEn) === normalized || normalizeCategoryLabel(category.nameVi) === normalized
   ));
   if (canonical) return canonical.key;
-  const group = SEMANTIC_ALIAS_GROUPS.find(candidate => candidate.type === type && candidate.aliases.some(alias => matchesAlias(normalized, alias)));
-  return group?.key ?? null;
+  const category = CANONICAL_CATEGORIES.find(candidate => candidate.type === type && CANONICAL_CATEGORY_ALIASES[candidate.key].some(alias => matchesAlias(normalized, alias)));
+  return category?.key ?? null;
 }
 
 export function canonicalCategoryById(id: number): CanonicalCategoryDefinition | undefined {

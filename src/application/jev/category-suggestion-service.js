@@ -194,7 +194,7 @@ export function createCategorySuggestionServiceFromEnvironment({
   // JEV (OpenRouter typed System One) is the canonical provider; it wins when
   // explicitly enabled with a valid key and policy.
   const jev = config.jev
-  if (jev.enabled && config.local.enabled !== true && isValidPolicy(jev.minimumConfidence, jev.maxCandidates) && typeof jev.apiKey === 'string') {
+  if (jev.enabled && isValidPolicy(jev.minimumConfidence, jev.maxCandidates) && typeof jev.apiKey === 'string') {
     return createCategorySuggestionService({
       enabled: true,
       minimumConfidence: jev.minimumConfidence,
@@ -206,7 +206,7 @@ export function createCategorySuggestionServiceFromEnvironment({
   // NghienAI (provisional generative LLM) is the fallback provider. It reuses
   // the same shared decision contract and stays off without a valid key/policy.
   const nghienAi = config.nghienAi
-  if (nghienAi.enabled && config.local.enabled !== true && isValidPolicy(nghienAi.minimumConfidence, nghienAi.maxCandidates) && typeof nghienAi.apiKey === 'string') {
+  if (nghienAi.enabled && isValidPolicy(nghienAi.minimumConfidence, nghienAi.maxCandidates) && typeof nghienAi.apiKey === 'string') {
     return createCategorySuggestionService({
       enabled: true,
       minimumConfidence: nghienAi.minimumConfidence,

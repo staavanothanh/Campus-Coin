@@ -269,7 +269,7 @@ describe('JEV category suggestion application boundary', () => {
   it('instantiates server-side JEV without returning its API key', async () => {
     let request
     const service = createCategorySuggestionServiceFromEnvironment({
-      env: { JEV_CATEGORY_SUGGESTION_ENABLED: 'true', OPENROUTER_API_KEY: 'synthetic-server-key', JEV_MINIMUM_CONFIDENCE: '0.8', JEV_MAX_CANDIDATES: '10' },
+      env: { JEV_CATEGORY_SUGGESTION_ENABLED: 'true', JEV_LOCAL_CATEGORY_SUGGESTION_ENABLED: 'false', OPENROUTER_API_KEY: 'synthetic-server-key', JEV_MINIMUM_CONFIDENCE: '0.8', JEV_MAX_CANDIDATES: '10' },
       loadEnvFile: () => {},
       fetchImpl: async (_url, options) => { request = options; return new Response(JSON.stringify(choice()), { status: 200 }) },
       logger: { warn: () => {} },
