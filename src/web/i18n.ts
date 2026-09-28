@@ -99,8 +99,13 @@ export interface Copy {
   openProfileSettings: string;
   dateFrom: string;
   dateTo: string;
+  selectMonth: string;
   groupByDay: string;
   groupByMonth: string;
+  incomeTotal: string;
+  paymentTotal: string;
+  netTotal: string;
+  transactionsTotalsBasedOnLoaded: string;
   invalidDateRange: string;
 
   // Admin
@@ -210,8 +215,13 @@ export const copy: Record<Locale, Copy> = {
     openProfileSettings: 'Cập nhật hồ sơ',
     dateFrom: 'Từ ngày',
     dateTo: 'Đến ngày',
+    selectMonth: 'Chọn tháng',
     groupByDay: 'Theo ngày',
     groupByMonth: 'Theo tháng',
+    incomeTotal: 'Tổng khoản thu',
+    paymentTotal: 'Tổng khoản chi',
+    netTotal: 'Chênh lệch thu chi',
+    transactionsTotalsBasedOnLoaded: 'Tổng tính trên các giao dịch đã tải phù hợp với bộ lọc.',
     invalidDateRange: 'Ngày bắt đầu không được sau ngày kết thúc.',
 
     // Admin
@@ -319,8 +329,13 @@ export const copy: Record<Locale, Copy> = {
     openProfileSettings: 'Update profile',
     dateFrom: 'From',
     dateTo: 'To',
+    selectMonth: 'Choose month',
     groupByDay: 'By day',
     groupByMonth: 'By month',
+    incomeTotal: 'Income total',
+    paymentTotal: 'Payment total',
+    netTotal: 'Net change',
+    transactionsTotalsBasedOnLoaded: 'Totals include loaded transactions that match the filters.',
     invalidDateRange: 'The start date must be on or before the end date.',
 
     // Admin

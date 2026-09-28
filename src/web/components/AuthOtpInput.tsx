@@ -141,7 +141,7 @@ export function AuthOtpInput({
           disabled={isBusy}
         />
 
-        <span className="visually-hidden" role="status" aria-live="polite">
+        <span className="auth-otp-live-status" role="status" aria-live="polite">
           {verificationState === 'checking' && (locale === 'vi' ? 'Đang xác minh mã.' : 'Verifying code.')}
           {verificationState === 'accepted' && (locale === 'vi' ? 'Mã xác minh hợp lệ.' : 'Verification code accepted.')}
           {verificationState === 'rejected' && (locale === 'vi' ? 'Mã không hợp lệ, hãy thử lại.' : 'Code was not accepted. Please try again.')}

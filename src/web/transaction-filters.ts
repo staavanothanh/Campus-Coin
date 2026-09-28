@@ -7,6 +7,45 @@ export type TransactionTypeFilter = 'all' | 'income' | 'payment';
 
 const HCMC_OFFSET = '+07:00';
 
+export interface CalendarMonthRange {
+  from: string;
+  to: string;
+}
+
+export interface TransactionTotals {
+  income: number;
+  payment: number;
+  net: number;
+}
+
+/** Return the inclusive first and last dates for a YYYY-MM calendar month. */
+export function calendarMonthRange(month: string): CalendarMonthRange | null {
+  const match = /^(\d{4})-(0[1-9]|1[0-2])$/.exec(month);
+  if (!match) return null;
+
+  const year = Number(match[1]);
+  const monthNumber = Number(match[2]);
+  if (year < 1 || year > 9999) return null;
+
+  const lastDay = monthNumber === 2
+    ? (year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0) ? 29 : 28)
+    : ([4, 6, 9, 11].includes(monthNumber) ? 30 : 31);
+  return {
+    from: `${match[1]}-${match[2]}-01`,
+    to: `${match[1]}-${match[2]}-${String(lastDay).padStart(2, '0')}`,
+  };
+}
+
+export function summarizeTransactions(transactions: readonly Transaction[]): TransactionTotals {
+  let income = 0;
+  let payment = 0;
+  for (const transaction of transactions) {
+    if (transaction.type === 'income') income += transaction.amountVnd;
+    else payment += transaction.amountVnd;
+  }
+  return { income, payment, net: income - payment };
+}
+
 export function isValidDateRange(from: string, to: string): boolean {
   const validDate = (value: string) => {
     if (!value) return true;

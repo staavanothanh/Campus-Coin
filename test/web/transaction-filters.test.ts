@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { Transaction } from '../../src/web/types.ts';
 import { getCurrentVietnamDate, getCurrentVietnamMonthEnd } from '../../src/web/format.ts';
-import { groupTransactions, isValidDateRange, transactionListPath } from '../../src/web/transaction-filters.ts';
+import { calendarMonthRange, groupTransactions, isValidDateRange, summarizeTransactions, transactionListPath } from '../../src/web/transaction-filters.ts';
 
 function transaction(id: string, occurredAt: string): Transaction {
   return {
@@ -29,6 +29,24 @@ test('rejects impossible or reversed date ranges', () => {
   assert.equal(isValidDateRange('2026-02-30', ''), false);
   assert.equal(isValidDateRange('2026-09-28', '2026-09-27'), false);
   assert.equal(isValidDateRange('', '2026-09-27'), true);
+});
+
+test('selects complete calendar months including leap years for historical transaction lookup', () => {
+  assert.deepEqual(calendarMonthRange('2026-09'), { from: '2026-09-01', to: '2026-09-30' });
+  assert.deepEqual(calendarMonthRange('2024-02'), { from: '2024-02-01', to: '2024-02-29' });
+  assert.deepEqual(calendarMonthRange('2026-02'), { from: '2026-02-01', to: '2026-02-28' });
+  assert.equal(calendarMonthRange('2026-13'), null);
+  assert.equal(calendarMonthRange('2026-9'), null);
+});
+
+test('keeps income, payment and net totals separate for the selected rows', () => {
+  const values = [
+    { ...transaction('income-1', '2026-09-27T09:00:00.000Z'), amountVnd: 1_000_000 },
+    { ...transaction('income-2', '2026-09-27T10:00:00.000Z'), amountVnd: 300_000 },
+    { ...transaction('payment-1', '2026-09-27T11:00:00.000Z'), type: 'payment' as const, amountVnd: 200_000 },
+  ];
+  assert.deepEqual(summarizeTransactions(values), { income: 1_300_000, payment: 200_000, net: 1_100_000 });
+  assert.deepEqual(summarizeTransactions([]), { income: 0, payment: 0, net: 0 });
 });
 
 test('uses the Asia/Ho_Chi_Minh calendar month when calculating the default range', () => {
