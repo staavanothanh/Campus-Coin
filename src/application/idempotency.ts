@@ -23,6 +23,7 @@ export interface IdempotentMutationOptions<T> {
   scope: string;
   idempotencyKey: string;
   requestHash: string;
+  beforeClaim?: (conn: PoolConnection) => Promise<void>;
   /**
    * Chạy trong transaction ngắn; mutation cần thiết có thể liên kết idempotency_id.
    * Response phải JSON-serializable (dùng cho replay).
@@ -46,6 +47,7 @@ export async function withIdempotentMutation<T>(opts: IdempotentMutationOptions<
     }
     try {
       return await withDbTransaction(db, async (conn) => {
+        await opts.beforeClaim?.(conn);
         const id = await insertIdempotencyPlaceholder(conn, userId, scope, idempotencyKey, requestHash);
         if (id === null) throw new DuplicateIdempotency();
         const response = await opts.mutate(conn, id);

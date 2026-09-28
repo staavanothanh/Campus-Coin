@@ -14,7 +14,9 @@ db/
 │   ├── 0005_wallet_baseline_boundary.sql
 │   ├── ... (0006–0030: domain chain)
 │   ├── 0031_email_auth.sql          # auth DDL (slot 0004/0005 thuộc chain khác trên Aiven)
-│   └── 0032_auth_rate_limits.sql
+│   ├── 0032_auth_rate_limits.sql
+│   ├── 0033_cashflow_plans.sql      # kế hoạch guidance-only; chưa apply DB shared
+│   └── 0034_cashflow_plan_status_history.sql # lịch sử trạng thái append-only
 ├── grants.example.sql     # Least-privilege template (chạy tay bởi DBA/provider)
 └── README.md
 src/
@@ -48,7 +50,7 @@ Không có `migrate down`. Rollback/sửa lỗi = migration mới hoặc restore
 
 `auth_identities` trong migration `0001` được dùng cho Google identity `(provider, subject)` theo [ADR-0009](../docs/adr/0009-optional-google-sign-in.md). Không lưu Google token và không tự động liên kết theo email. Luồng email/password/OTP tiếp tục theo [ADR-0008](../docs/adr/0008-email-password-otp-auth.md). Không sửa migration đã commit; thay đổi schema tương lai cần migration mới.
 
-Xem `.env.example`; giá trị thật chỉ ở secret manager/Vercel environment.
+Xem `.env.example`; giá trị thật chỉ ở secret manager/Vercel environment. Migration `0033`/`0034` là thay đổi schema mới của cashflow; chưa áp dụng lên DB shared. Cần DBA xác nhận schema/migration plan trước khi apply, theo ADR-0011.
 
 | Biến | Vai trò | Ghi chú |
 |---|---|---|

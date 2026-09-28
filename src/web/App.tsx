@@ -15,6 +15,8 @@ import { ReportsScreen } from './screens/ReportsScreen.js';
 import { SavingsScreen } from './screens/SavingsScreen.js';
 import { SettingsScreen } from './screens/SettingsScreen.js';
 import { TransactionsScreen } from './screens/TransactionsScreen.js';
+import { CashflowAtAGlance } from './components/CashflowAtAGlance.js';
+import { CashflowPlanningPanel } from './components/CashflowPlanningPanel.js';
 import { useCategories } from './hooks/use-categories.js';
 import { useDialogFocus } from './use-dialog-focus.js';
 import type { AuthenticatedSession, Budget, BudgetSummary, Category, Copy, Dashboard, Locale, Screen, Session, Theme, Transaction } from './types.js';
@@ -252,7 +254,7 @@ export function App() {
         {dashboardState === 'loading' && <div className="status-panel" role="status">{t.loading}</div>}
         {dashboardState === 'error' && <div className="status-panel"><p role="alert">{dashboardError}</p><button type="button" className="secondary-button" aria-label={`${t.retry}: ${t.dashboard}`} onClick={() => session && void loadDashboard(session)}><RefreshCw size={16} aria-hidden="true" />{t.retry}</button></div>}
         {dashboardState === 'ready' && dashboard?.wallet === null && <WalletBaseline csrfToken={session.csrfToken} t={t} onComplete={async () => { const refreshed = await loadDashboard(session); if (!refreshed) throw new Error(t.requestFailed); }} onError={showRequestError} />}
-        {dashboardState === 'ready' && dashboard?.wallet !== null && dashboard && <DashboardView dashboard={dashboard} locale={locale} t={t} onIncome={() => setFormKind('income')} onPayment={() => setFormKind('payment')} onSetBudget={() => setScreen('reports')} budgetRefreshKey={budgetRefreshKey} />}
+        {dashboardState === 'ready' && dashboard?.wallet !== null && dashboard && <><DashboardView dashboard={dashboard} locale={locale} t={t} onIncome={() => setFormKind('income')} onPayment={() => setFormKind('payment')} onSetBudget={() => setScreen('reports')} budgetRefreshKey={budgetRefreshKey} /><CashflowAtAGlance locale={locale} refreshKey={budgetRefreshKey} /><CashflowPlanningPanel csrfToken={session.csrfToken} locale={locale} refreshKey={budgetRefreshKey} onChanged={() => setBudgetRefreshKey(key => key + 1)} /></>}
         {formKind && <TransactionForm kind={formKind} csrfToken={session.csrfToken} locale={locale} t={t} onClose={() => setFormKind(null)} onCommitted={async () => { const refreshed = await loadDashboard(session); setBudgetRefreshKey(key => key + 1); return refreshed ? t.submitSuccess : t.refreshFailed; }} onError={showRequestError} />}
       </> : <>
         <div className="page-intro"><div><p className="eyebrow">{t.workspace}</p><h1>{pageLabel}</h1><p className="muted">{t.recentDescription}</p></div></div>

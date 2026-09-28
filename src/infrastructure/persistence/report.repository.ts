@@ -11,6 +11,7 @@
 
 import { amountFromDb, deltaFromDb } from "./rows.ts";
 import { mapLedgerRow, type LedgerDbRow, type LedgerRow } from "./ledger.repository.ts";
+import { monthRangeUtc } from "../../domain/period.ts";
 
 /** Predicate "row chưa bị correction nào thay thế", scope theo owner của chính row. */
 const NOT_CORRECTED = `NOT EXISTS (
@@ -20,6 +21,42 @@ const NOT_CORRECTED = `NOT EXISTS (
 
 export interface ReportScalar {
   query(sql: string, params?: unknown[]): Promise<unknown>;
+}
+
+export interface MonthCashflowActuals {
+  incomeVnd: number;
+  incomeCount: number;
+  paymentVnd: number;
+  paymentCount: number;
+}
+
+/** Ledger totals for a closed-month cashflow reflection, excluding corrected rows. */
+export async function monthCashflowActuals(
+  db: ReportScalar,
+  userId: number,
+  month: string,
+): Promise<MonthCashflowActuals> {
+  const { startUtcMs, endExclusiveUtcMs } = monthRangeUtc(month);
+  const [rows] = (await db.query(
+    `SELECT
+       COALESCE(SUM(CASE WHEN t.type = 'income' THEN t.amount_vnd ELSE 0 END), 0) AS income_total,
+       COUNT(CASE WHEN t.type = 'income' THEN 1 END) AS income_count,
+       COALESCE(SUM(CASE WHEN t.type = 'payment' THEN t.amount_vnd ELSE 0 END), 0) AS payment_total,
+       COUNT(CASE WHEN t.type = 'payment' THEN 1 END) AS payment_count
+     FROM ledger_transactions t
+     WHERE t.user_id = ?
+       AND t.occurred_at >= ? AND t.occurred_at < ?
+       AND t.role <> 'reversal'
+       AND ${NOT_CORRECTED}`,
+    [userId, new Date(startUtcMs), new Date(endExclusiveUtcMs)],
+  )) as [{ income_total: number | string; income_count: number | string; payment_total: number | string; payment_count: number | string }[], unknown];
+  const row = rows[0]!;
+  return {
+    incomeVnd: amountFromDb(row.income_total),
+    incomeCount: amountFromDb(row.income_count),
+    paymentVnd: amountFromDb(row.payment_total),
+    paymentCount: amountFromDb(row.payment_count),
+  };
 }
 
 /**

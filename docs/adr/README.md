@@ -15,6 +15,7 @@
 | [0008](0008-runtime-row-authorization-boundary.md) | Ranh giới owner authorization và runtime DB role | Đã chấp nhận | 2026-09-25 |
 | [0009](0009-shared-database-migration-baselines.md) | Baseline hội tụ migration trên database shared | Đã chấp nhận; numbering được bổ sung bởi ADR-0010 | 2026-09-25 |
 | [0010](0010-auth-migration-numbering.md) | Đánh số migration auth sau DB chain | Đã chấp nhận | 2026-09-28 |
+| [0011](0011-guidance-only-cashflow-plans.md) | Kế hoạch dòng tiền chỉ mang tính hướng dẫn | Đề xuất, chờ Team Leader xác nhận | 2026-09-28 |
 | [0009](0009-optional-google-sign-in.md) | Google Sign-In là phương thức bổ sung | Đã chấp nhận; bổ sung Google vào ADR-0008 | 2026-09-24 |
 
 Số hiệu ADR-0008 và ADR-0009 xuất hiện ở nhiều file do hai nhánh độc lập; tiêu đề và đường dẫn xác định nội dung. Không đổi nội dung hoặc lịch sử đã chấp nhận. ADR-0010 chỉ supersede phần thứ tự/versioning migration auth của ADR-0008; các quyết định auth khác giữ nguyên.

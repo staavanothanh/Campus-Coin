@@ -73,6 +73,17 @@ h2 { margin-bottom: 7px; color: #20302d; font-size: 17px; letter-spacing: -.02em
 .balance-line span { display: block; height: 100%; border-radius: inherit; background: #c5dd9d; }
 .dashboard-grid { display: grid; grid-template-columns: 1.5fr 1fr; gap: 14px; }
 .panel { padding: 24px; border: 1px solid #e6e1d7; border-radius: 10px; background: rgba(255,253,247,.64); }
+.cashflow-panel { margin-top: 14px; }
+.cashflow-plan-form { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: end; gap: 14px; margin-bottom: 18px; }
+.cashflow-plan-form label { display: grid; gap: 7px; color: #536158; font-size: 12px; font-weight: 700; }
+.cashflow-plan-form input:not([type="checkbox"]), .cashflow-plan-form select { width: 100%; min-height: 40px; padding: 9px 11px; border: 1px solid #d7d2c7; border-radius: 7px; background: #fff; color: #20302d; font: inherit; }
+.cashflow-plan-form label:has(input[type="checkbox"]) { display: flex; align-items: center; gap: 8px; }
+.cashflow-plan-form input[type="checkbox"], .cashflow-event-list input[type="checkbox"] { width: 16px; height: 16px; accent-color: #36856e; }
+.cashflow-event-list { margin: 0; padding: 0; border-top: 1px solid #ebe6dc; list-style: none; }
+.cashflow-event-list li { display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 9px 0; border-bottom: 1px solid #ebe6dc; color: #536158; font-size: 12px; }
+.cashflow-event-list li > span:first-of-type { flex: 1; min-width: 0; }
+.cashflow-event-list li > strong { color: #334740; white-space: nowrap; }
+.cashflow-event-list li label { display: flex; align-items: center; gap: 5px; white-space: nowrap; }
 .panel-heading { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 19px; }
 .text-button { display: flex; align-items: center; gap: 7px; padding: 4px 0; color: #b35d42; background: transparent; font-size: 11px; font-weight: 700; }
 .transaction-list { border-top: 1px solid #ebe6dc; }
@@ -132,6 +143,10 @@ h2 { margin-bottom: 7px; color: #20302d; font-size: 17px; letter-spacing: -.02em
 .theme-dark .topbar { border-color: #23483f; }
 .theme-dark .breadcrumbs strong, .theme-dark h1, .theme-dark h2, .theme-dark .stat-card > strong, .theme-dark .transaction-detail strong, .theme-dark .transaction-row > strong { color: #eef3e9; }
 .theme-dark .stat-card, .theme-dark .panel { border-color: #315449; background: #1a3832; }
+.theme-dark .cashflow-plan-form label, .theme-dark .cashflow-event-list li { color: #d9e5d3; }
+.theme-dark .cashflow-plan-form input:not([type="checkbox"]), .theme-dark .cashflow-plan-form select { border-color: #315449; background: #122a26; color: #eef3e9; }
+.theme-dark .cashflow-event-list, .theme-dark .cashflow-event-list li { border-color: #315449; }
+.theme-dark .cashflow-event-list li > strong { color: #eef3e9; }
 .theme-dark .budget-ring::before { background: #1a3832; }
 .theme-dark .budget-ring strong { color: #eef3e9; }
 .theme-dark .icon-button:hover { background: #23483f; color: #fff; }
@@ -142,7 +157,9 @@ h2 { margin-bottom: 7px; color: #20302d; font-size: 17px; letter-spacing: -.02em
 .theme-dark .form-message { color: #d0ded6; }
 @media (max-width: 1100px) { .stats-grid { grid-template-columns: repeat(2, 1fr); } .balance-card { grid-column: span 2; } }
 @media (max-width: 800px) { .sidebar { position: fixed; z-index: 5; left: -260px; transition: left .2s ease; box-shadow: 12px 0 30px rgba(0,0,0,.15); } .sidebar.is-open { left: 0; } .sidebar-close, .menu-trigger { display: grid; } .sidebar-close { margin-left: auto; color: #b8d0c1; } .main-content { width: 100%; } .topbar { padding: 0 20px; } .menu-trigger { margin-right: 9px; } .breadcrumbs { margin-right: auto; } .preview-badge { display: none; } .content-wrap { padding: 35px 20px 45px; } .dashboard-grid { grid-template-columns: 1fr; } }
+@media (max-width: 800px) { .cashflow-plan-form { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 520px) { .page-intro { align-items: flex-start; flex-direction: column; } .primary-button { width: 100%; justify-content: center; } .stats-grid { grid-template-columns: 1fr; } .balance-card { grid-column: auto; } .stat-card { min-height: 135px; } .topbar-actions { gap: 5px; } .topbar-actions .icon-button:first-of-type { display: none; } .panel { padding: 18px; } .action-row { flex-direction: column; margin: 0 0 20px; } .action-row button { justify-content: center; } }
+@media (max-width: 520px) { .cashflow-plan-form { grid-template-columns: 1fr; } .cashflow-event-list li { align-items: flex-start; flex-wrap: wrap; } }
 .sidebar-backdrop { display: none; }
 .nav-item { min-height: 44px; text-decoration: none; }
 .active-pip { right: 0; }

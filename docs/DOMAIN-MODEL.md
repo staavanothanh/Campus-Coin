@@ -35,6 +35,10 @@ Savings là aggregate riêng. Deposit làm giảm wallet/tăng savings; withdraw
 
 Category có `applies_to`, active/disabled/retired và lịch sử đọc được. Default hoặc category đã được tham chiếu không hard-delete. Budget có user, payment category, local month và limit. Audit append-only, không lưu secret.
 
+### CashflowPlan và CashflowPlanStatusEvent
+
+Kế hoạch dòng tiền là hướng dẫn do user tự khai báo, không phải `income`/`payment`, không tạo ledger row và không làm thay đổi wallet, savings hoặc budget. Kế hoạch hỗ trợ khoản một lần/theo tháng; chỉ khoản `obligation` có thể chọn payment category và được đánh dấu dự trù trong projection. Dự báo dùng số dư wallet hiện tại, chỉ trừ obligation được user chủ động dự trù, cộng expected income đã khai báo và bỏ qua sự kiện đến hạn hôm nay để tránh tính lặp với giao dịch đã ghi. Kết quả what-if không ghi dữ liệu và không authorize payment. Status events append-only để phản ánh đúng trạng thái kế hoạch tại các tháng đã đóng.
+
 ## 3. Công thức authoritative
 
 ```text
@@ -93,4 +97,4 @@ Giữ row cũ; tạo reversal/adjustment/replacement có reason, actor, referenc
 
 ## 7. ADR liên quan
 
-[ADR-0005](./adr/0005-immutable-money-domain.md), [ADR-0003](./adr/0003-cloud-mysql-validation-gate.md).
+[ADR-0005](./adr/0005-immutable-money-domain.md), [ADR-0003](./adr/0003-cloud-mysql-validation-gate.md), [ADR-0011](./adr/0011-guidance-only-cashflow-plans.md).

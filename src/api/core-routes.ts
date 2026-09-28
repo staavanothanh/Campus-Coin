@@ -13,6 +13,17 @@ import { dashboard, monthlyReport } from "../application/report.service.ts";
 import { createTransfer, getSavings, listTransfers } from "../application/savings.service.ts";
 import { getWallet, initializeWallet } from "../application/wallet.service.ts";
 import { listAuditEventsForSecurity } from "../application/audit.service.ts";
+import {
+  cashflowForecast,
+  cashflowMonthReflection,
+  cashflowUpcoming,
+  cashflowWhatIf,
+  createCashflowPlan,
+  forecastDays,
+  listOwnerCashflowPlans,
+  updateCashflowPlanOptions,
+} from "../application/cashflow-plan.service.ts";
+import type { CashflowPlanFrequency, CashflowPlanKind } from "../domain/cashflow-plan.ts";
 import { DomainError, forbidden, invalidInput, notFound } from "../domain/errors.ts";
 import { isMonthKey } from "../domain/period.ts";
 import { pingDb, type Db } from "../infrastructure/db/pool.ts";
@@ -364,6 +375,85 @@ export async function handleCoreRequest(request: Request, deps: CoreApiDependenc
       return success(await monthBudgetSummary(deps.db, actor.userId, month));
     }
 
+    if (path === "/cashflow/plans" && request.method === "GET") {
+      rejectQueryParameters(url, []);
+      return success(await listOwnerCashflowPlans(deps.db, actor.userId));
+    }
+
+    if (path === "/cashflow/plans" && request.method === "POST") {
+      const body = await readJsonObject(request);
+      assertOnlyKeys(body, ["kind", "title", "amountVnd", "categoryId", "frequency", "startsOn", "dueDay", "reserveInForecast"]);
+      const kind: CashflowPlanKind = enumValue(body["kind"], ["obligation", "expected_income"] as const, "kind");
+      const frequency: CashflowPlanFrequency = enumValue(body["frequency"], ["once", "monthly"] as const, "frequency");
+      const categoryId = body["categoryId"] === undefined || body["categoryId"] === null
+        ? null
+        : typeof body["categoryId"] === "string"
+          ? positiveId(body["categoryId"], "categoryId")
+          : positiveInteger(body["categoryId"], "categoryId");
+      const dueDay = body["dueDay"] === undefined || body["dueDay"] === null
+        ? null
+        : positiveInteger(body["dueDay"], "dueDay");
+      const reserveInForecast = body["reserveInForecast"] === undefined ? false : optionalBoolean(body, "reserveInForecast");
+      if (reserveInForecast === undefined) throw invalidInput("reserveInForecast must be a boolean");
+      const plan = await createCashflowPlan(deps.db, {
+        userId: actor.userId,
+        kind,
+        title: requiredString(body, "title", 120),
+        amountVnd: positiveInteger(body["amountVnd"], "amountVnd"),
+        categoryId,
+        frequency,
+        startsOn: requiredString(body, "startsOn", 10),
+        dueDay,
+        reserveInForecast,
+        idempotencyKey: requireIdempotencyKey(request),
+        requestHash: canonicalHash(body),
+      });
+      return success(plan, 201);
+    }
+
+    const cashflowPlanMatch = /^\/cashflow\/plans\/([^/]+)$/.exec(path);
+    if (cashflowPlanMatch !== null && request.method === "PATCH") {
+      const planId = positiveId(cashflowPlanMatch[1], "planId");
+      const body = await readJsonObject(request);
+      assertOnlyKeys(body, ["reserveInForecast", "isActive"]);
+      const reserveInForecast = optionalBoolean(body, "reserveInForecast");
+      const isActive = optionalBoolean(body, "isActive");
+      const plan = await updateCashflowPlanOptions(deps.db, {
+        userId: actor.userId,
+        planId,
+        ...(reserveInForecast === undefined ? {} : { reserveInForecast }),
+        ...(isActive === undefined ? {} : { isActive }),
+        idempotencyKey: requireIdempotencyKey(request),
+        requestHash: canonicalHash({ planId, ...body }),
+      });
+      return success(plan);
+    }
+
+    if (path === "/cashflow/upcoming" && request.method === "GET") {
+      rejectQueryParameters(url, ["days"]);
+      return success(await cashflowUpcoming(deps.db, actor.userId, forecastDays(optionalQueryValue(url, "days"))));
+    }
+
+    if (path === "/cashflow/forecast" && request.method === "GET") {
+      rejectQueryParameters(url, ["days"]);
+      return success(await cashflowForecast(deps.db, actor.userId, forecastDays(optionalQueryValue(url, "days"))));
+    }
+
+    if (path === "/cashflow/what-if" && request.method === "POST") {
+      const body = await readJsonObject(request);
+      assertOnlyKeys(body, ["amountVnd", "paymentDate", "days"]);
+      return success(await cashflowWhatIf(deps.db, actor.userId, {
+        amountVnd: positiveInteger(body["amountVnd"], "amountVnd"),
+        paymentDate: requiredString(body, "paymentDate", 10),
+        ...(body["days"] === undefined ? {} : { days: positiveInteger(body["days"], "days") }),
+      }));
+    }
+
+    if (path === "/cashflow/reflection" && request.method === "GET") {
+      rejectQueryParameters(url, ["month"]);
+      return success(await cashflowMonthReflection(deps.db, actor.userId, requiredMonth(url)));
+    }
+
     const budgetMatch = /^\/budgets\/([^/]+)$/.exec(path);
     if (budgetMatch !== null && request.method === "PUT") {
       const categoryId = positiveId(budgetMatch[1], "categoryId");
@@ -640,7 +730,9 @@ function isKnownCorePath(path: string): boolean {
     path.startsWith("/ledger/transactions/") || path === "/savings" || path === "/savings/transfers" ||
     path === "/categories" || path.startsWith("/categories/") || path === "/budgets" ||
     path === "/budgets/summary" || path.startsWith("/budgets/") || path === "/reports/monthly" ||
-    path === "/reports/dashboard" || path === "/admin/audit-logs" || path === "/health" || path === "/health/ready" ||
+    path === "/reports/dashboard" || path === "/cashflow/plans" || path.startsWith("/cashflow/plans/") ||
+    path === "/cashflow/upcoming" || path === "/cashflow/forecast" || path === "/cashflow/what-if" ||
+    path === "/cashflow/reflection" || path === "/admin/audit-logs" || path === "/health" || path === "/health/ready" ||
     path === "/ai/category-suggestion";
 }
 

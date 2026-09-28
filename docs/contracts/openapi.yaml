@@ -32,6 +32,8 @@ tags:
     description: Budget theo tháng HCMC; overrun chỉ là cảnh báo.
   - name: Reports
     description: Báo cáo deterministic do server tính.
+  - name: Cashflow
+    description: Kế hoạch dòng tiền tự khai báo, chỉ ảnh hưởng dự báo và không ghi ledger.
   - name: Issues
     description: Issue hỗ trợ và timeline append-only.
   - name: Admin
@@ -624,6 +626,100 @@ paths:
         '401': {$ref: '#/components/responses/Unauthorized'}
         '500': {$ref: '#/components/responses/InternalError'}
         default: {$ref: '#/components/responses/InternalError'}
+  /cashflow/plans:
+    get:
+      operationId: getCashflowPlans
+      tags: [Cashflow]
+      summary: Liệt kê kế hoạch dòng tiền của user hiện tại
+      responses:
+        '200': {description: Danh sách kế hoạch, headers: {Cache-Control: {$ref: '#/components/headers/PrivateNoStore'}}, content: {application/json: {schema: {$ref: '#/components/schemas/CashflowPlanListResponse'}}}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        default: {$ref: '#/components/responses/InternalError'}
+    post:
+      operationId: postCashflowPlans
+      tags: [Cashflow]
+      summary: Tạo kế hoạch dòng tiền hướng dẫn, không ghi ledger
+      x-csrf-required: true
+      x-idempotency-required: true
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/CreateCashflowPlanRequest'}}}}
+      responses:
+        '201': {description: Kế hoạch đã tạo, headers: {Cache-Control: {$ref: '#/components/headers/PrivateNoStore'}}, content: {application/json: {schema: {$ref: '#/components/schemas/CashflowPlanResponse'}}}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/CsrfInvalid'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/IdempotencyConflict'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        default: {$ref: '#/components/responses/InternalError'}
+  /cashflow/plans/{planId}:
+    patch:
+      operationId: patchCashflowPlan
+      tags: [Cashflow]
+      summary: Cập nhật tùy chọn dự báo hoặc trạng thái kế hoạch
+      x-csrf-required: true
+      x-idempotency-required: true
+      parameters: [{name: planId, in: path, required: true, schema: {type: string, pattern: '^\\d+$'}}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/UpdateCashflowPlanRequest'}}}}
+      responses:
+        '200': {description: Kế hoạch đã cập nhật, headers: {Cache-Control: {$ref: '#/components/headers/PrivateNoStore'}}, content: {application/json: {schema: {$ref: '#/components/schemas/CashflowPlanResponse'}}}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/CsrfInvalid'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/IdempotencyConflict'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        default: {$ref: '#/components/responses/InternalError'}
+  /cashflow/upcoming:
+    get:
+      operationId: getCashflowUpcoming
+      tags: [Cashflow]
+      summary: Liệt kê các khoản dự kiến sắp tới
+      parameters: [{name: days, in: query, schema: {type: integer, minimum: 1, maximum: 365, default: 30}}]
+      responses:
+        '200': {description: Các khoản dự kiến sắp tới, headers: {Cache-Control: {$ref: '#/components/headers/PrivateNoStore'}}, content: {application/json: {schema: {$ref: '#/components/schemas/CashflowOccurrenceListResponse'}}}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        default: {$ref: '#/components/responses/InternalError'}
+  /cashflow/forecast:
+    get:
+      operationId: getCashflowForecast
+      tags: [Cashflow]
+      summary: Tính dự báo dòng tiền mang tính tham khảo
+      parameters: [{name: days, in: query, schema: {type: integer, minimum: 1, maximum: 365, default: 30}}]
+      responses:
+        '200': {description: Dự báo dòng tiền mang tính tham khảo, headers: {Cache-Control: {$ref: '#/components/headers/PrivateNoStore'}}, content: {application/json: {schema: {$ref: '#/components/schemas/CashflowForecastResponse'}}}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        default: {$ref: '#/components/responses/InternalError'}
+  /cashflow/what-if:
+    post:
+      operationId: postCashflowWhatIf
+      tags: [Cashflow]
+      summary: Tính kịch bản payment giả định, không ghi ledger hoặc authorize
+      x-csrf-required: true
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/CashflowWhatIfRequest'}}}}
+      responses:
+        '200': {description: Kịch bản giả định; không authorize payment, headers: {Cache-Control: {$ref: '#/components/headers/PrivateNoStore'}}, content: {application/json: {schema: {$ref: '#/components/schemas/CashflowWhatIfResponse'}}}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/CsrfInvalid'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        default: {$ref: '#/components/responses/InternalError'}
+  /cashflow/reflection:
+    get:
+      operationId: getCashflowReflection
+      tags: [Cashflow]
+      summary: Đối chiếu kế hoạch với dữ liệu của tháng đã kết thúc
+      parameters: [{$ref: '#/components/parameters/Month'}]
+      responses:
+        '200': {description: Đối chiếu kế hoạch và dữ liệu ghi nhận của tháng đã kết thúc, headers: {Cache-Control: {$ref: '#/components/headers/PrivateNoStore'}}, content: {application/json: {schema: {$ref: '#/components/schemas/CashflowReflectionResponse'}}}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        default: {$ref: '#/components/responses/InternalError'}
   /issues:
     post:
       operationId: postIssues
@@ -922,6 +1018,108 @@ components:
         occurredAt: {type: string, format: date-time}
         description: {type: string, maxLength: 500}
         confirmedCategorySuggestion: {type: boolean, default: false}
+    CashflowPlan:
+      type: object
+      required: [id, kind, title, amountVnd, categoryId, frequency, startsOn, dueDay, reserveInForecast, isActive, createdAt, disabledAt]
+      properties:
+        id: {type: string}
+        kind: {type: string, enum: [obligation, expected_income]}
+        title: {type: string}
+        amountVnd: {$ref: '#/components/schemas/PositiveMoneyVnd'}
+        categoryId: {type: [string, 'null']}
+        frequency: {type: string, enum: [once, monthly]}
+        startsOn: {type: string, format: date}
+        dueDay: {type: [integer, 'null'], minimum: 1, maximum: 31}
+        reserveInForecast: {type: boolean}
+        isActive: {type: boolean}
+        createdAt: {type: string, format: date-time}
+        disabledAt: {type: [string, 'null'], format: date-time}
+    CreateCashflowPlanRequest:
+      type: object
+      additionalProperties: false
+      required: [kind, title, amountVnd, frequency, startsOn]
+      properties:
+        kind: {type: string, enum: [obligation, expected_income]}
+        title: {type: string, minLength: 1, maxLength: 120}
+        amountVnd: {$ref: '#/components/schemas/PositiveMoneyVnd'}
+        categoryId: {type: [string, integer, 'null']}
+        frequency: {type: string, enum: [once, monthly]}
+        startsOn: {type: string, format: date}
+        dueDay: {type: [integer, 'null'], minimum: 1, maximum: 31}
+        reserveInForecast: {type: boolean, default: false}
+    UpdateCashflowPlanRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        reserveInForecast: {type: boolean}
+        isActive: {type: boolean}
+    CashflowOccurrence:
+      type: object
+      required: [planId, kind, title, amountVnd, dueDate, reserveInForecast, isActive, reminderStatus, isDueWithin10Days]
+      properties:
+        planId: {type: string}
+        kind: {type: string, enum: [obligation, expected_income]}
+        title: {type: string}
+        amountVnd: {$ref: '#/components/schemas/PositiveMoneyVnd'}
+        categoryId: {type: [string, 'null']}
+        dueDate: {type: string, format: date}
+        reserveInForecast: {type: boolean}
+        isActive: {type: boolean}
+        reminderStatus: {type: string, enum: [date_passed, due_soon, upcoming]}
+        isDueWithin10Days: {type: boolean}
+    CashflowForecast:
+      type: object
+      required: [asOfDate, days, endDate, walletStatus, currentWalletBalanceVnd, plannedIncomeVnd, plannedObligationsVnd, reservedObligationsVnd, unreservedObligationsVnd, projectedWalletBalanceVnd, events, assumptions]
+      properties:
+        asOfDate: {type: string, format: date}
+        days: {type: integer, minimum: 1, maximum: 365}
+        endDate: {type: string, format: date}
+        walletStatus: {type: string, enum: [initialized, not_initialized]}
+        currentWalletBalanceVnd: {type: [integer, 'null'], minimum: 0}
+        plannedIncomeVnd: {$ref: '#/components/schemas/MoneyVnd'}
+        plannedObligationsVnd: {$ref: '#/components/schemas/MoneyVnd'}
+        reservedObligationsVnd: {$ref: '#/components/schemas/MoneyVnd'}
+        unreservedObligationsVnd: {$ref: '#/components/schemas/MoneyVnd'}
+        projectedWalletBalanceVnd: {type: [integer, 'null']}
+        events: {type: array, items: {$ref: '#/components/schemas/CashflowOccurrence'}}
+        assumptions: {type: array, items: {type: string}}
+    CashflowWhatIfRequest:
+      type: object
+      additionalProperties: false
+      required: [amountVnd, paymentDate]
+      properties:
+        amountVnd: {$ref: '#/components/schemas/PositiveMoneyVnd'}
+        paymentDate: {type: string, format: date}
+        days: {type: integer, minimum: 1, maximum: 365}
+    CashflowWhatIf:
+      type: object
+      properties:
+        asOfDate: {type: string, format: date}
+        days: {type: integer}
+        paymentDate: {type: string, format: date}
+        hypotheticalPaymentVnd: {$ref: '#/components/schemas/PositiveMoneyVnd'}
+        baselineProjectedWalletBalanceVnd: {type: integer}
+        scenarioProjectedWalletBalanceVnd: {type: integer}
+        baselineProjectedWalletBalanceOnPaymentDateVnd: {type: integer}
+        scenarioProjectedWalletBalanceOnPaymentDateVnd: {type: integer}
+        baselineLowestProjectedWalletBalanceVnd: {type: integer}
+        scenarioLowestProjectedWalletBalanceVnd: {type: integer}
+        assumptions: {type: array, items: {type: string}}
+    CashflowReflection:
+      type: object
+      properties:
+        month: {type: string, pattern: '^\\d{4}-(0[1-9]|1[0-2])$'}
+        periodStatus: {type: string, const: ended}
+        income: {type: object}
+        obligations: {type: object}
+        noteCode: {type: string, const: unrecorded_does_not_mean_zero_activity}
+    CashflowPlanListResponse: {type: object, required: [data], properties: {data: {type: array, items: {$ref: '#/components/schemas/CashflowPlan'}}}}
+    CashflowPlanResponse: {type: object, required: [data], properties: {data: {$ref: '#/components/schemas/CashflowPlan'}}}
+    CashflowOccurrenceListResponse: {type: object, required: [data], properties: {data: {type: array, items: {$ref: '#/components/schemas/CashflowOccurrence'}}}}
+    CashflowForecastResponse: {type: object, required: [data], properties: {data: {$ref: '#/components/schemas/CashflowForecast'}}}
+    CashflowWhatIfResponse: {type: object, required: [data], properties: {data: {$ref: '#/components/schemas/CashflowWhatIf'}}}
+    CashflowReflectionResponse: {type: object, required: [data], properties: {data: {$ref: '#/components/schemas/CashflowReflection'}}}
     CorrectionRole: {type: string, enum: [reversal, adjustment, replacement]}
     LedgerRole: {type: string, enum: [original, reversal, adjustment, replacement]}
     CreateCorrectionRequest:

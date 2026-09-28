@@ -517,6 +517,109 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/cashflow/plans": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Liệt kê kế hoạch dòng tiền của user hiện tại */
+        get: operations["getCashflowPlans"];
+        put?: never;
+        /** Tạo kế hoạch dòng tiền hướng dẫn, không ghi ledger */
+        post: operations["postCashflowPlans"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/cashflow/plans/{planId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Cập nhật tùy chọn dự báo hoặc trạng thái kế hoạch */
+        patch: operations["patchCashflowPlan"];
+        trace?: never;
+    };
+    "/cashflow/upcoming": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Liệt kê các khoản dự kiến sắp tới */
+        get: operations["getCashflowUpcoming"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/cashflow/forecast": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Tính dự báo dòng tiền mang tính tham khảo */
+        get: operations["getCashflowForecast"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/cashflow/what-if": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Tính kịch bản payment giả định, không ghi ledger hoặc authorize */
+        post: operations["postCashflowWhatIf"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/cashflow/reflection": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Đối chiếu kế hoạch với dữ liệu của tháng đã kết thúc */
+        get: operations["getCashflowReflection"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/issues": {
         parameters: {
             query?: never;
@@ -781,6 +884,123 @@ export interface components {
             description?: string;
             /** @default false */
             confirmedCategorySuggestion: boolean;
+        };
+        CashflowPlan: {
+            id: string;
+            /** @enum {string} */
+            kind: "obligation" | "expected_income";
+            title: string;
+            amountVnd: components["schemas"]["PositiveMoneyVnd"];
+            categoryId: string | null;
+            /** @enum {string} */
+            frequency: "once" | "monthly";
+            /** Format: date */
+            startsOn: string;
+            dueDay: number | null;
+            reserveInForecast: boolean;
+            isActive: boolean;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            disabledAt: string | null;
+        };
+        CreateCashflowPlanRequest: {
+            /** @enum {string} */
+            kind: "obligation" | "expected_income";
+            title: string;
+            amountVnd: components["schemas"]["PositiveMoneyVnd"];
+            categoryId?: string | number | null;
+            /** @enum {string} */
+            frequency: "once" | "monthly";
+            /** Format: date */
+            startsOn: string;
+            dueDay?: number | null;
+            /** @default false */
+            reserveInForecast: boolean;
+        };
+        UpdateCashflowPlanRequest: {
+            reserveInForecast?: boolean;
+            isActive?: boolean;
+        };
+        CashflowOccurrence: {
+            planId: string;
+            /** @enum {string} */
+            kind: "obligation" | "expected_income";
+            title: string;
+            amountVnd: components["schemas"]["PositiveMoneyVnd"];
+            categoryId?: string | null;
+            /** Format: date */
+            dueDate: string;
+            reserveInForecast: boolean;
+            isActive: boolean;
+            /** @enum {string} */
+            reminderStatus: "date_passed" | "due_soon" | "upcoming";
+            isDueWithin10Days: boolean;
+        };
+        CashflowForecast: {
+            /** Format: date */
+            asOfDate: string;
+            days: number;
+            /** Format: date */
+            endDate: string;
+            /** @enum {string} */
+            walletStatus: "initialized" | "not_initialized";
+            currentWalletBalanceVnd: number | null;
+            plannedIncomeVnd: components["schemas"]["MoneyVnd"];
+            plannedObligationsVnd: components["schemas"]["MoneyVnd"];
+            reservedObligationsVnd: components["schemas"]["MoneyVnd"];
+            unreservedObligationsVnd: components["schemas"]["MoneyVnd"];
+            projectedWalletBalanceVnd: number | null;
+            events: components["schemas"]["CashflowOccurrence"][];
+            assumptions: string[];
+        };
+        CashflowWhatIfRequest: {
+            amountVnd: components["schemas"]["PositiveMoneyVnd"];
+            /** Format: date */
+            paymentDate: string;
+            days?: number;
+        };
+        CashflowWhatIf: {
+            /** Format: date */
+            asOfDate?: string;
+            days?: number;
+            /** Format: date */
+            paymentDate?: string;
+            hypotheticalPaymentVnd?: components["schemas"]["PositiveMoneyVnd"];
+            baselineProjectedWalletBalanceVnd?: number;
+            scenarioProjectedWalletBalanceVnd?: number;
+            baselineProjectedWalletBalanceOnPaymentDateVnd?: number;
+            scenarioProjectedWalletBalanceOnPaymentDateVnd?: number;
+            baselineLowestProjectedWalletBalanceVnd?: number;
+            scenarioLowestProjectedWalletBalanceVnd?: number;
+            assumptions?: string[];
+        };
+        CashflowReflection: {
+            month?: string;
+            /** @constant */
+            periodStatus?: "ended";
+            income?: Record<string, never>;
+            obligations?: Record<string, never>;
+            /** @constant */
+            noteCode?: "unrecorded_does_not_mean_zero_activity";
+        };
+        CashflowPlanListResponse: {
+            data: components["schemas"]["CashflowPlan"][];
+        };
+        CashflowPlanResponse: {
+            data: components["schemas"]["CashflowPlan"];
+        };
+        CashflowOccurrenceListResponse: {
+            data: components["schemas"]["CashflowOccurrence"][];
+        };
+        CashflowForecastResponse: {
+            data: components["schemas"]["CashflowForecast"];
+        };
+        CashflowWhatIfResponse: {
+            data: components["schemas"]["CashflowWhatIf"];
+        };
+        CashflowReflectionResponse: {
+            data: components["schemas"]["CashflowReflection"];
         };
         /** @enum {string} */
         CorrectionRole: "reversal" | "adjustment" | "replacement";
@@ -2248,6 +2468,208 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthorized"];
+            500: components["responses"]["InternalError"];
+            default: components["responses"]["InternalError"];
+        };
+    };
+    getCashflowPlans: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Danh sách kế hoạch */
+            200: {
+                headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CashflowPlanListResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            500: components["responses"]["InternalError"];
+            default: components["responses"]["InternalError"];
+        };
+    };
+    postCashflowPlans: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateCashflowPlanRequest"];
+            };
+        };
+        responses: {
+            /** @description Kế hoạch đã tạo */
+            201: {
+                headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CashflowPlanResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["CsrfInvalid"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["IdempotencyConflict"];
+            422: components["responses"]["ValidationError"];
+            500: components["responses"]["InternalError"];
+            default: components["responses"]["InternalError"];
+        };
+    };
+    patchCashflowPlan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                planId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateCashflowPlanRequest"];
+            };
+        };
+        responses: {
+            /** @description Kế hoạch đã cập nhật */
+            200: {
+                headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CashflowPlanResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["CsrfInvalid"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["IdempotencyConflict"];
+            422: components["responses"]["ValidationError"];
+            500: components["responses"]["InternalError"];
+            default: components["responses"]["InternalError"];
+        };
+    };
+    getCashflowUpcoming: {
+        parameters: {
+            query?: {
+                days?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Các khoản dự kiến sắp tới */
+            200: {
+                headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CashflowOccurrenceListResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            422: components["responses"]["ValidationError"];
+            500: components["responses"]["InternalError"];
+            default: components["responses"]["InternalError"];
+        };
+    };
+    getCashflowForecast: {
+        parameters: {
+            query?: {
+                days?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Dự báo dòng tiền mang tính tham khảo */
+            200: {
+                headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CashflowForecastResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            422: components["responses"]["ValidationError"];
+            500: components["responses"]["InternalError"];
+            default: components["responses"]["InternalError"];
+        };
+    };
+    postCashflowWhatIf: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CashflowWhatIfRequest"];
+            };
+        };
+        responses: {
+            /** @description Kịch bản giả định; không authorize payment */
+            200: {
+                headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CashflowWhatIfResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["CsrfInvalid"];
+            422: components["responses"]["ValidationError"];
+            500: components["responses"]["InternalError"];
+            default: components["responses"]["InternalError"];
+        };
+    };
+    getCashflowReflection: {
+        parameters: {
+            query: {
+                /** @example 2026-09 */
+                month: components["parameters"]["Month"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Đối chiếu kế hoạch và dữ liệu ghi nhận của tháng đã kết thúc */
+            200: {
+                headers: {
+                    "Cache-Control": components["headers"]["PrivateNoStore"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CashflowReflectionResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            422: components["responses"]["ValidationError"];
             500: components["responses"]["InternalError"];
             default: components["responses"]["InternalError"];
         };

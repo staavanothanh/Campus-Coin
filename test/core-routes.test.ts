@@ -46,6 +46,49 @@ test("core routes return a private unauthorized envelope without a session", asy
   });
 });
 
+test("cashflow plan creation validates bounded guidance input before persistence", async () => {
+  let databaseCalls = 0;
+  const deps = dependencies({ db: { query: async () => { databaseCalls += 1; return [[], []]; } } as unknown as Db });
+  const response = await handleCoreRequest(new Request("https://campus.example/cashflow/plans", {
+    method: "POST",
+    headers: {
+      origin: "https://campus.example",
+      "content-type": "application/json",
+      "idempotency-key": "cashflow-invalid-input",
+    },
+    body: JSON.stringify({
+      kind: "expected_income",
+      title: "Monthly allowance",
+      amountVnd: 100_000,
+      frequency: "monthly",
+      startsOn: "2026-02-30",
+      dueDay: 30,
+      reserveInForecast: false,
+    }),
+  }), deps.value);
+
+  assert.equal(response.status, 422);
+  assert.equal(databaseCalls, 0);
+  assert.equal(((await responseBody(response)).error as { code: string }).code, "INVALID_INPUT");
+});
+
+test("cashflow writes require the existing origin and CSRF boundary", async () => {
+  let databaseCalls = 0;
+  const deps = dependencies({
+    csrfValid: false,
+    db: { query: async () => { databaseCalls += 1; return [[], []]; } } as unknown as Db,
+  });
+  const response = await handleCoreRequest(new Request("https://campus.example/cashflow/plans", {
+    method: "POST",
+    headers: { origin: "https://campus.example", "content-type": "application/json" },
+    body: JSON.stringify({}),
+  }), deps.value);
+
+  assert.equal(response.status, 403);
+  assert.equal(databaseCalls, 0);
+  assert.equal(deps.csrfChecks(), 1);
+});
+
 test("shared API entrypoint dispatches issue routes and exposes only the documented public liveness route", async () => {
   const deps = dependencies({ actor: null });
   const healthResponse = await handleApiRequest(new Request("https://campus.example/health"), deps.value);

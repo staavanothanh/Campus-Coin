@@ -42,6 +42,7 @@ Root `docs/` là canonical product docs; `adr/` là canonical history; `working/
 | Cơ sở dữ liệu | Cloud MySQL sau cổng kiểm chứng provider/region/free-tier/restore | [ADR-0003](./adr/0003-cloud-mysql-validation-gate.md) |
 | Triển khai/email | Domain Vercel; custom email domain không bắt buộc; SMTP gửi OTP phải được chọn/kiểm chứng | [ADR-0004](./adr/0004-vercel-domain-no-custom-email.md), [ADR-0008](./adr/0008-email-password-otp-auth.md) |
 | Tiền | `income`/`payment` bất biến, VND nguyên, savings tách biệt, budget chỉ cảnh báo | [ADR-0005](./adr/0005-immutable-money-domain.md) |
+| Kế hoạch dòng tiền | Đề xuất guidance-only; chờ phê duyệt và chưa áp dụng schema lên DB shared | [ADR-0011](./adr/0011-guidance-only-cashflow-plans.md) |
 | JEV | Optional, backend-only, OpenRouter typed contract, default-off, manual fallback | [ADR-0006](./adr/0006-optional-openrouter-jev.md) |
 | Giao hàng | Thin-slice 4–5 ngày, bốn developer, Team Leader quyết định GO/NO-GO | [ADR-0007](./adr/0007-five-day-thin-slice.md) |
 
