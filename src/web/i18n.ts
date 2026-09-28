@@ -95,6 +95,8 @@ export interface Copy {
   notifications: string;
   noNotifications: string;
   profileUpdatedNotification: string;
+  profileCompletionReminder: string;
+  openProfileSettings: string;
   dateFrom: string;
   dateTo: string;
   groupByDay: string;
@@ -204,6 +206,8 @@ export const copy: Record<Locale, Copy> = {
     notifications: 'Thông báo',
     noNotifications: 'Chưa có thông báo mới.',
     profileUpdatedNotification: 'Hồ sơ của bạn đã được cập nhật.',
+    profileCompletionReminder: 'Hồ sơ còn thiếu ngày sinh hoặc giới tính. Hãy bổ sung để hoàn thiện hồ sơ.',
+    openProfileSettings: 'Cập nhật hồ sơ',
     dateFrom: 'Từ ngày',
     dateTo: 'Đến ngày',
     groupByDay: 'Theo ngày',
@@ -311,6 +315,8 @@ export const copy: Record<Locale, Copy> = {
     notifications: 'Notifications',
     noNotifications: 'No new notifications.',
     profileUpdatedNotification: 'Your profile has been updated.',
+    profileCompletionReminder: 'Your profile is missing your date of birth or gender. Add the missing details to complete your profile.',
+    openProfileSettings: 'Update profile',
     dateFrom: 'From',
     dateTo: 'To',
     groupByDay: 'By day',

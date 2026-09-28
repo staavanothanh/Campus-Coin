@@ -271,7 +271,7 @@ export async function loginWithGoogle(identity: { subject: string; email: string
   try {
     await db.beginTransaction();
     const [identityRows] = await db.execute<UserRow[]>(
-      'SELECT u.id, u.email, u.display_name, u.locale, u.role, u.email_verified, u.status FROM auth_identities a JOIN users u ON u.id = a.user_id WHERE a.provider = ? AND a.subject = ? LIMIT 1',
+      "SELECT u.id, u.email, u.display_name, u.locale, u.role, u.email_verified, u.status, DATE_FORMAT(u.birth_date, '%Y-%m-%d') AS birth_date, u.gender FROM auth_identities a JOIN users u ON u.id = a.user_id WHERE a.provider = ? AND a.subject = ? LIMIT 1",
       ['google', identity.subject],
     );
     if (identityRows[0]) {
@@ -295,7 +295,7 @@ export async function loginWithGoogle(identity: { subject: string; email: string
         [result.insertId, 'google', identity.subject],
       );
       const [createdUsers] = await db.execute<UserRow[]>(
-        'SELECT id, email, display_name, locale, role, email_verified, status FROM users WHERE id = ? LIMIT 1',
+        "SELECT id, email, display_name, locale, role, email_verified, status, DATE_FORMAT(birth_date, '%Y-%m-%d') AS birth_date, gender FROM users WHERE id = ? LIMIT 1",
         [result.insertId],
       );
       user = createdUsers[0];

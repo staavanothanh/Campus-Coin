@@ -18,10 +18,10 @@ import {
   WalletCards,
   X,
 } from 'lucide-react';
-import { apiGet, apiPost, setUnauthorizedHandler, ApiRequestError } from './api-client.js';
+import { apiGet, apiPatch, apiPost, setUnauthorizedHandler, ApiRequestError } from './api-client.js';
 import { formatVnd, formatDate, getCurrentMonth, getCurrentDateFormatted, getVietnamGreetingPeriod } from './format.js';
 import { copy, type Copy } from './i18n.js';
-import type { Locale, Theme, Screen, Session, Dashboard, BudgetSummary, Transaction } from './types.js';
+import type { Locale, Theme, Screen, Session, Dashboard, BudgetSummary, Transaction, User } from './types.js';
 import { TransactionForm } from './components/TransactionForm.js';
 import { InitWalletModal } from './components/InitWalletModal.js';
 import { TransactionsScreen } from './screens/TransactionsScreen.js';
@@ -37,6 +37,7 @@ interface ProfileNotification {
   id: string;
   createdAt: string;
   isRead: boolean;
+  kind: 'profile-updated';
 }
 
 export function App() {
@@ -112,10 +113,17 @@ export function App() {
   const [initWalletOpen, setInitWalletOpen] = useState(false);
   const [notifications, setNotifications] = useState<ProfileNotification[]>([]);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [isLocaleSaving, setIsLocaleSaving] = useState(false);
+  const [localeError, setLocaleError] = useState('');
   const [signOutError, setSignOutError] = useState(false);
   const dashboardRequestId = useRef(0);
   const t = copy[locale];
-  const unreadNotificationCount = notifications.filter(notification => !notification.isRead).length;
+  const isProfileIncomplete = Boolean(session && (!session.user.birthDate || !session.user.gender));
+  const unreadNotificationCount = notifications.filter(notification => !notification.isRead).length + Number(isProfileIncomplete);
+  const notificationItems = [
+    ...(isProfileIncomplete ? [{ id: 'profile-completion-required', kind: 'profile-completion' as const }] : []),
+    ...notifications,
+  ];
   const greetingPeriod = getVietnamGreetingPeriod(clockNow);
   const greeting = greetingPeriod === 'morning'
     ? t.greetingMorning
@@ -143,7 +151,29 @@ export function App() {
       id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
       createdAt: new Date().toISOString(),
       isRead: false,
+      kind: 'profile-updated' as const,
     }, ...previous].slice(0, 10));
+  }
+
+  async function toggleLocale() {
+    if (!session || isLocaleSaving) return;
+    const nextLocale: Locale = locale === 'vi' ? 'en' : 'vi';
+    setLocaleError('');
+    setIsLocaleSaving(true);
+    try {
+      const updatedUser = await apiPatch<User>(
+        '/users/me/preferences',
+        { locale: nextLocale },
+        { 'X-CSRF-Token': session.csrfToken },
+      );
+      setSession(current => current ? { ...current, user: updatedUser } : current);
+      setLocale(updatedUser.locale);
+      recordProfileUpdated();
+    } catch {
+      setLocaleError(copy[locale].serverError);
+    } finally {
+      setIsLocaleSaving(false);
+    }
   }
 
   useEffect(() => {
@@ -351,21 +381,34 @@ export function App() {
                 hidden={!notificationsOpen}
               >
                 <h2>{t.notifications}</h2>
-                {notifications.length === 0 ? (
+                {notificationItems.length === 0 ? (
                   <p className="notification-empty">{t.noNotifications}</p>
                 ) : (
                   <ul>
-                    {notifications.map(notification => (
-                      <li key={notification.id} className={!notification.isRead ? 'is-unread' : ''}>
-                        <span>{t.profileUpdatedNotification}</span>
-                        <time dateTime={notification.createdAt}>{formatDate(notification.createdAt, locale)}</time>
+                    {notificationItems.map(notification => (
+                      <li
+                        key={notification.id}
+                        className={notification.kind === 'profile-completion' || !notification.isRead ? 'is-unread' : ''}
+                      >
+                        <span>{notification.kind === 'profile-completion' ? t.profileCompletionReminder : t.profileUpdatedNotification}</span>
+                        {notification.kind === 'profile-completion' ? (
+                          <button
+                            type="button"
+                            className="notification-action"
+                            onClick={() => { setNotificationsOpen(false); setScreen('settings'); }}
+                          >
+                            {t.openProfileSettings}
+                          </button>
+                        ) : (
+                          <time dateTime={notification.createdAt}>{formatDate(notification.createdAt, locale)}</time>
+                        )}
                       </li>
                     ))}
                   </ul>
                 )}
               </div>
             </div>
-            <button className="locale-toggle" onClick={() => setLocale(locale === 'vi' ? 'en' : 'vi')} aria-label={t.language}>{locale.toUpperCase()}</button>
+            <button className="locale-toggle" onClick={() => void toggleLocale()} disabled={isLocaleSaving} aria-label={t.language}>{locale.toUpperCase()}</button>
             <button
               className="icon-button"
               onClick={cycleTheme}
@@ -383,6 +426,7 @@ export function App() {
 
         <section className="content-wrap">
           {signOutError && <p role="alert" className="error-banner">{t.signOutFailed}</p>}
+          {localeError && <p role="alert" className="error-banner">{localeError}</p>}
           {screen === 'dashboard' && (
             <>
               <div className="page-intro">

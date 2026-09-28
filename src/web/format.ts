@@ -29,6 +29,16 @@ export function getCurrentVietnamDate(now: Date = new Date()): string {
   return year && month && day ? `${year}-${month}-${day}` : '';
 }
 
+/** Get the final calendar date of the current month in Asia/Ho_Chi_Minh. */
+export function getCurrentVietnamMonthEnd(now: Date = new Date()): string {
+  const today = getCurrentVietnamDate(now);
+  const [year, month] = today.split('-').map(Number);
+  if (!year || !month) return '';
+
+  const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  return `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+}
+
 /** Format a user-editable VND value without adding the currency suffix. */
 export function formatAmountInputVnd(value: string, locale: Locale): string {
   const digits = value.replace(/\D/g, '');

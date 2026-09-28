@@ -86,7 +86,7 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 3px solid 
 .google-dot { width: 18px; height: 18px; display: grid; place-items: center; border-radius: 50%; background: #fff; color: #4285f4; font-size: 11px; font-weight: 700; }
 .main-content { width: calc(100% - 242px); margin-left: 242px; flex: 1 1 auto; min-width: 0; min-height: 100vh; transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1), margin-left 0.25s cubic-bezier(0.4, 0, 0.2, 1); overflow-x: hidden; }
 .main-content.is-expanded { width: calc(100% - 76px) !important; margin-left: 76px; flex: 1 1 calc(100% - 76px) !important; }
-.topbar { height: 76px; display: flex; align-items: center; justify-content: space-between; padding: 0 5.5%; background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(8px); border-bottom: 1px solid #e2e8f0; }
+.topbar { position: relative; z-index: 120; height: 76px; display: flex; align-items: center; justify-content: space-between; padding: 0 5.5%; background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(8px); border-bottom: 1px solid #e2e8f0; }
 .breadcrumbs { display: flex; gap: 10px; align-items: center; color: #64748b; font-size: 12px; }
 .breadcrumbs strong { color: #0f172a; font-weight: 600; }
 .breadcrumbs-user { font-weight: 600; color: #334155; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -94,7 +94,7 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 3px solid 
 .notification-menu { position: relative; display: grid; place-items: center; }
 .notification-trigger { position: relative; }
 .notification-badge { position: absolute; top: -3px; right: -2px; min-width: 16px; height: 16px; display: grid; place-items: center; padding: 0 3px; border: 2px solid #ffffff; border-radius: 999px; background: #ef4444; color: #ffffff; font-size: 9px; font-weight: 700; line-height: 1; }
-.notification-panel { position: absolute; top: calc(100% + 12px); right: 0; z-index: 20; width: min(340px, calc(100vw - 32px)); padding: 16px; border: 1px solid #e2e8f0; border-radius: 12px; background: #ffffff; color: #0f172a; box-shadow: 0 16px 40px rgba(15, 23, 42, 0.18); }
+.notification-panel { position: absolute; top: calc(100% + 12px); right: 0; z-index: 200; width: min(340px, calc(100vw - 32px)); padding: 16px; border: 1px solid #e2e8f0; border-radius: 12px; background: #ffffff; color: #0f172a; box-shadow: 0 16px 40px rgba(15, 23, 42, 0.18); }
 .notification-panel[hidden] { display: none; }
 .notification-panel h2 { margin: 0 0 12px; font-size: 14px; }
 .notification-panel ul { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
@@ -102,6 +102,7 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 3px solid 
 .notification-panel li.is-unread { border-left: 3px solid #f59e0b; background: #fffbeb; }
 .notification-panel time { color: #64748b; font-size: 10px; }
 .notification-empty { margin: 0; color: #64748b; font-size: 12px; }
+.notification-action { justify-self: start; padding: 2px 0; border: 0; background: transparent; color: #0e4a4e; font: inherit; font-size: 11px; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
 .topbar-user-badge { display: flex; align-items: center; gap: 8px; padding: 4px 12px 4px 5px; border-radius: 20px; background: rgba(255, 255, 255, 0.9); border: 1px solid #cbd5e1; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05); font-size: 12px; font-weight: 600; color: #0f172a; max-width: 200px; transition: all 0.2s ease; }
 .topbar-user-badge:hover { transform: translateY(-1px); box-shadow: 0 3px 8px rgba(0, 0, 0, 0.08); }
 .topbar-user-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; font-weight: 600; }
@@ -673,6 +674,7 @@ h2 { margin-bottom: 7px; color: #0f172a; font-size: 17px; letter-spacing: -.02em
 .theme-dark .notification-panel li.is-unread { background: rgba(245, 158, 11, 0.12); }
 .theme-dark .notification-panel time,
 .theme-dark .notification-empty { color: #94a3b8; }
+.theme-dark .notification-action { color: #a5d1c3; }
 .theme-dark .settings-native-input,
 .theme-dark .transaction-date-field input { border-color: rgba(139, 92, 246, 0.24); background: #080918; color: #f8fafc; }
 .theme-dark .transaction-grouping { background: #0f1128; }

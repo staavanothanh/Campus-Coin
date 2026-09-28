@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { Transaction } from '../../src/web/types.ts';
+import { getCurrentVietnamDate, getCurrentVietnamMonthEnd } from '../../src/web/format.ts';
 import { groupTransactions, isValidDateRange, transactionListPath } from '../../src/web/transaction-filters.ts';
 
 function transaction(id: string, occurredAt: string): Transaction {
@@ -28,6 +29,13 @@ test('rejects impossible or reversed date ranges', () => {
   assert.equal(isValidDateRange('2026-02-30', ''), false);
   assert.equal(isValidDateRange('2026-09-28', '2026-09-27'), false);
   assert.equal(isValidDateRange('', '2026-09-27'), true);
+});
+
+test('uses the Asia/Ho_Chi_Minh calendar month when calculating the default range', () => {
+  const now = new Date('2026-09-27T17:30:00.000Z');
+  assert.equal(getCurrentVietnamDate(now), '2026-09-28');
+  assert.equal(getCurrentVietnamMonthEnd(now), '2026-09-30');
+  assert.equal(getCurrentVietnamMonthEnd(new Date('2024-02-10T05:00:00.000Z')), '2024-02-29');
 });
 
 test('groups and sorts transactions by their Asia/Ho_Chi_Minh date', () => {

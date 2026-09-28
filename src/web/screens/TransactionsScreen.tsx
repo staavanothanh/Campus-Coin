@@ -3,7 +3,7 @@ import { usePagination } from '../hooks/use-pagination.js';
 import { useCategories } from '../hooks/use-categories.js';
 import type { Transaction, Locale } from '../types.js';
 import type { Copy } from '../i18n.js';
-import { formatVnd, formatDate } from '../format.js';
+import { formatVnd, formatDate, getCurrentVietnamDate, getCurrentVietnamMonthEnd } from '../format.js';
 import {
   ArrowDownLeft,
   ArrowUpRight,
@@ -25,10 +25,10 @@ export function TransactionsScreen({ t, locale }: TransactionsScreenProps) {
   const isVi = locale === 'vi';
   const { getCategoryName } = useCategories();
   const [typeFilter, setTypeFilter] = useState<'all' | 'income' | 'payment'>('all');
-  const [grouping, setGrouping] = useState<TransactionGrouping>('day');
+  const [grouping, setGrouping] = useState<TransactionGrouping>('month');
   const [searchTerm, setSearchTerm] = useState('');
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
+  const [dateFrom, setDateFrom] = useState(() => getCurrentVietnamDate());
+  const [dateTo, setDateTo] = useState(() => getCurrentVietnamMonthEnd());
 
   const validDateRange = isValidDateRange(dateFrom, dateTo);
   const basePath = transactionListPath(typeFilter, dateFrom, dateTo);

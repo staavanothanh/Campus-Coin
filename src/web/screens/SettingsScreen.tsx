@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import {
   User,
   Mail,
@@ -55,6 +55,10 @@ export function SettingsScreen({
   const [error, setError] = useState<ApiRequestError | string | null>(null);
   const [successMsg, setSuccessMsg] = useState('');
   const [copiedId, setCopiedId] = useState(false);
+
+  useEffect(() => {
+    setPrefLocale(initialLocale);
+  }, [initialLocale]);
 
   const isVi = locale === 'vi';
   const hasChanges =
@@ -242,11 +246,6 @@ export function SettingsScreen({
                   placeholder={isVi ? 'Nhập họ và tên...' : 'Enter your name...'}
                 />
               </div>
-              <p className="field-hint">
-                {isVi
-                  ? 'Tên này sẽ xuất hiện trên lời chào trang tổng quan và lịch sử giao dịch.'
-                  : 'This name appears on the dashboard greeting and transaction logs.'}
-              </p>
             </div>
 
             <div className="settings-field">
@@ -266,11 +265,6 @@ export function SettingsScreen({
                   readOnly
                 />
               </div>
-              <p className="field-hint">
-                {isVi
-                  ? 'Email được liên kết qua Google Single Sign-On và được bảo vệ tự động.'
-                  : 'Email is linked securely through Google Single Sign-On and cannot be changed.'}
-              </p>
             </div>
 
             <div className="settings-field">
@@ -289,9 +283,6 @@ export function SettingsScreen({
                 onChange={event => setBirthDate(event.currentTarget.value)}
                 disabled={loading}
               />
-              <p className="field-hint">
-                {isVi ? 'Chỉ lưu trong hồ sơ của bạn; không hiển thị trong danh sách quản trị.' : 'Stored in your profile only; not shown in administrator lists.'}
-              </p>
             </div>
 
             <div className="settings-field">
@@ -314,9 +305,6 @@ export function SettingsScreen({
                 <option value="non_binary">{isVi ? 'Phi nhị nguyên' : 'Non-binary'}</option>
                 <option value="prefer_not_to_say">{isVi ? 'Không muốn tiết lộ' : 'Prefer not to say'}</option>
               </select>
-              <p className="field-hint">
-                {isVi ? 'Bạn có thể để trống hoặc xóa thông tin này bất cứ lúc nào.' : 'You can leave this blank or remove it at any time.'}
-              </p>
             </div>
           </div>
         </section>
