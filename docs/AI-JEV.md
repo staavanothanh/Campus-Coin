@@ -65,9 +65,9 @@ Validate schema, candidate membership, `other_or_uncertain`, probability/confide
 
 ## 5. Chính sách runtime
 
-- `JEV_LOCAL_CATEGORY_SUGGESTION_ENABLED` controls the deterministic local category index. It defaults to enabled for offline development and can be set to `false`; it never sends data to a provider. When a paid provider is explicitly enabled with a valid key, that provider remains authoritative.
-- `JEV_CATEGORY_SUGGESTION_ENABLED` must be explicitly set to `true`; it defaults to disabled. An enabled service also requires `OPENROUTER_API_KEY`. Minimum confidence/candidate limits default to 0.8/10 when enabled.
-- NghienAI (`gpt-6-luna`, OpenAI-compatible transport) là provider gợi ý dự phòng (provisional). Chỉ dùng khi JEV chưa bật; bật bằng `NGHIENAI_LLM_ENABLED=true` + `NGHIENAI_API_KEY`, ngưỡng qua `NGHIENAI_MINIMUM_CONFIDENCE`/`NGHIENAI_MAX_CANDIDATES` (mặc định 0.8/10). Kết quả generative là untrusted, chỉ dùng trong candidate set đã validate; bật thiếu key sẽ degrade về disabled chứ không crash startup. Không chạm money path.
+- `JEV_LOCAL_CATEGORY_SUGGESTION_ENABLED` controls the deterministic local category index. It defaults to enabled for offline development and can be set to `false`; it never sends data to a provider. When enabled, it is authoritative and runs before paid providers so exhausted provider credits do not disable hardcoded suggestions.
+- `JEV_CATEGORY_SUGGESTION_ENABLED` must be explicitly set to `true` to allow the OpenRouter provider; it defaults to disabled. An enabled provider also requires `OPENROUTER_API_KEY`. Minimum confidence/candidate limits default to 0.8/10 when enabled.
+- NghienAI (`gpt-6-luna`, OpenAI-compatible transport) is the provisional remote fallback when the local index and JEV are disabled; enable with `NGHIENAI_LLM_ENABLED=true` + `NGHIENAI_API_KEY`, with thresholds via `NGHIENAI_MINIMUM_CONFIDENCE`/`NGHIENAI_MAX_CANDIDATES` (default 0.8/10). Generative output is untrusted, limited to the validated candidate set, and never touches the money path.
 - Timeout, rate, concurrency, input length, candidate count và daily spend phải bounded.
 - Không retry mặc định; retry chỉ khi evidence cost/latency cho phép.
 - Không giữ MySQL money transaction trong lúc chờ OpenRouter.

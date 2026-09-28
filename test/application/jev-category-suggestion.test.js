@@ -18,6 +18,37 @@ it('covers more than 100 local examples and suggests all 11 canonical categories
   for (const [transactionType, description, categoryId] of examples) {
     assert.equal(suggestLocalCategory({ transactionType, description }).categoryId, categoryId)
   }
+  assert.deepEqual(suggestLocalCategory({ transactionType: 'payment', description: 'cơm' }), { status: 'suggested', confidence: 0.94, reasonCode: null, categoryId: '5' })
+})
+it('uses the local hardcoded matcher for Vietnamese food before a paid provider', async () => {
+  let providerCalls = 0
+  const service = createCategorySuggestionServiceFromEnvironment({
+    env: {
+      JEV_CATEGORY_SUGGESTION_ENABLED: 'true',
+      JEV_LOCAL_CATEGORY_SUGGESTION_ENABLED: 'true',
+      OPENROUTER_API_KEY: 'synthetic-server-key',
+      JEV_MINIMUM_CONFIDENCE: '0.8',
+      JEV_MAX_CANDIDATES: '10',
+    },
+    loadEnvFile: () => {},
+    fetchImpl: async () => {
+      providerCalls += 1
+      return new Response('{}', { status: 402 })
+    },
+    logger: { warn: () => {} },
+  })
+  const result = await service.suggest({
+    transactionType: 'payment',
+    descriptionRedacted: 'cơm',
+    locale: 'vi',
+    candidates: [
+      ['category-5', 'Ăn uống'], ['category-6', 'Di chuyển'], ['category-7', 'Mua sắm'],
+      ['category-8', 'Giải trí'], ['category-9', 'Học tập'], ['category-10', 'Nhà ở & Điện nước'],
+      ['category-11', 'Khác'],
+    ].map(([id, semanticLabel]) => ({ id, semanticLabel, active: true, appliesTo: ['payment'] })),
+  })
+  assert.deepEqual(result, { status: 'suggested', categoryId: 'category-5', confidence: 0.94, reasonCode: null })
+  assert.equal(providerCalls, 0)
 })
 const configuredPolicy = { enabled: true, minimumConfidence: 0.8, maxCandidates: 10 }
 const eligibleInput = {

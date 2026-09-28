@@ -191,8 +191,35 @@ export function createCategorySuggestionServiceFromEnvironment({
   const loadOptions = loadEnvFile === undefined ? { env } : { env, loadEnvFile }
   const config = loadAiProviderConfig(loadOptions)
 
-  // JEV (OpenRouter typed System One) is the canonical provider; it wins when
-  // explicitly enabled with a valid key and policy.
+  // The deterministic local index is the offline fallback for exhausted or absent provider credits.
+  // It must run before remote providers whenever explicitly enabled.
+  if (config.local.enabled === true) {
+    return createCategorySuggestionService({
+      enabled: true,
+      minimumConfidence: 0.8,
+      maxCandidates: 11,
+      adapter: {
+        decide: async ({ state, questions }) => {
+          const local = suggestLocalCategory({ transactionType: state.transactionType, description: state.description })
+          const categoryId = local.categoryId
+          const selected = categoryId === null ? 'other_or_uncertain' : Object.entries(questions.category.criteria).find(([, label]) => {
+            const canonical = CANONICAL_CATEGORIES.find(candidate => String(candidate.id) === categoryId)
+            return canonical !== undefined && label === (state.locale === 'vi' ? canonical.nameVi : canonical.nameEn)
+          })?.[0] ?? 'other_or_uncertain'
+          const criteriaIds = Object.keys(questions.category.criteria)
+          const otherIds = criteriaIds.filter(id => id !== selected)
+          const probabilities = Object.fromEntries(criteriaIds.map(id => [id, id === selected ? 0.94 : (0.06 / otherIds.length)]))
+          return {
+            answers: { category: { type: 'choice', choice: selected, confidence: local.confidence ?? 0, probabilities } },
+            model: 'campus-coin-local-category-index',
+            usage: { input_tokens: 0, output_tokens: 0 },
+          }
+        },
+      },
+    })
+  }
+
+  // JEV (OpenRouter typed System One) is the canonical provider when local matching is disabled.
   const jev = config.jev
   if (jev.enabled && isValidPolicy(jev.minimumConfidence, jev.maxCandidates) && typeof jev.apiKey === 'string') {
     return createCategorySuggestionService({
@@ -203,8 +230,7 @@ export function createCategorySuggestionServiceFromEnvironment({
     })
   }
 
-  // NghienAI (provisional generative LLM) is the fallback provider. It reuses
-  // the same shared decision contract and stays off without a valid key/policy.
+  // NghienAI is the provisional fallback provider when both local matching and JEV are off.
   const nghienAi = config.nghienAi
   if (nghienAi.enabled && isValidPolicy(nghienAi.minimumConfidence, nghienAi.maxCandidates) && typeof nghienAi.apiKey === 'string') {
     return createCategorySuggestionService({
@@ -221,30 +247,6 @@ export function createCategorySuggestionServiceFromEnvironment({
     })
   }
 
-  if (config.local.enabled !== true) {
-    return createCategorySuggestionService({ enabled: false, minimumConfidence: null, maxCandidates: null, adapter: undefined })
-  }
-  return createCategorySuggestionService({
-    enabled: true,
-    minimumConfidence: 0.8,
-    maxCandidates: 11,
-    adapter: {
-      decide: async ({ state, questions }) => {
-        const local = suggestLocalCategory({ transactionType: state.transactionType, description: state.description })
-        const categoryId = local.categoryId
-        const selected = categoryId === null ? 'other_or_uncertain' : Object.entries(questions.category.criteria).find(([, label]) => {
-          const canonical = CANONICAL_CATEGORIES.find(candidate => String(candidate.id) === categoryId)
-          return canonical !== undefined && label === (state.locale === 'vi' ? canonical.nameVi : canonical.nameEn)
-        })?.[0] ?? 'other_or_uncertain'
-        const criteriaIds = Object.keys(questions.category.criteria)
-        const otherIds = criteriaIds.filter(id => id !== selected)
-        const probabilities = Object.fromEntries(criteriaIds.map(id => [id, id === selected ? 0.94 : (0.06 / otherIds.length)]))
-        return {
-          answers: { category: { type: 'choice', choice: selected, confidence: local.confidence ?? 0, probabilities } },
-          model: 'campus-coin-local-category-index',
-          usage: { input_tokens: 0, output_tokens: 0 },
-        }
-      },
-    },
-  })
+  return createCategorySuggestionService({ enabled: false, minimumConfidence: null, maxCandidates: null, adapter: undefined })
+
 }
