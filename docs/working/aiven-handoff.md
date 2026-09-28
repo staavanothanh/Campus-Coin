@@ -9,8 +9,8 @@ Ghi hướng dẫn truy cập/query an toàn để xác minh kết nối. File n
 - Người dùng có endpoint MySQL Aiven và thông tin database mặc định `defaultdb`; username/password do người dùng tự nhập trong client.
 - Chưa xác minh kết nối, owner/service, nội dung database hoặc việc database đó là Campus Coin. `defaultdb` không đồng nghĩa với database/schema ứng dụng `campus_coin`.
 - DB handoff B ghi migrations `0001`–`0030` applied trên `campus_coin`, roles `cc_migrate`/`cc_runtime` provision, clone `campus_coin_clone` và app dùng provider admin; các ghi nhận này là báo cáo nhánh B và chưa được xác minh trong lần merge này.
-- Riêng current endpoint/defaultdb không có xác minh target, auth migrations `0004`/`0005` apply state, backup/restore hoặc grants. Không chạy migration, seed, test harness hoặc statement ghi trên endpoint này.
-- B chain có migrations `0001`–`0030`, trong đó `0004`/`0005` paths khác nội dung và history của A email/auth migration chain; baseline ADR ghi DDL relocation to `0031`/`0032`, nhưng files `0031`/`0032` are absent from B tree. Fresh schema compatibility remains unresolved; do not call either chain ready.
+- Read-only probe hiện tại trên `campus_coin_clone` xác nhận MySQL 8.4.8/TLS, rows `0001`–`0030` và `0031_create_oauth_challenges.sql`; local `0032_email_auth.sql` và `0033_auth_rate_limits.sql` khớp checksum của các rows `0004`/`0005` external nhưng chưa apply ở `0032`/`0033`.
+- Không chạy `db:migrate` trên target shared cho đến khi owner, grants, backup/restore và pending auth migration rollout được xác nhận.
 
 ## Kết nối bằng DBeaver
 

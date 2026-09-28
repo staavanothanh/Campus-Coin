@@ -5,9 +5,9 @@
 
 SET SESSION sql_mode = CONCAT(@@session.sql_mode, ',ERROR_FOR_DIVISION_BY_ZERO');
 
--- Tất cả 32 migration phải được ghi trong schema_migrations.
+-- Tất cả 33 migration phải được ghi trong schema_migrations.
 SET @n = (SELECT COUNT(*) FROM schema_migrations);
-DO 1 / (@n = 32);
+DO 1 / (@n = 33);
 
 -- Tối thiểu 14 bảng nghiệp vụ + schema_migrations.
 SET @n = (SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE());

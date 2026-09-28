@@ -55,16 +55,16 @@ Cách này tránh phải xóa `users` khi SMTP lỗi, nên không vướng khóa
 | `users` | migration `0001` của Developer B | Tài khoản, vai trò, trạng thái |
 | `sessions` | migration `0001` của Developer B | Phiên đăng nhập |
 | `auth_identities` | migration `0001` của Developer B | Google `sub` gắn với user theo ADR-0009 |
-| `auth_credentials` | migration `0031` | Hash và salt mật khẩu |
-| `email_otps` | migration `0031` | Hash OTP, mục đích, hạn dùng, số lần sai |
-| `auth_rate_limits` | migration `0032` | Bucket HMAC theo account/IP, số lần thử và thời hạn chặn |
+| `auth_credentials` | migration `0032` | Hash và salt mật khẩu |
+| `email_otps` | migration `0032` | Hash OTP, mục đích, hạn dùng, số lần sai |
+| `auth_rate_limits` | migration `0033` | Bucket HMAC theo account/IP, số lần thử và thời hạn chặn |
 
-File `0031`/`0032` tồn tại trong repository (auth DDL đã đổi số từ `0004`/`0005` — xem ADR-0009); việc apply trên DB hiện tại chưa được xác minh. Không chạy `db:migrate` cho đến khi target Campus Coin, owner, backup/restore và migration status được xác nhận theo `LUNA_HANDOFF_PROMPT.md`. `.env.example` chỉ liệt kê tên biến; không chứa mật khẩu hoặc secret.
+File `0031_create_oauth_challenges.sql`, `0032_email_auth.sql` và `0033_auth_rate_limits.sql` tồn tại trong repository; `0031` khớp row OAuth đã apply trên target, còn `0032`/`0033` chưa apply. Không chạy `db:migrate` cho đến khi target Campus Coin, owner, backup/restore và migration status được xác nhận theo `LUNA_HANDOFF_PROMPT.md`. `.env.example` chỉ liệt kê tên biến; không chứa mật khẩu hoặc secret.
 
 ## Kiểm chứng và giới hạn
 
 - Local `npm run typecheck`, `npm run build`, API validation và 14 unit/readiness tests đã pass trong worktree; bằng chứng đầy đủ nằm ở [`DELIVERY-PLAN.md`](../DELIVERY-PLAN.md).
-- Auth MySQL E2E và các suite MySQL đã được thêm, nhưng chưa chạy với database cô lập trong phiên này. `0031`/`0032` chưa được xác nhận apply trên DB đích.
+- Auth MySQL E2E và các suite MySQL đã được thêm, nhưng chưa chạy với database cô lập trong phiên này. `0032`/`0033` chưa được xác nhận apply trên DB đích.
 - Account/IP rate-limit, OTP expiry/attempts/cooldown/single-use, SMTP adapter timeout/retry, session/CSRF/IDOR và response handling đã có code. Hành vi DB phải được xác minh bằng job MySQL CI.
 - Google OIDC start/callback/link, state cookie, PKCE, nonce, verified email và provider discovery đã có code; cần test hẹp và live callback sau khi owner cấu hình OAuth client.
 - SMTP provider thật chưa được chọn/kiểm chứng; integration test dùng email adapter giả lập, không chứng minh gửi/nhận OTP thật.

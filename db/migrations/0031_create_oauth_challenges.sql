@@ -1,0 +1,9 @@
+CREATE TABLE IF NOT EXISTS oauth_challenges (
+  state VARCHAR(255) PRIMARY KEY,
+  nonce VARCHAR(255) NOT NULL,
+  code_verifier VARCHAR(255) NOT NULL,
+  code_challenge VARCHAR(255) NOT NULL,
+  redirect_uri TEXT NOT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  expires_at DATETIME NOT NULL
+);

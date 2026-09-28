@@ -24,15 +24,19 @@ Database `campus_coin` trên Aiven là shared: một migration chain khác đã 
 ## Phương án bị loại
 
 - **Sửa file `0001`/`0003`/`0004`/`0005` cho khớp checksum đã ghi:** phá lịch sử, vỡ fresh-install và CI.
-- **Move DDL `0004`/`0005` sang version mới (`0031`/`0032`):** vỡ thứ tự phụ thuộc (file `0006`+ cần parent index của `0004`/`0005` nhưng chạy trước), buộc procedure-guard phức tạp hai đường.
+- **Không move DDL domain `0004`/`0005` sang version mới (`0031`/`0032`)**: file `0006`+ cần các index/constraint của domain chain và phải chạy theo thứ tự. Auth DDL từng dùng số `0004`/`0005` được tách sang `0032`/`0033`; `0031` giữ đúng migration OAuth đã apply trên shared DB.
 - **UPDATE tay `schema_migrations`:** history surgery không review được, không tái hiện trên DB mới.
 - **DROP/recreate database:** shared DB còn tables và dữ liệu chain khác.
 - **Nhân bản DDL `0004`/`0005` vào migration mới giữ nguyên file cũ:** tạo hai nguồn sự thật cho cùng objects và lỗi duplicate trên DB fresh.
 
 ## Hệ quả
 
-`db/baselines.json` là code review được; CI fresh (không có slot external) vẫn chạy strict. Áp dụng lên Aiven cần provision `cc_migrate`/`cc_runtime`, apply `0006`–`0032` bằng migration role, review grants/trigger `DEFINER`, reconcile và restore rehearsal — các bước này vẫn operator-gated theo `docs/DB-RESTORE-RUNBOOK.md`.
+`db/baselines.json` là code review được; CI fresh (không có slot external) vẫn chạy strict. Áp dụng lên Aiven cần provision `cc_migrate`/`cc_runtime`, apply `0006`–`0033` bằng migration role, review grants/trigger `DEFINER`, reconcile và restore rehearsal — các bước này vẫn operator-gated theo `docs/DB-RESTORE-RUNBOOK.md`.
 
 ## Rủi ro và kiểm chứng
 
 Sai pin checksum hoặc khai external nhầm version sẽ hợp thức hóa drift lạ. Giảm thiểu: pin checksum lấy trực tiếp từ `schema_migrations` (read-only probe), đối chiếu DDL trước khi pin `historical`, unit test cho mọi nhánh accept/reject, và full gate MySQL phải xanh sau thay đổi.
+
+## Đính chính sau khi hợp nhất DevB (2026-09-28)
+
+Read-only probe trên database đang cấu hình ghi nhận `0031_create_oauth_challenges.sql` với checksum `224c88833ddc0a19cf2c2f40cec91a681dd7d511262d9ddd4ac31031576939db`. Main phải giữ nguyên migration này ở `0031`; email auth và rate-limit state dùng `0032_email_auth.sql` và `0033_auth_rate_limits.sql`. Đây là đổi số file local chưa apply, không sửa row đã apply hoặc cập nhật tay `schema_migrations`.

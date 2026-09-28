@@ -13,8 +13,9 @@ db/
 │   ├── 0004_idempotency_owner_key.sql
 │   ├── 0005_wallet_baseline_boundary.sql
 │   ├── ... (0006–0030: domain chain)
-│   ├── 0031_email_auth.sql          # auth DDL (slot 0004/0005 thuộc chain khác trên Aiven)
-│   └── 0032_auth_rate_limits.sql
+│   ├── 0031_create_oauth_challenges.sql # shared OAuth challenge state
+│   ├── 0032_email_auth.sql              # email/password + OTP auth DDL
+│   └── 0033_auth_rate_limits.sql
 ├── grants.example.sql     # Least-privilege template (chạy tay bởi DBA/provider)
 └── README.md
 src/
