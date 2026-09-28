@@ -119,9 +119,9 @@ function AccountsTab({ session, csrfToken, locale, t }: { session: Session; csrf
           const isSelf = String(user.id) === currentUserId;
           const blocked = isSelf && user.status === 'active';
           return <tr key={user.id}>
-            <td>#{String(user.id)}</td><td>{user.emailMasked}</td><td className="admin-report-title">{user.displayName || '—'}</td><td>{user.role}</td><td>{user.locale === 'vi' ? 'Tiếng Việt' : 'English'}</td>
+            <td className="admin-id">#{String(user.id)}</td><td className="admin-email">{user.emailMasked}</td><td className="admin-report-title">{user.displayName || '—'}</td><td><span className={`admin-role admin-role-${user.role}`}>{user.role}</span></td><td className="admin-locale">{user.locale === 'vi' ? 'Tiếng Việt' : 'English'}</td>
             <td><span className={`admin-status admin-status-${user.status}`}>{user.status === 'active' ? c.activeStatus : c.disabledStatus}</span></td>
-            <td>{formatDate(user.createdAt, locale)}</td>
+            <td style={{ whiteSpace: 'nowrap' }}>{formatDate(user.createdAt, locale)}</td>
             <td>{blocked ? <span className="muted">{c.selfBlocked}</span> : <button type="button" className="secondary-button" aria-label={`${user.status === 'active' ? c.disableAccount : c.enableAccount} #${user.id}`} onClick={() => setTarget(user)}>{user.status === 'active' ? c.disableAccount : c.enableAccount}</button>}</td>
           </tr>;
         })}</tbody>
@@ -142,7 +142,11 @@ function IssueQueue({ path, csrfToken, locale, t }: { path: string; csrfToken: s
   return <>
     {!error && <section className="panel">
       <div className="admin-metrics" aria-busy={loading}>
-        {[{ label: c.loaded, count: data.length }, { label: c.urgent, count: data.filter(issue => issue.priority === 'P0').length }, { label: c.triage, count: data.filter(issue => issue.status === 'in_triage').length }].map(metric => <div key={metric.label}><span>{metric.label}</span><strong>{loading && data.length === 0 ? t.loading : metric.count}</strong></div>)}
+        {[
+          { label: c.loaded, count: data.length, tone: 'neutral' },
+          { label: c.urgent, count: data.filter(issue => issue.priority === 'P0').length, tone: 'danger' },
+          { label: c.triage, count: data.filter(issue => issue.status === 'in_triage').length, tone: 'warning' },
+        ].map(metric => <div key={metric.label} className={`admin-metric admin-metric-${metric.tone}`}><span>{metric.label}</span><strong>{loading && data.length === 0 ? t.loading : metric.count}</strong></div>)}
       </div><p className="muted">{c.partial}</p>
     </section>}
     <section className="panel">
@@ -152,7 +156,7 @@ function IssueQueue({ path, csrfToken, locale, t }: { path: string; csrfToken: s
         <caption className="muted">{c.issues}</caption>
         <thead><tr><th scope="col">ID</th><th scope="col">{c.titleColumn}</th><th scope="col">{c.status}</th><th scope="col">{c.priority}</th><th scope="col">{c.created}</th><th scope="col">{c.detail}</th></tr></thead>
         <tbody>{data.map(issue => <tr key={issue.id}>
-          <td>#{String(issue.id)}</td><td className="admin-report-title">{issue.title}</td><td>{c[issue.status]}</td><td><span className={`admin-priority admin-priority-${issue.priority}`}>{issue.priority}</span></td><td>{formatDate(issue.createdAt, locale)}</td>
+          <td className="admin-id">#{String(issue.id)}</td><td className="admin-report-title">{issue.title}</td><td><span className={`admin-issue-status admin-issue-status-${issue.status}`}>{c[issue.status]}</span></td><td><span className={`admin-priority admin-priority-${issue.priority}`}>{issue.priority}</span></td><td style={{ whiteSpace: 'nowrap' }}>{formatDate(issue.createdAt, locale)}</td>
           <td><button type="button" className="secondary-button" aria-label={`${c.detail} #${issue.id}`} onClick={() => setSelected(issue.id)}>{c.detail}</button></td>
         </tr>)}</tbody>
       </table></div>
@@ -174,7 +178,7 @@ function AuditQueue({ locale, t }: { locale: Locale; t: Copy }) {
     {error && <div role="alert"><p>{t.unavailable}</p><button type="button" className="secondary-button" disabled={loading} onClick={() => void reload()}>{t.retry}</button></div>}
     <div className="table-responsive"><table className="data-table"><caption>{c.audit}</caption>
       <thead><tr><th scope="col">{c.created}</th><th scope="col">{c.action}</th><th scope="col">{c.outcome}</th></tr></thead>
-      <tbody>{data.map(event => <tr key={event.id}><td>{formatDate(event.createdAt, locale)}</td><td>{event.action}</td><td>{event.outcome === 'success' ? c.success : event.outcome === 'failure' ? c.failure : event.outcome}</td></tr>)}</tbody>
+      <tbody>{data.map(event => <tr key={event.id}><td style={{ whiteSpace: 'nowrap' }}>{formatDate(event.createdAt, locale)}</td><td className="admin-action">{event.action}</td><td><span className={`admin-outcome admin-outcome-${event.outcome === 'success' ? 'success' : 'failure'}`}>{event.outcome === 'success' ? c.success : event.outcome === 'failure' ? c.failure : event.outcome}</span></td></tr>)}</tbody>
     </table></div>
     {loading && <p role="status">{t.loading}</p>}
     {!loading && !error && data.length === 0 && <p className="empty-state">{c.emptyAudit}</p>}

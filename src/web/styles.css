@@ -622,9 +622,16 @@ h2 { margin-bottom: 7px; color: #0f172a; font-size: 17px; letter-spacing: -.02em
 .contact-item { display: flex; flex-direction: column; gap: 2px; margin-bottom: 12px; }
 .contact-item span { font-size: 11px; color: #8b928c; }
 .contact-item strong { font-size: 12px; color: #0f172a; }
+.feedback-form { display: flex; flex-direction: column; gap: 10px; }
 .feedback-form textarea { width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid #cbd5e1; background: #fff; font-family: inherit; font-size: 12px; color: #0f172a; resize: vertical; }
 .feedback-form textarea:focus { border-color: #f59e0b; outline: none; box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.18); }
+.feedback-form textarea:disabled { opacity: 0.7; }
+.feedback-form .primary-button { align-self: flex-end; }
+.feedback-form .muted { margin: 0; font-size: 11px; }
+.feedback-error { margin: 0; color: #b42318; font-size: 12px; font-weight: 600; }
 .feedback-success { display: flex; align-items: center; gap: 8px; padding: 12px; border-radius: 8px; background: #dceee3; color: #235c4c; font-size: 12px; font-weight: 600; }
+.theme-dark .feedback-error { color: #fca5a5; }
+.theme-dark .feedback-success { background: rgba(34, 197, 94, 0.16); color: #86efac; }
 
 /* --- Dark Mode Overrides for All New Screens (Galaxy Cosmic) --- */
 .theme-dark .modern-data-table th { border-bottom-color: rgba(139, 92, 246, 0.14); color: #94a3b8; }

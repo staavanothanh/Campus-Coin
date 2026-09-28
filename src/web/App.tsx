@@ -181,7 +181,13 @@ export function App() {
   }, []);
 
   useEffect(() => {
-    if (session) void loadDashboard(screen !== 'dashboard');
+    if (session?.user.role === 'admin' && !['admin', 'settings', 'help'].includes(screen)) {
+      setScreen('admin');
+    }
+  }, [session, screen]);
+
+  useEffect(() => {
+    if (session && session.user.role !== 'admin') void loadDashboard(screen !== 'dashboard');
   }, [session, screen]);
 
   async function signOut() {
@@ -246,11 +252,15 @@ export function App() {
         </div>
 
         <nav aria-label="Primary navigation">
+          {session.user.role !== 'admin' && (
+            <>
           <p className="nav-label">{t.workspace}</p>
           <NavItem icon={<LayoutDashboard size={18} />} label={t.dashboard} active={screen === 'dashboard'} onClick={() => { setScreen('dashboard'); setMenuOpen(false); }} />
           <NavItem icon={<CreditCard size={18} />} label={t.transactions} active={screen === 'transactions'} onClick={() => { setScreen('transactions'); setMenuOpen(false); }} />
           <NavItem icon={<WalletCards size={18} />} label={t.goals} active={screen === 'savings'} onClick={() => { setScreen('savings'); setMenuOpen(false); }} />
           <NavItem icon={<FileText size={18} />} label={t.reports} active={screen === 'reports'} onClick={() => { setScreen('reports'); setMenuOpen(false); }} />
+            </>
+          )}
           <p className="nav-label nav-label-spaced">{t.more}</p>
           {session.user.role === 'admin' && <NavItem icon={<CircleHelp size={18} />} label={t.admin} active={screen === 'admin'} onClick={() => { setScreen('admin'); setMenuOpen(false); }} />}
           <NavItem icon={<Settings size={18} />} label={t.settings} active={screen === 'settings'} onClick={() => { setScreen('settings'); setMenuOpen(false); }} />
@@ -370,7 +380,7 @@ export function App() {
           )}
           {screen === 'reports' && <ReportsScreen csrfToken={session.csrfToken} t={t} locale={locale} />}
           {screen === 'admin' && <AdminScreen session={session} csrfToken={session.csrfToken} t={t} locale={locale} />}
-          {screen === 'help' && <HelpScreen t={t} locale={locale} />}
+          {screen === 'help' && <HelpScreen t={t} locale={locale} csrfToken={session.csrfToken} role={session.user.role} />}
           {screen === 'settings' && (
             <SettingsScreen
               session={session}
