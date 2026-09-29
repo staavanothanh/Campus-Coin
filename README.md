@@ -1,22 +1,54 @@
 # Campus Coin
 
-Ứng dụng Web song ngữ cho sinh viên ghi nhận `income` và `payment` do người dùng tự nhập, theo dõi wallet, savings, budget và báo cáo deterministic.
+Campus Coin is a bilingual Vietnamese/English web application for student personal finance. Users record their own `income` and `payment` transactions, track a VND wallet, savings, budgets, monthly reports, and transaction history.
 
-Campus Coin không phải ngân hàng, không giữ tiền thật, không xử lý payment thật, không cho vay, không BNPL và không cung cấp tư vấn tài chính được chứng nhận.
+> **Status:** the application runtime is implemented in this repository. Production readiness for cloud database, SMTP, OAuth provider, backup/restore, and deployment still requires the corresponding operational gates.
 
-> Trạng thái hiện tại: đang chuẩn bị API contract và môi trường phát triển local. Chưa có application runtime hoàn chỉnh.
+Campus Coin is **not a bank**, does not hold real money, does not process real payments, does not provide loans or BNPL, and does not provide certified financial advice.
 
-## 1. Bắt đầu nhanh
+## Main features
 
-### Yêu cầu máy
+- Registration, email OTP verification, login, and password recovery.
+- Optional Google Sign-In through server-side OIDC; Google tokens are not stored and Gmail APIs are not used.
+- Opaque server-side sessions in secure cookies; owner scope always comes from the session.
+- VND wallet with an opening balance; payments are recorded only when the wallet has enough funds.
+- Append-only ledger with exactly two transaction types: `income` and `payment`.
+- Savings deposits/withdrawals are separate from the ledger and excluded from budgets.
+- 11 canonical categories: 4 income categories and 7 payment categories.
+- Custom categories cannot duplicate the meaning of canonical categories; referenced categories are never hard-deleted.
+- Per-category, per-month budgets; exceeding a budget shows a warning but does not block a wallet-sufficient payment.
+- Deterministic monthly reports using `Asia/Ho_Chi_Minh`, including cash flow and category breakdowns.
+- Pre-submit category suggestions through Luna (`gpt-6-luna`) via a server-only adapter with privacy redaction and manual fallback.
+- Responsive React/Vite UI, Vietnamese/English localization, light/dark themes, loading/error/accessibility states.
+- Admin area for issue/report triage, audit review, and least-privilege account status management.
 
-- Node.js `24.14.1` hoặc compatible LTS đã được Team Leader duyệt.
-- npm `11` hoặc compatible.
+### 11 canonical categories
+
+| Type | ID | Vietnamese | English |
+|---|---:|---|---|
+| Income | 1 | Lương | Salary |
+| Income | 2 | Trợ cấp | Allowance |
+| Income | 3 | Quà tặng | Gift |
+| Income | 4 | Thu nhập khác | Other income |
+| Payment | 5 | Ăn uống | Food & Dining |
+| Payment | 6 | Di chuyển | Transport |
+| Payment | 7 | Mua sắm | Shopping |
+| Payment | 8 | Giải trí | Entertainment |
+| Payment | 9 | Học tập | Education |
+| Payment | 10 | Nhà ở & Điện nước | Rent & Utilities |
+| Payment | 11 | Chi tiêu khác | Other payment |
+
+## Quick start
+
+### Requirements
+
+- Node.js `24.x`.
+- An npm version compatible with the lockfile.
 - Git.
-- Không dùng pnpm, Yarn hoặc Bun khi chưa có quyết định riêng.
-- Không cần database local cho bước contract hiện tại.
+- Isolated MySQL for local runtime and gated database tests.
+- Never use a production or shared database for local development/tests.
 
-Kiểm tra:
+Check versions:
 
 ```bash
 node --version
@@ -24,257 +56,215 @@ npm --version
 git --version
 ```
 
-### Cài dependency
-
-Tại root repository:
+### Install dependencies
 
 ```bash
 npm ci
 ```
 
-Nếu chưa có `package-lock.json` tương ứng, không dùng `npm install` tùy tiện để thay đổi dependency graph; báo integrator hoặc Team Leader trước.
-
-### Xác minh API contract
+### Create local configuration
 
 ```bash
-npm run api:validate
-npm run api:bundle
-npm run api:types
-npm run verify:docs
+copy .env.example .env
 ```
 
-Các artifact sinh ra:
+PowerShell alternative:
 
-```text
-artifacts/openapi.json
-artifacts/api.d.ts
+```powershell
+Copy-Item .env.example .env
 ```
 
-Không sửa tay hai file này. Nguồn duy nhất là [`docs/contracts/openapi.yaml`](docs/contracts/openapi.yaml).
+Fill local values in `.env`. **Never commit `.env` or print API keys/secrets to logs or chat.** The backend fails closed when required auth, SMTP, or database configuration is missing.
 
-### Trạng thái source runtime
+Current Luna profile:
 
-Hiện workspace mới có contract/tooling và tài liệu. Khi app runtime được tạo, scripts `dev`, `build`, `lint`, `typecheck` và test cụ thể phải được thêm vào `package.json` cùng implementation tương ứng; không coi script placeholder là môi trường chạy được.
-
-## 2. Cấu trúc project dự kiến
-
-```text
-.
-├── AGENTS.md                         # Quy tắc bắt buộc cho toàn codebase
-├── README.md                         # Hướng dẫn setup và workflow team
-├── package.json                      # Scripts và dependency canonical
-├── package-lock.json                 # Lockfile npm
-├── docs/
-│   ├── README.md                     # Bản đồ và thứ tự ưu tiên tài liệu
-│   ├── PRD.md                        # Phạm vi và acceptance sản phẩm
-│   ├── ARCHITECTURE.md               # Boundary kiến trúc
-│   ├── DOMAIN-MODEL.md               # Entity, formula, invariant tiền
-│   ├── AUTHENTICATION.md             # OAuth, session, CSRF, owner scope
-│   ├── AI-JEV.md                     # JEV/OpenRouter boundary
-│   ├── DELIVERY-PLAN.md              # Gate và trạng thái giao hàng
-│   ├── adr/                          # Quyết định khó đảo ngược
-│   ├── contracts/
-│   │   ├── openapi.yaml              # HTTP contract canonical
-│   │   ├── README.md                 # Quy tắc contract/generated files
-│   │   ├── API-REVIEW.md             # Risk review và constraint cần chốt
-│   │   └── TEAM-HANDOFF.md           # Handoff điều phối API
-│   └── working/                      # Handoff/replan/evidence quy trình
-├── artifacts/                        # Generated; không sửa tay
-│   ├── openapi.json
-│   └── api.d.ts
-├── src/                              # Application source sẽ được tạo sau
-│   ├── app/ hoặc routes/             # HTTP routes/pages/entrypoints
-│   ├── features/ hoặc modules/       # Feature/domain slices
-│   ├── domain/                       # Entity, value object, invariant, use case
-│   ├── application/                 # Orchestration và ports
-│   ├── infrastructure/              # DB, OAuth, OpenRouter, external adapters
-│   ├── components/                   # UI components dùng chung
-│   ├── hooks/                        # React hooks dùng chung
-│   ├── lib/                          # Utility không chứa money authority
-│   └── types/                        # Shared boundary types nếu cần
-├── tests/                            # Unit, integration, contract, E2E/smoke
-└── SRS_End-to-End Web Solutions/     # SRS nguồn; không sửa tùy tiện
+```env
+JEV_LOCAL_CATEGORY_SUGGESTION_ENABLED=false
+JEV_CATEGORY_SUGGESTION_ENABLED=false
+NGHIENAI_LLM_ENABLED=true
+NGHIENAI_API_KEY=<secret-local-only>
+NGHIENAI_BASE_URL=https://api.aixingialaire.shop/v1
+NGHIENAI_MINIMUM_CONFIDENCE=0.8
+NGHIENAI_MAX_CANDIDATES=10
 ```
 
-`src/` và `tests/` chưa được scaffold. Cấu trúc này là target architecture, không phải claim các thư mục runtime đã tồn tại.
+Luna receives only a redacted description, transaction type, locale, and candidate category labels. It cannot write transactions, change the wallet, calculate balances, or authorize payments. If Luna times out, hits quota, fails privacy checks, or returns an invalid schema, the UI falls back to manual category selection.
 
-## 3. Tài liệu cần đọc theo task
+### Run locally
 
-| Công việc | Đọc trước | Nguồn kiểm chứng |
-|---|---|---|
-| API/HTTP contract | `docs/contracts/openapi.yaml`, `docs/contracts/README.md` | `npm run api:validate` |
-| Auth/session | `docs/AUTHENTICATION.md`, ADR-0001/0002 | Auth/IDOR/CSRF tests |
-| Money/domain | `docs/DOMAIN-MODEL.md`, ADR-0005 | Transaction/reconciliation tests |
-| Kiến trúc | `docs/ARCHITECTURE.md` | Source boundary và integration tests |
-| Scope/gate | `docs/PRD.md`, `docs/DELIVERY-PLAN.md` | Acceptance/smoke evidence |
-| Quyết định mới | `docs/adr/README.md` | ADR lifecycle |
-| Handoff/quy trình | `docs/working/README.md` | Working evidence, không phải authority |
-
-Thứ tự ưu tiên khi có mâu thuẫn:
-
-1. Yêu cầu hiện hành của Team Leader.
-2. ADR đã chấp nhận.
-3. Invariant trong `DOMAIN-MODEL.md` và `AUTHENTICATION.md`.
-4. Canonical product/architecture/delivery docs.
-5. Working handoff và replan.
-
-## 4. Quy ước API bắt buộc
-
-- Prefix API: `/api/v1`.
-- `docs/contracts/openapi.yaml` là contract HTTP duy nhất.
-- Không tạo DTO/schema độc lập ở frontend và backend.
-- Generated types phải sinh từ OpenAPI.
-- Error code là locale-neutral; UI tự dịch message.
-- Browser dùng opaque server-side session cookie; không dùng JWT browser trong MVP.
-- Owner scope luôn lấy từ session; client không gửi owner authority.
-- State-changing request cần Origin/CSRF policy.
-- Money mutation cần `Idempotency-Key`.
-- Retry cùng idempotency key và cùng body phải trả kết quả đã lưu; body khác trả conflict.
-- Tiền là integer VND; không dùng floating point.
-- Ledger chỉ có `income` và `payment`; ledger immutable/append-only.
-- Wallet và savings là hai aggregate riêng.
-- Savings transfer không phải ledger transaction và không tính budget.
-- Budget overrun là warning, không authorize hoặc block payment khi wallet đủ.
-- List lớn dùng opaque keyset cursor; không yêu cầu exact `total`.
-- JEV backend-only, optional, default-off, typed contract, manual fallback; không tính/authorize/ghi tiền.
-
-## 5. Quy ước code
-
-- TypeScript strict khi toolchain hỗ trợ; tránh `any`, cast tùy tiện và non-null assertion.
-- Validate mọi input tại system boundary.
-- Route/controller chỉ parse, auth, validate, gọi service và serialize; không gọi database trực tiếp.
-- Domain không import SDK OpenRouter/TypeSafe.
-- Không mutation mặc định; không sửa object/array dùng chung nếu không cần.
-- Không nuốt lỗi, `catch` rỗng, fake data hoặc fallback im lặng.
-- Tên hàm dùng verb-noun; boolean dùng `is`, `has`, `can`, `should`.
-- Tránh magic number, N+1, unbounded query, `SELECT *`, deep offset và retry vô hạn.
-- Function/file phải nhỏ và có trách nhiệm rõ; không tạo second architecture cạnh pattern đã chọn.
-- Comment giải thích “vì sao”, invariant hoặc security trade-off; không ghi điều hiển nhiên.
-
-## 6. Domain và bảo mật
-
-Không được phá các bất biến sau:
-
-- Google OAuth-only; không local password, linking, OTP/reset hoặc Gmail inbox.
-- Session opaque server-side, expiry/revocation, CSRF/Origin và owner isolation.
-- Payment lock wallet, kiểm tra đủ tiền atomic; wallet không bao giờ âm.
-- Savings lock theo thứ tự wallet rồi savings.
-- Correction không update/delete ledger cũ; dùng append-only row có reason/reference/audit.
-- Category đã tham chiếu không hard-delete; disable/retire để giữ history.
-- Period/report dùng `Asia/Ho_Chi_Minh`.
-- Admin không sửa ledger, balance hoặc audit; role phải least privilege.
-- Không log OAuth token, cookie, password, OTP, secret, raw JEV, raw PII hoặc financial detail không cần thiết.
-
-Không thêm admin bootstrap, role provisioning, correction authority, incident read-only switch hoặc JEV authority mới nếu chưa có contract/review/ADR phù hợp.
-
-## 7. Workflow team
-
-### Trước khi code
-
-1. Đọc `AGENTS.md`.
-2. Đọc canonical docs sở hữu boundary.
-3. Xác định owner, filescope, acceptance và merge gate.
-4. Nếu thay đổi API, sửa OpenAPI trước implementation.
-5. Kiểm tra consumer/provider affected.
-
-### Trong khi code
-
-- Làm task nhỏ, một owner, không overlap writes.
-- Không sửa ADR/architecture/SRS ngoài scope được duyệt.
-- Không sửa generated artifacts bằng tay.
-- Ghi blocker và assumption vào handoff; không biến assumption thành fact.
-- Chạy verification hẹp sau mỗi boundary change.
-
-### Trước khi giao
-
-- Contract validate.
-- Generated artifacts regenerate được.
-- Test/verification liên quan pass.
-- Security và owner scope được review.
-- `git diff --check` pass.
-- Diff không chứa secret, token, raw PII, debug log, fake fallback hoặc TODO implementation.
-- Báo đúng command đã chạy và kết quả thật.
-
-## 8. Testing và verification
-
-Khi runtime tồn tại, tối thiểu cần:
-
-- Unit: domain formula, amount/date/category/idempotency rules.
-- Integration: API, session, CSRF, owner scope, repository, MySQL transaction/migration.
-- Contract: provider response và consumer fixtures cùng validate từ OpenAPI.
-- E2E/smoke: Google login, onboarding, income, payment success/failure, concurrent payment, savings, budget warning, report, locale/theme, admin least privilege và JEV-off.
-- Regression test cho bug đã sửa.
-
-Chạy test hẹp trước; chỉ chạy full suite khi blueprint step, CI gate hoặc Team Leader yêu cầu.
-
-## 9. Environment và secrets
-
-- Không commit `.env`, `.env.*`, Vercel local state, secret hoặc credential.
-- Chỉ commit `.env.example` nếu không chứa giá trị thật.
-- Preview/staging không dùng production secret/database.
-- OpenRouter key chỉ ở server environment.
-- Không in secret trong startup validation, log hoặc error response.
-- Database production phải là cloud MySQL sau TLS/connectivity/backup/restore gate; không dùng local DB làm production fallback.
-
-## 10. Lệnh thường dùng
+Run the API and frontend together:
 
 ```bash
-npm ci
-npm run api:validate
-npm run api:bundle
-npm run api:types
-npm run verify:docs
-git diff --check
+npm run dev
 ```
 
-`npm run dev` chạy API (`:3000`) và frontend Vite (`:5173`) cùng lúc. Backend yêu cầu `.env` được cấu hình với auth secrets, SMTP sandbox, và database MySQL cô lập, đã migrate; thiếu cấu hình thì backend sẽ thoát thay vì để proxy lỗi kết nối.
+- API: `http://127.0.0.1:3000`
+- Web: `http://127.0.0.1:5173`
+- Vite proxies `/api/*` to the local API.
 
-Chạy riêng frontend không khởi động API. Các request `/api/*` cần backend trên `127.0.0.1:3000`; nếu chỉ muốn giao diện tĩnh, dùng lệnh này:
+Run only the frontend:
 
 ```bash
 npm run dev:web
 ```
 
-Chạy riêng backend sau khi cấu hình `.env`. Nếu đổi `PORT`, cần cập nhật Vite proxy trong `vite.config.ts`; lệnh `npm run dev` giữ API ở cổng 3000 để proxy hoạt động.
+Run only the API:
 
 ```bash
 npm run dev:api
 ```
 
-Với MySQL local disposable, `CAMPUS_COIN_DB_SSL=disabled` chỉ được chấp nhận cho loopback. Không dùng database/credentials production.
+Running the frontend alone does not start the API; `/api/*` requests still require the backend on port `3000`.
 
-Kiểm tra cấu hình DB/migration trước khi khởi động backend:
+## Verification commands
 
-```bash
-npm run db:preflight
-```
-
-Các lệnh khác:
+### Typecheck and build
 
 ```bash
+npm run typecheck
 npm run build
 npm run lint
-npm run typecheck
+```
+
+The current `lint` script runs the TypeScript compiler (`tsc --noEmit`).
+
+### Tests
+
+The default test command uses Node's test runner with `tsx`:
+
+```bash
 npm test
 ```
 
+Useful focused suites:
 
+```bash
+npm run test -- test/application/jev-category-suggestion.test.js
+npm run test -- test/provider-contract/nghienai-gpt-6-luna.test.js
+npm run test -- test/provider-contract/nghienai-category.test.js
+npm run test -- test/domain/category-taxonomy.test.ts
+npm run test -- test/web/jev-suggestion.test.ts
+```
 
-## 11. Commit và release
+Provider contract tests use fake `fetch` and do not send real requests. A live Luna smoke test uses synthetic data only, requires a valid API key, and should not be run as a routine test.
 
-- Không commit, push, tạo PR hoặc deploy nếu user chưa yêu cầu rõ.
-- Commit message viết bằng tiếng Việt có dấu; path, identifier và command giữ nguyên.
-- Mọi commit phải nêu `Why?`, `What change?` và `Testing` nếu đã chạy kiểm tra.
-- Release chỉ được gọi là ready khi auth, owner scope, domain invariant, restore, security, logs, rollback và production smoke có evidence.
-- JEV chưa đạt probe vẫn có thể launch với JEV off và manual category picker.
+### API contract and generated artifacts
 
-## 12. Liên kết chính
+```bash
+npm run api:validate
+npm run api:bundle
+npm run api:types
+npm run verify:docs
+```
 
-- [AGENTS.md](AGENTS.md)
-- [Bản đồ tài liệu](docs/README.md)
+The only contract source is [`docs/contracts/openapi.yaml`](docs/contracts/openapi.yaml). The following files are generated and must not be edited manually:
+
+- `artifacts/openapi.json`
+- `artifacts/api.d.ts`
+
+### Database and migrations
+
+```bash
+npm run db:preflight
+npm run db:status
+npm run db:migrate
+npm run db:datatest
+```
+
+`db:preflight` is read-only. Database tests must use an isolated/disposable MySQL instance with `CAMPUS_COIN_TEST_DB=1`; do not use Aiven `defaultdb`, a production database, or a shared schema for create/drop operations.
+
+Migrations are forward-only, checksummed, and have no `migrate down`. Never edit an applied migration; use a new migration or restore according to the runbook.
+
+## Runtime architecture
+
+```text
+React/Vite browser
+        │
+        ▼
+Node API / Vercel Function
+  validation · session · Origin/CSRF · owner scope · idempotency
+        │
+        ├── Application services
+        │     wallet · ledger · savings · category · budget · report · issue · admin
+        │
+        ├── Provider adapters
+        │     SMTP · Google OIDC · Luna category suggestion
+        │
+        └── Cloud/MySQL persistence
+              repositories · locks · audit · append-only boundaries
+```
+
+Local entrypoint: `src/local-server.ts`.
+
+Vercel entrypoint: `api/v1/[...path].ts`.
+
+Vercel builds with `npm run typecheck && npm run build && npm run api:validate`, serves the frontend from `dist`, and configures the API function with a 60-second maximum duration.
+
+## Important domain and security rules
+
+- Money is integer VND; floating point is not used.
+- Committed ledger and audit records are immutable/append-only.
+- `income` and `payment` are the only transaction types.
+- The wallet is authoritative for payments; insufficient-funds payments are rejected atomically.
+- Savings is a separate aggregate and locks wallet before savings.
+- Budget overrun is a warning; it does not authorize a payment.
+- Mutation retries require the same `Idempotency-Key`; a different body returns a conflict.
+- Owner IDs are never trusted from client input; the server session is authoritative.
+- Mutations require a valid Origin and CSRF policy; responses/redirects use `Cache-Control: no-store, private`.
+- Never log passwords, OTPs, cookies, OAuth tokens, API keys, raw PII, raw provider responses, or unnecessary financial details.
+- Referenced categories are disabled/retired instead of hard-deleted to preserve history.
+
+## Repository layout
+
+```text
+.
+├── src/
+│   ├── application/       # Use cases and orchestration
+│   ├── api/               # API boundary and validation
+│   ├── domain/            # Money, period, taxonomy, profile types
+│   ├── features/auth/     # Auth, OTP, session, CSRF, rate limits
+│   ├── infrastructure/   # MySQL, repositories, SMTP, OAuth, providers
+│   └── web/               # React UI, screens, components, hooks
+├── api/v1/                # Vercel Node function adapter
+├── db/migrations/         # Forward-only SQL migrations
+├── artifacts/             # Generated OpenAPI bundle/types
+├── docs/                  # Product, architecture, security, ADRs, runbooks
+├── test/                  # Unit, integration, contract, DB-gated tests
+├── tests/                 # Additional auth/startup/support tests
+├── datatest/              # SQL datatest harness
+├── public/                # Static assets
+├── .env.example           # Secret-free environment template
+└── vercel.json            # Deployment/build/routing configuration
+```
+
+## Documentation
+
+- [Documentation map](docs/README.md)
+- [PRD](docs/PRD.md)
+- [Architecture](docs/ARCHITECTURE.md)
+- [Domain model](docs/DOMAIN-MODEL.md)
+- [Authentication and security](docs/AUTHENTICATION.md)
+- [AI/Luna category boundary](docs/AI-JEV.md)
+- [Delivery plan and gates](docs/DELIVERY-PLAN.md)
+- [Current status](docs/CURRENT-STATUS.md)
 - [API contract](docs/contracts/openapi.yaml)
-- [Quy tắc API contract](docs/contracts/README.md)
-- [API risk review](docs/contracts/API-REVIEW.md)
-- [API team handoff](docs/contracts/TEAM-HANDOFF.md)
+- [Database/staging testing](docs/DB-STAGING-TESTING.md)
 - [ADR index](docs/adr/README.md)
-- [Delivery plan](docs/DELIVERY-PLAN.md)
+- [Vietnamese README](README.md)
+- [English documentation index](docs_en/README.en.md)
+
+## Scope and responsibility
+
+The repository contains runtime code and local/CI test coverage, but it does not by itself prove production readiness. Before deployment, obtain separate evidence for:
+
+- the correct cloud MySQL target, TLS, grants, backup/restore, and reconciliation;
+- the SMTP provider, bounded timeout/retry behavior, and redacted logs;
+- live Google OAuth login/link flows if enabled;
+- Vercel environment/secrets, preview smoke tests, and rollback;
+- accessibility/browser compatibility and production monitoring.
+
+Do not infer production readiness from a passing build, a healthy endpoint, or the existence of a configuration file alone.
+
+## License
+
+No repository license has been published yet.
