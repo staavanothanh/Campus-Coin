@@ -136,7 +136,7 @@ const ADMIN_FAQS: FaqItem[] = [
   }
 ];
 
-const SUPPORT_EMAIL = 'support@campuscoin.edu.vn';
+const SUPPORT_EMAIL = 'meoluoitt1@gmail.com';
 
 export function HelpScreen({ t, locale, csrfToken, role }: HelpScreenProps) {
   const isVi = locale === 'vi';
@@ -177,7 +177,7 @@ export function HelpScreen({ t, locale, csrfToken, role }: HelpScreenProps) {
     }
   }
 
-  const supportMailto = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(isVi ? 'Hỗ trợ Campus Coin' : 'Campus Coin support')}`;
+  const supportMailto = 'mailto:meoluoitt1@gmail.com';
 
   return (
     <div className="help-page">
