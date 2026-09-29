@@ -3,6 +3,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import { handleIssueRoute } from '../api/issue-routes.ts';
 import type { IssueActor } from '../application/issue.service.ts';
 import { listAdminAuditLogs, getAdminStats, listAdminUsers, setAdminUserStatus, getAdminMetrics } from '../application/admin.service.ts';
+import { getWallet } from '../application/wallet.service.ts';
 import { getPool } from '../infrastructure/db/pool.ts';
 import { assertSchemaReady } from '../infrastructure/db/readiness.js';
 import { updateUserPreferences } from '../application/user.service.ts';
@@ -238,8 +239,14 @@ export async function handleRequest(
         if (path === '/api/v1/auth/reset-password') return send(res, 200, { data: await resetPassword(body, ip) });
         if (path === '/api/v1/auth/login') {
           const result = await login(body, ip);
+          const wallet = await getWallet(getPool(), Number(result.user.id));
           return send(res, 200, {
-            data: { user: result.user, csrfToken: result.csrfToken, googleLinked: await hasGoogleIdentity(result.user.id) },
+            data: {
+              user: result.user,
+              csrfToken: result.csrfToken,
+              googleLinked: await hasGoogleIdentity(result.user.id),
+              walletInitialized: wallet?.initialized === true,
+            },
           }, cookie(result.token));
         }
         if (path === '/api/v1/auth/logout') {
@@ -323,7 +330,15 @@ export async function handleRequest(
     if (method === 'GET' && path === '/api/v1/auth/session') {
       const user = token ? await getSession(token) : null;
       if (!user) throw new AppError(401, 'UNAUTHORIZED', 'Bạn chưa đăng nhập');
-      return send(res, 200, { data: { user, csrfToken: await getCsrf(token), googleLinked: await hasGoogleIdentity(user.id) } });
+      const wallet = await getWallet(getPool(), Number(user.id));
+      return send(res, 200, {
+        data: {
+          user,
+          csrfToken: await getCsrf(token),
+          googleLinked: await hasGoogleIdentity(user.id),
+          walletInitialized: wallet?.initialized === true,
+        },
+      });
     }
 
     if (method === 'GET' && path === '/api/v1/auth/csrf') {

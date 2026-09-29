@@ -822,6 +822,8 @@ export interface components {
             csrfToken: string;
             /** @description Cho biết tài khoản hiện tại đã kết nối Google hay chưa */
             googleLinked: boolean;
+            /** @description Cho biết user đã khởi tạo ví (số dư ban đầu) hay chưa */
+            walletInitialized: boolean;
         };
         SessionResponse: {
             data: components["schemas"]["Session"];

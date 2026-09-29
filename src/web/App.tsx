@@ -625,7 +625,7 @@ function DashboardView({
     <div className="dashboard-grid">
       <section className="panel activity-panel">
         <div className="panel-heading">
-          <div><h2>{t.recent}</h2><p className="muted">{t.noData}</p></div>
+          <div><h2>{t.recent}</h2></div>
         </div>
         <div className="transaction-list">
           {transactions.length ? transactions.map((transaction) => (

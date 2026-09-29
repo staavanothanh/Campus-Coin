@@ -165,10 +165,13 @@ if (!ENABLED) {
     assert.match(login.headers.get('set-cookie') ?? '', /Secure/);
     assert.match(login.headers.get('set-cookie') ?? '', /Max-Age=86400/);
     assert.equal(typeof sessionData.csrfToken, 'string');
+    assert.equal(typeof sessionData.walletInitialized, 'boolean', 'session exposes whether the wallet is initialized');
 
     const session = await call('GET', '/api/v1/auth/session', { cookie, ip });
     assert.equal(session.status, 200);
-    const user = (await session.json()).data.user;
+    const sessionPayload = (await session.json()).data;
+    assert.equal(typeof sessionPayload.walletInitialized, 'boolean');
+    const user = sessionPayload.user;
     assert.equal(user.email, email);
     const [sessionRows] = await getPool().execute<(RowDataPacket & { last_seen_at: Date | string | null })[]>(
       'SELECT last_seen_at FROM sessions WHERE token_hash = ?',
