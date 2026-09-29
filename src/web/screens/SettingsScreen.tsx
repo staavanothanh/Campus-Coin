@@ -164,7 +164,9 @@ export function SettingsScreen({
               <span>{user?.email || 'user@campus.edu'}</span>
               <span className="verified-chip">
                 <Check size={11} strokeWidth={3} />
-                Google SSO
+                {session?.googleLinked
+                  ? 'Google'
+                  : isVi ? 'Email đã xác minh' : 'Email verified'}
               </span>
             </p>
           </div>
@@ -250,7 +252,7 @@ export function SettingsScreen({
 
             <div className="settings-field">
               <div className="field-header">
-                <label>{isVi ? 'Email tài khoản Google' : 'Google Account Email'}</label>
+                <label>{isVi ? 'Email tài khoản' : 'Account email'}</label>
                 <span className="readonly-badge">
                   <Lock size={11} />
                   {isVi ? 'Cố định' : 'Read-only'}
@@ -469,8 +471,16 @@ export function SettingsScreen({
             <div className="security-badge-item">
               <div className="sec-icon"><Sparkles size={16} /></div>
               <div>
-                <strong>{isVi ? 'Xác thực Google' : 'Google Authentication'}</strong>
-                <p>{isVi ? 'OAuth 2.0 bảo mật cao' : 'OAuth 2.0 verified'}</p>
+                <strong>
+                  {session?.googleLinked
+                    ? isVi ? 'Xác thực Google' : 'Google Authentication'
+                    : isVi ? 'Xác thực email' : 'Email Authentication'}
+                </strong>
+                <p>
+                  {session?.googleLinked
+                    ? 'OAuth 2.0'
+                    : isVi ? 'Email + mật khẩu + OTP' : 'Email + password + OTP'}
+                </p>
               </div>
             </div>
 

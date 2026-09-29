@@ -33,6 +33,7 @@ export interface User {
 export interface Session {
   user: User;
   walletInitialized?: boolean;
+  googleLinked?: boolean;
   csrfToken: string;
 }
 

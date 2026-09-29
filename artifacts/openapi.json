@@ -3104,7 +3104,8 @@
         "required": [
           "user",
           "csrfToken",
-          "googleLinked"
+          "googleLinked",
+          "walletInitialized"
         ],
         "properties": {
           "user": {
@@ -3117,6 +3118,10 @@
           "googleLinked": {
             "type": "boolean",
             "description": "Cho biết tài khoản hiện tại đã kết nối Google hay chưa"
+          },
+          "walletInitialized": {
+            "type": "boolean",
+            "description": "Cho biết user đã khởi tạo ví (số dư ban đầu) hay chưa"
           }
         }
       },
