@@ -132,7 +132,6 @@ export function createMysqlHarness(): MysqlHarness {
     await admin.query(`GRANT INSERT ON \`${database}\`.categories TO ${account}`);
     await admin.query(`GRANT INSERT, UPDATE ON \`${database}\`.savings_accounts TO ${account}`);
     await admin.query(`GRANT SELECT ON \`${database}\`.users TO ${account}`);
-    await admin.query(`GRANT UPDATE (gender) ON \`${database}\`.users TO ${account}`);
     const readableTables = [
       "categories", "ledger_transactions", "mutation_idempotency", "budgets", "wallet_accounts", "savings_accounts",
       "savings_transfers", "issues",
@@ -140,6 +139,24 @@ export function createMysqlHarness(): MysqlHarness {
     for (const table of readableTables) {
       await admin.query(`GRANT SELECT ON \`${database}\`.\`${table}\` TO ${account}`);
     }
+  }
+
+  /**
+   * Cột hồ sơ `users.gender` chỉ tồn tại từ migration 0034, nhưng migration 0035
+   * lại UPDATE cột này. Cấp UPDATE(gender) sau mỗi migration khi cột đã tồn tại —
+   * tránh grant trước 0034 (gây ER_BAD_FIELD_ERROR) mà vẫn kịp trước 0035.
+   */
+  async function grantMigrationUserProfileColumnPrivileges(database: string, username: string): Promise<void> {
+    if (admin === null) throw new Error("harness admin connection missing");
+    const [rows] = (await admin.query(
+      `SELECT COUNT(*) AS count FROM information_schema.COLUMNS
+       WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'users' AND COLUMN_NAME = 'gender'`,
+      [database],
+    )) as [{ count: number | string }[], unknown];
+    const count = rows[0] ? Number(rows[0].count) : 0;
+    if (count === 0) return;
+    const account = `'${username}'@'%'`;
+    await admin.query(`GRANT UPDATE (gender) ON \`${database}\`.users TO ${account}`);
   }
 
   /**
@@ -256,6 +273,7 @@ export function createMysqlHarness(): MysqlHarness {
         await grantMigrationDataPrivileges(dbName, migrationUser);
         for (const file of migrations.slice(1)) {
           await applyMigrationWithDiagnostics(mig, file);
+          await grantMigrationUserProfileColumnPrivileges(dbName, migrationUser);
         }
         await grantMigrationTriggerColumnPrivileges(dbName, migrationUser);
       } finally {
