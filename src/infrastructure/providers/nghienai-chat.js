@@ -43,7 +43,9 @@ function buildEndpoint(baseUrl) {
     throw configurationError()
   }
 
-  parsedUrl.pathname = `${parsedUrl.pathname.replace(/\/+$/, '')}/chat/completions`
+  const normalizedPath = parsedUrl.pathname.replace(/\/+$/, '')
+  const providerPath = normalizedPath === '' ? '/v1' : normalizedPath
+  parsedUrl.pathname = `${providerPath}/chat/completions`
   parsedUrl.search = ''
   parsedUrl.hash = ''
   return parsedUrl.toString()
@@ -154,7 +156,6 @@ export function createNghienAiChatAdapter({
   const endpoint = buildEndpoint(baseUrl)
   const requestTimeoutMs = validateTimeout(timeoutMs)
   void logger
-
 
   return Object.freeze({
     complete: async ({ messages } = {}) => {

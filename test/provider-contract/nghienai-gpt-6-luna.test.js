@@ -67,6 +67,18 @@ describe('NghienAI gpt-6-luna provisional OpenAI-compatible HTTP contract', () =
     assert.equal(request.options.headers['content-type'], 'application/json')
     assert.deepEqual(JSON.parse(request.options.body), { model, messages })
   })
+  it('normalizes a configured provider root URL to the v1 Chat Completions path', async () => {
+    let requestUrl
+    const client = await createNghienAdapter({
+      baseUrl: 'https://api.aixingialaire.shop',
+      fetchImpl: async (url) => {
+        requestUrl = url
+        return jsonResponse(chatCompletion())
+      },
+    })
+    await client.complete({ messages })
+    assert.equal(requestUrl, `${baseUrl}/chat/completions`)
+  })
   it('pins gpt-6-luna by default and rejects unapproved model overrides', async () => {
     const createAdapter = await loadAdapter(adapterModule, 'createNghienAiChatAdapter')
     assert.throws(
